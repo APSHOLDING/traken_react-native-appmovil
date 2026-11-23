@@ -26,8 +26,17 @@ import EditarListScreen from '../screens/EditarListScreen';
 import EditarOrdenScreen from '../screens/EditarOrdenScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import ComingSoonScreen from '../screens/ComingSoonScreen';
+import QrHistListScreen from '../screens/QrHistListScreen';
+import QrHistDetailScreen from '../screens/QrHistDetailScreen';
+import IncidenciasScListScreen from '../screens/IncidenciasScListScreen';
+import SlaListScreen from '../screens/SlaListScreen';
+import SlaFormScreen from '../screens/SlaFormScreen';
+import PreregOrdersListScreen from '../screens/PreregOrdersListScreen';
+import PreregOrderDetailScreen from '../screens/PreregOrderDetailScreen';
+import PreregQrDisplayScreen from '../screens/PreregQrDisplayScreen';
+import PreregScanScreen from '../screens/PreregScanScreen';
 import { colors } from '../theme/colors';
-import type { ExistingPaxDTO } from '../api/client';
+import type { ExistingPaxDTO, PreregLookupComp } from '../api/client';
 
 export type OrderMenuParams = {
   folio: number;
@@ -43,13 +52,24 @@ export type AddTransportParams = OrderMenuParams & { direction: 'in' | 'out' };
 export type EditPaxParams = OrderMenuParams & { pax: ExistingPaxDTO };
 export type DelayParams = OrderMenuParams;
 
+/** Datos de un pre-registro escaneado por QR, para pre-llenar AddPax (ver PreregScanScreen). */
+export type PreregPrefill = {
+  preregId: number;
+  name: string;
+  voucher: string;
+  comps: PreregLookupComp[];
+  idHotel: number | null;
+  hotelName: string | null;
+};
+export type AddPaxParams = OrderMenuParams & { prefill?: PreregPrefill };
+
 export type RootStackParamList = {
   Login: undefined;
   Home: undefined;
   CreateOrder: undefined;
   OpenOrders: undefined;
   OrderMenu: OrderMenuParams;
-  AddPax: OrderMenuParams;
+  AddPax: AddPaxParams;
   AddTransport: AddTransportParams;
   EditPaxList: OrderMenuParams;
   EditPax: EditPaxParams;
@@ -65,6 +85,15 @@ export type RootStackParamList = {
   EditarOrden: { folio: number; idAirport: number; folioDisplay: string };
   Notifications: undefined;
   ComingSoon: { title: string; icon?: ComponentProps<typeof Ionicons>['name'] };
+  QrHistList: undefined;
+  QrHistDetail: { folio: number; idAirport: number; folioDisplay: string };
+  IncidenciasSc: undefined;
+  SlaList: undefined;
+  SlaForm: { folio: number; idAirport: number; folioDisplay: string };
+  PreregOrdersList: undefined;
+  PreregOrderDetail: { folio: number; idAirport: number; folioDisplay: string };
+  PreregQrDisplay: { folio: number; idAirport: number; folioDisplay: string; token: string };
+  PreregScan: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -110,6 +139,15 @@ export default function RootNavigator() {
             <Stack.Screen name="EditarOrden" component={EditarOrdenScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="ComingSoon" component={ComingSoonScreen} />
+            <Stack.Screen name="QrHistList" component={QrHistListScreen} />
+            <Stack.Screen name="QrHistDetail" component={QrHistDetailScreen} />
+            <Stack.Screen name="IncidenciasSc" component={IncidenciasScListScreen} />
+            <Stack.Screen name="SlaList" component={SlaListScreen} />
+            <Stack.Screen name="SlaForm" component={SlaFormScreen} />
+            <Stack.Screen name="PreregOrdersList" component={PreregOrdersListScreen} />
+            <Stack.Screen name="PreregOrderDetail" component={PreregOrderDetailScreen} />
+            <Stack.Screen name="PreregQrDisplay" component={PreregQrDisplayScreen} />
+            <Stack.Screen name="PreregScan" component={PreregScanScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

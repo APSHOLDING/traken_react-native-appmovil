@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -67,7 +67,7 @@ function makePassenger(fSalida: string, hora: string): PassengerForm {
  * completo por cada persona cuando comparten habitacion.
  */
 export default function AddPaxScreen({ route, navigation }: Props) {
-  const { folio, idAirport, folioDisplay, iata, typeAirline } = route.params;
+  const { folio, idAirport, folioDisplay, iata, typeAirline, prefill } = route.params;
 
   const showOcupation = typeAirline === 'ep' || (typeAirline === 'all' && idAirport === 14);
   const showMeals = typeAirline === 'ep';
@@ -77,6 +77,8 @@ export default function AddPaxScreen({ route, navigation }: Props) {
   const [idHotel, setIdHotel] = useState<number | null>(null);
   const [ocupation, setOcupation] = useState('');
   const [passengers, setPassengers] = useState<PassengerForm[]>([makePassenger('', '')]);
+  const [prefillActive, setPrefillActive] = useState(!!prefill);
+  const prefillAppliedRef = useRef(false);
 
   const {
     data: hotelData,
@@ -102,6 +104,32 @@ export default function AddPaxScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (!hotelData) return;
     if (hotelData.hotels.length === 1) setIdHotel(hotelData.hotels[0].id);
+
+    if (prefill && !prefillAppliedRef.current) {
+      prefillAppliedRef.current = true;
+      const titular: PassengerForm = {
+        ...makePassenger(hotelData.defaultFSalida, hotelData.defaultHora),
+        name: prefill.name,
+        voucher: prefill.voucher,
+      };
+      const comps: PassengerForm[] = prefill.comps.map((c) => {
+        const base = makePassenger(hotelData.defaultFSalida, hotelData.defaultHora);
+        const type: PaxType = c.type === 'nino' || c.type === 'infante' ? c.type : 'adulto';
+        return {
+          ...base,
+          name: c.name,
+          type,
+          ageC: type === 'nino' && c.age != null ? c.age : base.ageC,
+          ageI: type === 'infante' && c.age != null ? c.age : base.ageI,
+        };
+      });
+      setPassengers([titular, ...comps]);
+      if (prefill.idHotel && hotelData.hotels.some((h) => h.id === prefill.idHotel)) {
+        setIdHotel(prefill.idHotel);
+      }
+      return;
+    }
+
     setPassengers([makePassenger(hotelData.defaultFSalida, hotelData.defaultHora)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelData]);
@@ -166,6 +194,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
           onPress: () => {
             setOcupation('');
             setPassengers([makePassenger(defaultFSalida, defaultHora)]);
+            setPrefillActive(false);
             load();
           },
         },
@@ -210,6 +239,20 @@ export default function AddPaxScreen({ route, navigation }: Props) {
                   <Ionicons name="cloud-offline-outline" size={16} color="#fde68a" />
                   <Text style={styles.offlineBannerText}>
                     Sin conexión: mostrando la disponibilidad guardada el {formatSavedAt(offlineSince)}.
+                  </Text>
+                </View>
+              )}
+
+              {prefillActive && prefill && (
+                <View style={styles.prefillBanner}>
+                  <Ionicons name="qr-code-outline" size={16} color="#67e8f9" />
+                  <Text style={styles.prefillBannerText}>
+                    Datos precargados desde el pre-registro por QR ({1 + prefill.comps.length}{' '}
+                    {1 + prefill.comps.length === 1 ? 'persona' : 'personas'}).
+                    {prefill.idHotel && idHotel === prefill.idHotel
+                      ? ` Hotel: ${prefill.hotelName ?? ''}.`
+                      : ' Elige el hotel (el asignado ya no tiene habitaciones disponibles).'}{' '}
+                    Revisa y guarda.
                   </Text>
                 </View>
               )}
@@ -468,6 +511,19 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   offlineBannerText: { color: '#fde68a', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  prefillBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(103,232,249,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(103,232,249,0.35)',
+    borderRadius: radii.input,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 14,
+  },
+  prefillBannerText: { color: '#67e8f9', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
   noRooms: { color: colors.textMuted, fontSize: 13, marginBottom: 8 },
   divider: { height: 1, backgroundColor: colors.cardBorder, marginTop: 20, marginBottom: 14 },
   sectionTitle: { color: colors.white, fontWeight: '800', fontSize: 13.5, marginBottom: 10 },

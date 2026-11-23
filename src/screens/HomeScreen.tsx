@@ -134,6 +134,38 @@ export default function HomeScreen({ navigation }: Props) {
       gradient: ['#0891b2', '#0e7490'],
       onPress: () => navigation.navigate('Vuelos'),
     },
+    {
+      key: 'qrHist',
+      label: 'Historial de QR',
+      icon: 'qr-code-outline',
+      gradient: ['#4338ca', '#3730a3'],
+      onPress: () => navigation.navigate('QrHistList'),
+    },
+    {
+      key: 'sla',
+      label: 'SLA de Operaciones',
+      icon: 'timer-outline',
+      gradient: ['#0f766e', '#115e59'],
+      onPress: () => navigation.navigate('SlaList'),
+    },
+    {
+      key: 'prereg',
+      label: 'Pre-registro de Pax',
+      icon: 'person-add-outline',
+      gradient: ['#be185d', '#9d174d'],
+      onPress: () => navigation.navigate('PreregOrdersList'),
+    },
+    ...(user?.acceso_sc_incidencias
+      ? [
+          {
+            key: 'incidenciasSc',
+            label: 'Incidencias SC',
+            icon: 'warning-outline' as IconName,
+            gradient: ['#b45309', '#92400e'] as readonly [string, string],
+            onPress: () => navigation.navigate('IncidenciasSc'),
+          },
+        ]
+      : []),
     ...(esAdminMaestro
       ? [
           {

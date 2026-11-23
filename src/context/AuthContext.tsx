@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import { deleteToken, getToken, setToken } from '../utils/tokenStorage';
 import {
   getApiEnvironment,
   loginRequest,
@@ -34,7 +34,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setTokenState] = useState<string | null>(null);
   const [user, setUser] = useState<UserDTO | null>(null);
   const [stations, setStations] = useState<StationDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,9 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Un token de sandbox no sirve contra produccion (ni al reves, son 2
     // bases de datos separadas) -- cambiar de ambiente cierra la sesion
     // actual para no quedar en un estado confuso a medias.
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await deleteToken(TOKEN_KEY);
     setAuthToken(null);
-    setToken(null);
+    setTokenState(null);
     setUser(null);
     setStations([]);
     setApiEnvironment(env);
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // tras otra (arranque un poco mas rapido).
         const [storedEnv, storedToken] = await Promise.all([
           getStoredEnvironment(),
-          SecureStore.getItemAsync(TOKEN_KEY),
+          getToken(TOKEN_KEY),
         ]);
         setApiEnvironment(storedEnv);
         setEnvironmentState(storedEnv);
@@ -86,18 +86,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const res = await meRequest();
           if (res.ok && res.user) {
-            setToken(storedToken);
+            setTokenState(storedToken);
             setUser(res.user);
             setStations(res.stations ?? []);
             await saveLastProfile(res.user, res.stations ?? []);
             registerForPushNotificationsAsync();
           } else {
-            await SecureStore.deleteItemAsync(TOKEN_KEY);
+            await deleteToken(TOKEN_KEY);
             setAuthToken(null);
           }
         } catch (networkError) {
           const cached = await getLastProfile();
-          setToken(storedToken);
+          setTokenState(storedToken);
           if (cached) {
             setUser(cached.user);
             setStations(cached.stations);
@@ -115,11 +115,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await loginRequest(email, password);
       if (res.ok && res.token && res.user) {
-        await SecureStore.setItemAsync(TOKEN_KEY, res.token);
+        await setToken(TOKEN_KEY, res.token);
         await saveLastEmail(email);
         await saveLastProfile(res.user, res.stations ?? []);
         setAuthToken(res.token);
-        setToken(res.token);
+        setTokenState(res.token);
         setUser(res.user);
         setStations(res.stations ?? []);
         registerForPushNotificationsAsync();
@@ -127,8 +127,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setError(res.error ?? 'Credenciales inválidas');
       return false;
-    } catch (e) {
-      setError('No se pudo conectar con el servidor de Traken');
+    } catch (e: any) {
+      // El servidor puede responder con un status no-2xx (ej. 401 por
+      // credenciales incorrectas) y axios lo lanza como excepcion -- si
+      // trae un cuerpo JSON con 'error', es un rechazo real del servidor,
+      // no una falla de conexion, asi que se muestra ese mensaje tal cual.
+      const serverError = e?.response?.data?.error;
+      setError(serverError ?? 'No se pudo conectar con el servidor de Traken');
       return false;
     } finally {
       setIsAuthenticating(false);
@@ -137,9 +142,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await logoutRequest();
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await deleteToken(TOKEN_KEY);
     setAuthToken(null);
-    setToken(null);
+    setTokenState(null);
     setUser(null);
     setStations([]);
   };

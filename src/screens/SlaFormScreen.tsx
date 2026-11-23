@@ -1,0 +1,663 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { colors, gradients, radii, shadow } from '../theme/colors';
+import { addSlaComentario, getSlaState, saveSlaPaso, setSlaModalidad, SlaPasoItem, SlaStateResponse } from '../api/client';
+import type { RootStackParamList } from '../navigation/RootNavigator';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'SlaForm'>;
+
+const MODALIDADES: { key: string; label: string }[] = [
+  { key: 'concentrado', label: 'Concentrado' },
+  { key: 'progresivo', label: 'Progresivo' },
+  { key: 'mixto', label: 'Mixto' },
+];
+
+function semaforoColor(sem?: string | null): string {
+  if (sem === 'verde') return colors.ok;
+  if (sem === 'amarillo') return colors.warn;
+  if (sem === 'rojo') return colors.danger;
+  return colors.textMuted;
+}
+
+function toISODate(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function toHHmm(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function parseISODate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+function parseHHmm(hhmm: string): Date {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h || 0, m || 0, 0, 0);
+  return d;
+}
+
+/**
+ * SLA de Operaciones -- equivalente movil de op/modulos/sla/form.php.
+ * El semaforo, las reglas y la conversion de zona horaria SIEMPRE vienen
+ * del backend (ver op/include/sla_lib.php) -- esta pantalla nunca calcula
+ * nada de eso localmente, solo pinta lo que regresa el servidor.
+ */
+export default function SlaFormScreen({ route, navigation }: Props) {
+  const { folio, idAirport, folioDisplay } = route.params;
+
+  const [state, setState] = useState<SlaStateResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [manualPaso, setManualPaso] = useState<number | null>(null);
+  const [manualDate, setManualDate] = useState(toISODate(new Date()));
+  const [manualHour, setManualHour] = useState(toHHmm(new Date()));
+  const [manualNota, setManualNota] = useState('');
+  const [activePicker, setActivePicker] = useState<'date' | 'hour' | null>(null);
+
+  const [modalidadNotaFor, setModalidadNotaFor] = useState<string | null>(null);
+  const [modalidadNota, setModalidadNota] = useState('');
+
+  const [comentarioText, setComentarioText] = useState('');
+
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await getSlaState(folio, idAirport);
+      if (res.ok) {
+        setState(res);
+      } else {
+        setError(res.error ?? 'No se pudo cargar el SLA.');
+      }
+    } catch (e) {
+      setError('Sin conexión. Revisa tu internet e intenta de nuevo.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [folio, idAirport]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleAhora = async (paso: number) => {
+    setIsSaving(true);
+    try {
+      const res = await saveSlaPaso({ folio, ap: idAirport, paso, modo: 'ahora', device_ms: Date.now() });
+      if (res.ok) {
+        setState(res);
+        const saved = res.pasos?.find((p) => p.paso === paso);
+        if (saved?.drift !== null && saved?.drift !== undefined && Math.abs(saved.drift) > 120) {
+          Alert.alert(
+            'Reloj del teléfono desfasado',
+            `Tu teléfono tiene ${Math.round(Math.abs(saved.drift) / 60)} min de diferencia con el servidor. Se guardó la hora del servidor (correcta), esto es solo un aviso.`
+          );
+        }
+      } else {
+        Alert.alert('No se pudo guardar', res.error ?? 'Intenta de nuevo.');
+      }
+    } catch (e) {
+      Alert.alert('Sin conexión', 'No se pudo guardar. Intenta de nuevo.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const openManual = (paso: number) => {
+    setManualPaso(paso);
+    setManualDate(toISODate(new Date()));
+    setManualHour(toHHmm(new Date()));
+    setManualNota('');
+  };
+
+  const confirmManual = async () => {
+    if (manualPaso === null) return;
+    if (manualNota.trim().length < 3) {
+      Alert.alert('Falta el motivo', 'Escribe el motivo de la corrección (mínimo 3 letras).');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await saveSlaPaso({
+        folio,
+        ap: idAirport,
+        paso: manualPaso,
+        modo: 'manual',
+        local: `${manualDate} ${manualHour}`,
+        nota: manualNota.trim(),
+        device_ms: Date.now(),
+      });
+      if (res.ok) {
+        setState(res);
+        setManualPaso(null);
+      } else {
+        Alert.alert('No se pudo guardar', res.error ?? 'Intenta de nuevo.');
+      }
+    } catch (e) {
+      Alert.alert('Sin conexión', 'No se pudo guardar. Intenta de nuevo.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePickerChange = (event: DateTimePickerEvent, selected?: Date) => {
+    const target = activePicker;
+    if (Platform.OS === 'android') setActivePicker(null);
+    if (event.type === 'dismissed' || !selected) return;
+    if (target === 'date') setManualDate(toISODate(selected));
+    else if (target === 'hour') setManualHour(toHHmm(selected));
+  };
+
+  const handleModalidadPress = (mod: string) => {
+    if (!state?.config || mod === state.config.modalidad) return;
+    setModalidadNotaFor(mod);
+    setModalidadNota('');
+  };
+
+  const confirmModalidad = async () => {
+    if (!modalidadNotaFor) return;
+    if (modalidadNota.trim().length < 3) {
+      Alert.alert('Falta el motivo', 'Escribe el motivo del cambio (mínimo 3 letras).');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await setSlaModalidad(folio, idAirport, modalidadNotaFor, modalidadNota.trim());
+      if (res.ok) {
+        setState(res);
+        setModalidadNotaFor(null);
+      } else {
+        Alert.alert('No se pudo guardar', res.error ?? 'Intenta de nuevo.');
+      }
+    } catch (e) {
+      Alert.alert('Sin conexión', 'No se pudo guardar. Intenta de nuevo.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAddComentario = async () => {
+    if (comentarioText.trim().length < 2) return;
+    setIsSaving(true);
+    try {
+      const res = await addSlaComentario(folio, idAirport, comentarioText.trim());
+      if (res.ok) {
+        setState(res);
+        setComentarioText('');
+      } else {
+        Alert.alert('No se pudo guardar', res.error ?? 'Intenta de nuevo.');
+      }
+    } catch (e) {
+      Alert.alert('Sin conexión', 'No se pudo guardar. Intenta de nuevo.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <LinearGradient colors={gradients.hero} style={styles.flex}>
+      <StatusBar style="light" />
+      <SafeAreaView style={styles.flex}>
+        <View style={styles.topBar}>
+          <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
+            <Ionicons name="arrow-back" size={20} color={colors.white} />
+          </Pressable>
+          <View>
+            <Text style={styles.topTitle}>O.S. {folioDisplay}</Text>
+            <Text style={styles.topSub}>SLA de Operaciones</Text>
+          </View>
+          <View style={styles.backBtn} />
+        </View>
+
+        {isLoading ? (
+          <ActivityIndicator color={colors.teal} style={{ marginTop: 30 }} />
+        ) : error ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Text style={styles.errorText}>{error}</Text>
+            <Pressable style={styles.retryBtn} onPress={load}>
+              <Text style={styles.retryText}>Reintentar</Text>
+            </Pressable>
+          </View>
+        ) : state?.grupo === 'noaplica' ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="information-circle-outline" size={22} color={colors.textMuted} />
+            <Text style={styles.errorText}>Este motivo de operación no necesita SLA.</Text>
+          </View>
+        ) : (
+          <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+              {state?.prueba ? (
+                <View style={styles.pruebaBanner}>
+                  <Text style={styles.pruebaBannerText}>🧪 Esta O.S. está marcada como PRUEBA: no cuenta en el SLA.</Text>
+                </View>
+              ) : null}
+
+              <View style={[styles.summaryCard, shadow.card]}>
+                <View style={styles.summaryTop}>
+                  <Text style={styles.summaryEvento}>{state?.os?.evento ?? '—'}</Text>
+                  {state?.semaforo ? (
+                    <View style={[styles.semPill, { backgroundColor: semaforoColor(state.semaforo) + '33' }]}>
+                      <View style={[styles.semDot, { backgroundColor: semaforoColor(state.semaforo) }]} />
+                      <Text style={[styles.semPillText, { color: semaforoColor(state.semaforo) }]}>
+                        {state.semaforo.toUpperCase()}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.summarySub}>
+                  {state?.os?.aerolinea}
+                  {state?.os?.vuelo ? ` · Vuelo ${state.os.vuelo.trim()}` : ''} · {state?.os?.fecha?.slice(0, 10)}
+                </Text>
+                {state?.minutos_sla !== null && state?.minutos_sla !== undefined ? (
+                  <Text style={styles.summaryMinutos}>{state.minutos_sla} min (Contacto 1° pax → Salida última unidad)</Text>
+                ) : state?.en_curso ? (
+                  <Text style={styles.summaryMinutos}>⏱ En curso desde el Contacto 1° pax</Text>
+                ) : null}
+                {state?.sin_cierre ? (
+                  <Text style={styles.sinCierreText}>⛔ Sin cierre: pasaron más de 24h sin registrar la Salida de la última unidad.</Text>
+                ) : null}
+                {state?.sin_regla ? <Text style={styles.sinReglaText}>{state.sin_regla}</Text> : null}
+                {state?.regla ? (
+                  <Text style={styles.reglaText}>
+                    Regla: {state.regla.min !== null ? `verde ≤${state.regla.min}min, ` : ''}rojo &gt;{state.regla.max}min ·{' '}
+                    {state.regla.pax_min}-{state.regla.pax_max} pax
+                  </Text>
+                ) : null}
+              </View>
+
+              <Text style={styles.sectionTitle}>Modalidad</Text>
+              <View style={styles.chipRow}>
+                {MODALIDADES.map((m) => (
+                  <Pressable
+                    key={m.key}
+                    style={[styles.chip, state?.config?.modalidad === m.key && styles.chipActive]}
+                    onPress={() => handleModalidadPress(m.key)}
+                    disabled={isSaving || state?.cerrada}
+                  >
+                    <Text style={[styles.chipText, state?.config?.modalidad === m.key && styles.chipTextActive]}>
+                      {m.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.configInfo}>
+                Temporada: {state?.config?.temporada === 'alta' ? 'Alta' : 'Regular'} (automática) · {state?.config?.pax ?? 0} pax
+                (de la O.S.)
+              </Text>
+
+              <Text style={styles.sectionTitle}>Tiempos registrados</Text>
+              {state?.pasos?.map((p: SlaPasoItem) => (
+                <View key={p.paso} style={[styles.pasoCard, shadow.card, p.tipo === 'sla' && styles.pasoCardSla]}>
+                  <View style={styles.pasoTop}>
+                    <Text style={styles.pasoNombre}>
+                      {p.paso}. {p.nombre}
+                    </Text>
+                    {p.tipo === 'sla' ? (
+                      <View style={styles.pasoSlaBadge}>
+                        <Text style={styles.pasoSlaBadgeText}>SLA</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={styles.pasoAyuda}>{p.ayuda}</Text>
+                  {p.hecho ? (
+                    <View style={styles.pasoHechoRow}>
+                      <Ionicons name="checkmark-circle" size={16} color={colors.ok} />
+                      <Text style={styles.pasoHora}>
+                        {p.hora} ({p.fecha}) {p.origen === 'manual' ? '· manual' : '· ahora'}
+                      </Text>
+                    </View>
+                  ) : state?.cerrada ? (
+                    <Text style={styles.pasoPendienteText}>Sin registrar (O.S. cerrada)</Text>
+                  ) : (
+                    <View style={styles.pasoActions}>
+                      <Pressable
+                        style={[styles.pasoBtn, styles.pasoBtnAhora]}
+                        onPress={() => handleAhora(p.paso)}
+                        disabled={isSaving}
+                      >
+                        <Ionicons name="time" size={14} color="#06322f" />
+                        <Text style={styles.pasoBtnAhoraText}>Ahora</Text>
+                      </Pressable>
+                      <Pressable style={[styles.pasoBtn, styles.pasoBtnManual]} onPress={() => openManual(p.paso)} disabled={isSaving}>
+                        <Ionicons name="create-outline" size={14} color={colors.text} />
+                        <Text style={styles.pasoBtnManualText}>Hora manual</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                  {p.hecho && p.nota ? <Text style={styles.pasoNota}>Nota: {p.nota}</Text> : null}
+                </View>
+              ))}
+
+              <Text style={styles.sectionTitle}>Comentarios</Text>
+              <View style={[styles.card, shadow.card]}>
+                {(state?.comentarios ?? []).length === 0 ? (
+                  <Text style={styles.emptyText}>Sin comentarios todavía.</Text>
+                ) : (
+                  state!.comentarios!.map((c, i) => (
+                    <View key={i} style={[styles.row, i > 0 && styles.rowBorder]}>
+                      <Text style={styles.comentarioTexto}>{c.texto}</Text>
+                      {(c.por || c.hora) && <Text style={styles.comentarioMeta}>{c.por}{c.hora ? ` · ${c.hora}` : ''}</Text>}
+                    </View>
+                  ))
+                )}
+              </View>
+              {!state?.cerrada && (
+                <View style={styles.addComentarioRow}>
+                  <TextInput
+                    value={comentarioText}
+                    onChangeText={setComentarioText}
+                    placeholder="Agregar comentario..."
+                    placeholderTextColor={colors.placeholder}
+                    style={styles.addComentarioInput}
+                    multiline
+                  />
+                  <Pressable style={styles.addComentarioBtn} onPress={handleAddComentario} disabled={isSaving}>
+                    <Ionicons name="send" size={16} color="#06322f" />
+                  </Pressable>
+                </View>
+              )}
+
+              <Text style={styles.sectionTitle}>Bitácora</Text>
+              <View style={[styles.card, shadow.card]}>
+                {(state?.bitacora ?? []).length === 0 ? (
+                  <Text style={styles.emptyText}>Sin eventos.</Text>
+                ) : (
+                  state!.bitacora!.map((b, i) => (
+                    <View key={i} style={[styles.row, i > 0 && styles.rowBorder]}>
+                      <View style={styles.rowLeft}>
+                        <Text style={styles.bitacoraAccion}>
+                          {b.accion}
+                          {b.paso ? ` · paso ${b.paso}` : ''}
+                        </Text>
+                        {!!b.nota && <Text style={styles.bitacoraNota}>{b.nota}</Text>}
+                        {!!b.por && <Text style={styles.bitacoraPor}>{b.por}</Text>}
+                      </View>
+                      <Text style={styles.bitacoraFecha}>{b.created_at?.slice(0, 16)}</Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        )}
+
+        {/* Modal: hora manual */}
+        <Modal visible={manualPaso !== null} transparent animationType="fade" onRequestClose={() => setManualPaso(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, shadow.card]}>
+              <Text style={styles.modalTitle}>Hora manual</Text>
+              <Text style={styles.modalSub}>
+                {manualPaso !== null ? state?.pasos?.find((p) => p.paso === manualPaso)?.nombre : ''}
+              </Text>
+
+              <Pressable style={styles.pickerField} onPress={() => setActivePicker('date')}>
+                <Ionicons name="calendar-outline" size={16} color={colors.teal} />
+                <Text style={styles.pickerFieldText}>{manualDate}</Text>
+              </Pressable>
+              <Pressable style={styles.pickerField} onPress={() => setActivePicker('hour')}>
+                <Ionicons name="time-outline" size={16} color={colors.teal} />
+                <Text style={styles.pickerFieldText}>{manualHour} hrs.</Text>
+              </Pressable>
+
+              {activePicker && Platform.OS === 'android' && (
+                <DateTimePicker
+                  value={activePicker === 'hour' ? parseHHmm(manualHour) : parseISODate(manualDate)}
+                  mode={activePicker === 'hour' ? 'time' : 'date'}
+                  is24Hour
+                  display="default"
+                  onChange={handlePickerChange}
+                />
+              )}
+              {Platform.OS === 'ios' && activePicker && (
+                <DateTimePicker
+                  value={activePicker === 'hour' ? parseHHmm(manualHour) : parseISODate(manualDate)}
+                  mode={activePicker === 'hour' ? 'time' : 'date'}
+                  is24Hour
+                  display="spinner"
+                  onChange={handlePickerChange}
+                />
+              )}
+
+              <TextInput
+                value={manualNota}
+                onChangeText={setManualNota}
+                placeholder="Motivo de la corrección (obligatorio)..."
+                placeholderTextColor={colors.placeholder}
+                style={styles.modalInput}
+                multiline
+              />
+
+              <View style={styles.modalActions}>
+                <Pressable style={styles.modalCancelBtn} onPress={() => setManualPaso(null)}>
+                  <Text style={styles.modalCancelText}>Cancelar</Text>
+                </Pressable>
+                <Pressable style={styles.modalConfirmBtn} onPress={confirmManual} disabled={isSaving}>
+                  {isSaving ? <ActivityIndicator color="#06322f" /> : <Text style={styles.modalConfirmText}>Guardar</Text>}
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal: motivo de cambio de modalidad */}
+        <Modal visible={!!modalidadNotaFor} transparent animationType="fade" onRequestClose={() => setModalidadNotaFor(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, shadow.card]}>
+              <Text style={styles.modalTitle}>Cambiar modalidad</Text>
+              <Text style={styles.modalSub}>
+                {state?.config?.modalidad} → {modalidadNotaFor}
+              </Text>
+              <TextInput
+                value={modalidadNota}
+                onChangeText={setModalidadNota}
+                placeholder="Motivo del cambio (obligatorio)..."
+                placeholderTextColor={colors.placeholder}
+                style={styles.modalInput}
+                multiline
+              />
+              <View style={styles.modalActions}>
+                <Pressable style={styles.modalCancelBtn} onPress={() => setModalidadNotaFor(null)}>
+                  <Text style={styles.modalCancelText}>Cancelar</Text>
+                </Pressable>
+                <Pressable style={styles.modalConfirmBtn} onPress={confirmModalidad} disabled={isSaving}>
+                  {isSaving ? <ActivityIndicator color="#06322f" /> : <Text style={styles.modalConfirmText}>Guardar</Text>}
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingTop: 6,
+    paddingBottom: 8,
+  },
+  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  content: { paddingHorizontal: 16, paddingBottom: 40 },
+  errorBox: { alignItems: 'center', gap: 10, padding: 30 },
+  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  pruebaBanner: {
+    backgroundColor: 'rgba(245,158,11,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.35)',
+    borderRadius: radii.input,
+    padding: 10,
+    marginBottom: 12,
+  },
+  pruebaBannerText: { color: '#fde68a', fontSize: 12 },
+  summaryCard: {
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    padding: 16,
+    marginBottom: 16,
+  },
+  summaryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  summaryEvento: { color: colors.white, fontSize: 15, fontWeight: '800' },
+  semPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  semDot: { width: 7, height: 7, borderRadius: 4 },
+  semPillText: { fontSize: 11, fontWeight: '800' },
+  summarySub: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
+  summaryMinutos: { color: colors.teal, fontSize: 13, fontWeight: '700', marginTop: 8 },
+  sinCierreText: { color: '#fca5a5', fontSize: 11.5, marginTop: 8 },
+  sinReglaText: { color: colors.textMuted, fontSize: 11.5, marginTop: 8, fontStyle: 'italic' },
+  reglaText: { color: colors.textMuted, fontSize: 11, marginTop: 6 },
+  sectionTitle: { color: colors.white, fontSize: 13.5, fontWeight: '800', marginBottom: 8, marginTop: 4 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
+  chip: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: 20,
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+  },
+  chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
+  chipText: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  chipTextActive: { color: '#06322f' },
+  configInfo: { color: colors.textMuted, fontSize: 11, marginBottom: 16 },
+  pasoCard: {
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    padding: 13,
+    marginBottom: 9,
+  },
+  pasoCardSla: { borderColor: 'rgba(43,183,179,0.4)' },
+  pasoTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  pasoNombre: { color: colors.white, fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  pasoSlaBadge: { backgroundColor: 'rgba(43,183,179,0.25)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  pasoSlaBadgeText: { color: colors.teal, fontSize: 9.5, fontWeight: '800' },
+  pasoAyuda: { color: colors.textMuted, fontSize: 11, marginTop: 3, lineHeight: 15 },
+  pasoHechoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  pasoHora: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
+  pasoPendienteText: { color: colors.textMuted, fontSize: 11.5, marginTop: 8, fontStyle: 'italic' },
+  pasoActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  pasoBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 8, paddingVertical: 7, paddingHorizontal: 12 },
+  pasoBtnAhora: { backgroundColor: colors.teal },
+  pasoBtnAhoraText: { color: '#06322f', fontWeight: '800', fontSize: 12 },
+  pasoBtnManual: { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: colors.cardBorder },
+  pasoBtnManualText: { color: colors.text, fontWeight: '700', fontSize: 12 },
+  pasoNota: { color: colors.textMuted, fontSize: 11, marginTop: 6, fontStyle: 'italic' },
+  card: {
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    padding: 4,
+    marginBottom: 10,
+  },
+  emptyText: { color: colors.textMuted, fontSize: 12.5, padding: 10 },
+  row: { paddingVertical: 10, paddingHorizontal: 10 },
+  rowBorder: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
+  rowLeft: { flex: 1 },
+  comentarioTexto: { color: colors.text, fontSize: 12.5 },
+  comentarioMeta: { color: colors.textMuted, fontSize: 10.5, marginTop: 3 },
+  addComentarioRow: { flexDirection: 'row', gap: 8, marginBottom: 16, alignItems: 'flex-end' },
+  addComentarioInput: {
+    flex: 1,
+    backgroundColor: colors.inputBg,
+    borderRadius: radii.input,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.text,
+    fontSize: 13,
+    maxHeight: 90,
+  },
+  addComentarioBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.teal,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bitacoraAccion: { color: colors.text, fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
+  bitacoraNota: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  bitacoraPor: { color: colors.teal, fontSize: 10.5, marginTop: 2 },
+  bitacoraFecha: { color: colors.textMuted, fontSize: 10.5, marginTop: 4 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: colors.navy2,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    padding: 18,
+  },
+  modalTitle: { color: colors.white, fontSize: 15, fontWeight: '800' },
+  modalSub: { color: colors.textMuted, fontSize: 12, marginTop: 3, marginBottom: 14 },
+  pickerField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.inputBg,
+    borderRadius: radii.input,
+    paddingHorizontal: 12,
+    height: 44,
+    marginBottom: 10,
+  },
+  pickerFieldText: { color: colors.text, fontSize: 13.5 },
+  modalInput: {
+    backgroundColor: colors.inputBg,
+    borderRadius: radii.input,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: colors.text,
+    fontSize: 13,
+    minHeight: 60,
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  modalActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
+  modalCancelBtn: { paddingVertical: 10, paddingHorizontal: 16 },
+  modalCancelText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
+  modalConfirmBtn: {
+    backgroundColor: colors.teal,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    minWidth: 90,
+    alignItems: 'center',
+  },
+  modalConfirmText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+});

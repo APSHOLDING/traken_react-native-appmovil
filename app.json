@@ -43,7 +43,14 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-status-bar",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Traken usa la cámara para escanear el QR de pasajeros pre-registrados."
+        }
+      ]
     ],
     "extra": {
       "eas": {

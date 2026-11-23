@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 
 /**
@@ -37,6 +38,10 @@ function getDb() {
 type CacheEntry<T> = { data: T; savedAt: number };
 
 export async function saveCache<T>(key: string, data: T) {
+  // En web ya existe el service worker para esto (ver comentario arriba) --
+  // no se usa SQLite aqui tambien, para no depender de que su WASM cargue
+  // bien bajo el bundler de Metro para web.
+  if (Platform.OS === 'web') return;
   try {
     const db = await getDb();
     const savedAt = Date.now();
@@ -50,6 +55,7 @@ export async function saveCache<T>(key: string, data: T) {
 }
 
 export async function getCache<T>(key: string): Promise<CacheEntry<T> | null> {
+  if (Platform.OS === 'web') return null;
   try {
     const db = await getDb();
     const row = await db.getFirstAsync<{ data: string; saved_at: number }>(

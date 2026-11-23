@@ -37,6 +37,11 @@ function siteBase(): string {
   return siteBaseUrl;
 }
 
+/** URL base del sitio (sandbox o producción, según el ambiente activo) para armar enlaces absolutos fuera de /op/api (ej. el QR de pre-registro). */
+export function getSiteBaseUrl(): string {
+  return siteBaseUrl;
+}
+
 /** Se llama al iniciar sesion (o al restaurar una guardada) para que TODAS
  * las peticiones siguientes manden el token automaticamente. */
 export function setAuthToken(token: string | null) {
@@ -60,6 +65,7 @@ export interface UserDTO {
   lastname: string;
   role_id: number;
   role_name: string;
+  acceso_sc_incidencias?: boolean;
 }
 
 export interface LoginResponse {
@@ -667,6 +673,274 @@ export async function getAuditLog(filters: AuditLogFilters = {}): Promise<AuditL
 }
 
 /**
+ * Historial de QR -- equivalente movil de op/modulos/qrHist/ (lista +
+ * detalle de pre-registro por O.S.). Solo lectura.
+ */
+export interface QrHistoryItem {
+  folio: number;
+  folio_display: string;
+  id_airport: number;
+  iata: string;
+  flight: string | null;
+  date_in: string | null;
+  regs: number;
+  grupos: number;
+  cerrados: number;
+  generado: number;
+  ultima: string | null;
+}
+
+export interface QrHistoryResponse {
+  ok: boolean;
+  items?: QrHistoryItem[];
+  error?: string;
+}
+
+/**
+ * Incidencias por Evento Especial -- equivalente movil de
+ * op/modulos/scIncidencias/ (solo lectura/auditoria). Los registros los
+ * genera createOrder.php; aqui solo se listan con filtros. Acceso
+ * restringido por permiso individual (user.acceso_sc_incidencias).
+ */
+export interface IncidenciaScItem {
+  folio: number;
+  folio_display: string;
+  id_airport: number;
+  airport_iata: string;
+  airport_name: string;
+  airline_name: string;
+  event_name: string;
+  flight: string | null;
+  date_service: string | null;
+  date_registro: string | null;
+  desfase_dias: number;
+  status: 'open' | 'close' | 'cancel' | '';
+  user_name: string;
+}
+
+export interface IncidenciaScEventOption {
+  id_event: number;
+  event_name: string;
+}
+
+export interface IncidenciasScResponse {
+  ok: boolean;
+  items?: IncidenciaScItem[];
+  total?: number;
+  avg_desfase?: number;
+  max_desfase?: number;
+  airports?: StationDTO[];
+  events?: IncidenciaScEventOption[];
+  error?: string;
+}
+
+export interface IncidenciasScFilters {
+  mes?: string;
+  status?: 'open' | 'close' | 'cancel';
+  airport?: number;
+  evento?: number;
+}
+
+export async function getIncidenciasSc(filters: IncidenciasScFilters = {}): Promise<IncidenciasScResponse> {
+  const { data } = await api.get<IncidenciasScResponse>('/incidencias/list.php', { params: filters });
+  return data;
+}
+
+export async function getQrHistory(): Promise<QrHistoryResponse> {
+  const { data } = await api.get<QrHistoryResponse>('/qr/history.php');
+  return data;
+}
+
+export type QrEventKind = 'os_generado' | 'grupo_unido' | 'grupo_cerrado' | 'grupo_reabierto' | string;
+
+export interface QrEventDTO {
+  kind: QrEventKind;
+  who: string | null;
+  created_at: string;
+}
+
+export interface QrGroupDTO {
+  name: string;
+  code: string;
+  created: string;
+  closed: string | null;
+  party: number;
+  miembros: number;
+}
+
+export interface QrHistoryDetailResponse {
+  ok: boolean;
+  events?: QrEventDTO[];
+  groups?: QrGroupDTO[];
+  error?: string;
+}
+
+export async function getQrHistoryDetail(folio: number, idAirport: number): Promise<QrHistoryDetailResponse> {
+  const { data } = await api.get<QrHistoryDetailResponse>('/qr/historyDetail.php', {
+    params: { folio, id_airport: idAirport },
+  });
+  return data;
+}
+
+/**
+ * SLA de Operaciones -- equivalente movil de op/modulos/sla/ (formulario de
+ * 11 tiempos por O.S., solo aplica a motivos CXLD/DLY). El semaforo, las
+ * reglas (min_ok/max_ok) y la conversion de zona horaria SIEMPRE vienen del
+ * backend -- nunca se recalculan aqui.
+ */
+export type SlaPasoTipo = 'sla' | 'info' | 'sin';
+export type SlaSemaforo = 'verde' | 'amarillo' | 'rojo';
+export type SlaEstado = 'na' | 'sin' | 'curso' | 'fin' | 'sin_cierre';
+export type SlaModo = 'ahora' | 'manual';
+
+export interface SlaPasoItem {
+  paso: number;
+  nombre: string;
+  tipo: SlaPasoTipo;
+  ayuda: string;
+  hecho: boolean;
+  hora?: string;
+  fecha?: string;
+  origen?: SlaModo;
+  por?: string;
+  nota?: string;
+  drift?: number | null;
+  local?: string;
+  desde_anterior?: number | null;
+}
+
+export interface SlaComentarioItem {
+  texto: string;
+  por: string;
+  hora: string;
+}
+
+export interface SlaBitacoraItem {
+  paso: number | null;
+  accion: string;
+  antes: string;
+  despues: string;
+  nota: string;
+  por: string;
+  created_at: string;
+}
+
+export interface SlaOrderInfo {
+  folio: number;
+  ap: number;
+  ref: string;
+  iata: string;
+  apname: string;
+  aerolinea: string;
+  vuelo: string | null;
+  fecha: string | null;
+  status: string;
+  id_event: number;
+  evento: string;
+}
+
+export interface SlaRegla {
+  min: number | null;
+  max: number;
+  pax_min: number;
+  pax_max: number;
+}
+
+export interface SlaStateResponse {
+  ok: boolean;
+  os?: SlaOrderInfo;
+  grupo?: 'sla' | 'noaplica';
+  prueba?: boolean;
+  cerrada?: boolean;
+  comentarios?: SlaComentarioItem[];
+  tz?: string;
+  tz_offset?: string;
+  hora_local_ahora?: string;
+  config?: { modalidad: string; temporada: string; pax: number };
+  regla?: SlaRegla | null;
+  sin_regla?: string | null;
+  pasos?: SlaPasoItem[];
+  minutos_sla?: number | null;
+  semaforo?: SlaSemaforo | null;
+  en_curso?: boolean;
+  minutos_en_curso?: number | null;
+  sin_cierre?: boolean;
+  horas_abierta?: number | null;
+  bitacora?: SlaBitacoraItem[];
+  error?: string;
+}
+
+export async function getSlaState(folio: number, idAirport: number): Promise<SlaStateResponse> {
+  const { data } = await api.get<SlaStateResponse>('/sla/state.php', { params: { folio, ap: idAirport } });
+  return data;
+}
+
+export interface SlaSavePayload {
+  folio: number;
+  ap: number;
+  paso: number;
+  modo: SlaModo;
+  /** Solo si modo='manual': hora local de la estacion 'YYYY-MM-DD HH:MM'. */
+  local?: string;
+  /** Obligatorio si modo='manual' (minimo 3 caracteres). */
+  nota?: string;
+  /** Date.now() del dispositivo -- el backend lo usa solo para detectar
+   * desfase de reloj y avisar; la hora que se guarda siempre es la del
+   * servidor (modo 'ahora') o la convertida de 'local' (modo 'manual'). */
+  device_ms: number;
+}
+
+export async function saveSlaPaso(payload: SlaSavePayload): Promise<SlaStateResponse> {
+  const { data } = await api.post<SlaStateResponse>('/sla/save.php', payload);
+  return data;
+}
+
+export async function setSlaModalidad(
+  folio: number,
+  ap: number,
+  modalidad: string,
+  nota?: string
+): Promise<SlaStateResponse> {
+  const { data } = await api.post<SlaStateResponse>('/sla/config.php', { folio, ap, modalidad, nota });
+  return data;
+}
+
+export async function addSlaComentario(folio: number, ap: number, texto: string): Promise<SlaStateResponse> {
+  const { data } = await api.post<SlaStateResponse>('/sla/comentario.php', { folio, ap, texto });
+  return data;
+}
+
+export interface SlaListItem {
+  folio: number;
+  folio_display: string;
+  id_airport: number;
+  iata: string;
+  airline: string;
+  flight: string | null;
+  date_in: string | null;
+  event_name: string;
+  status: string;
+  estado: SlaEstado;
+  semaforo: SlaSemaforo | null;
+  minutos_sla: number | null;
+  hechos: number;
+  pax: number;
+}
+
+export interface SlaListResponse {
+  ok: boolean;
+  items?: SlaListItem[];
+  counts?: Record<string, number>;
+  dias?: number;
+  error?: string;
+}
+
+export async function getSlaList(dias?: number): Promise<SlaListResponse> {
+  const { data } = await api.get<SlaListResponse>('/sla/list.php', { params: dias ? { dias } : undefined });
+  return data;
+}
+
+/**
  * Resumen por Estacion -- equivalente movil de op/modulos/resumen/inicio.php.
  * Solo lectura: operaciones/habitaciones/pasajeros del mes, por estacion.
  */
@@ -1049,5 +1323,216 @@ export async function uploadOrderFiles(
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 60000,
   });
+  return data;
+}
+
+/**
+ * Pre-registro de Pax -- equivalente movil de op/modulos/prereg/ (sub-fases
+ * 3A/3B/3C: lectura, asignacion de hotel, y grupos familiares). El QR real
+ * (3D) y la subida de listas con IA (3E) se agregan despues.
+ */
+export interface PreregOrderListItem {
+  folio: number;
+  id_airport: number;
+  folio_display: string;
+  iata: string;
+  flight: string | null;
+  date_in: string | null;
+  total: number;
+  pendientes: number;
+  capturados?: number;
+  habitaciones?: number;
+}
+
+export interface PreregOrdersResponse {
+  ok: boolean;
+  orders?: PreregOrderListItem[];
+  error?: string;
+}
+
+export async function getPreregOrders(): Promise<PreregOrdersResponse> {
+  const { data } = await api.get<PreregOrdersResponse>('/prereg/orders.php');
+  return data;
+}
+
+export interface PreregCompanion {
+  name: string;
+  type: 'adulto' | 'nino' | 'infante' | string;
+  age: number | null;
+  room: number | null;
+}
+
+export type PreregFlightState = 'none' | 'ok' | 'num' | 'bad';
+export type PreregVoucherState = 'none' | 'missing' | 'ok' | 'other';
+
+export interface PreregCheck {
+  flight: { state: PreregFlightState; scan: string; order: string };
+  in_os: { name: string; id_hotel: number; hotel: string } | null;
+  voucher: { state: PreregVoucherState; owner?: string; hotel?: string };
+}
+
+export interface PreregPaxItem {
+  id: number;
+  code: string;
+  name: string;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  voucher: string | null;
+  party_size: number;
+  flight: string | null;
+  notes: string | null;
+  source: string | null;
+  scan_method: string | null;
+  scan_name: string | null;
+  scan_flight: string | null;
+  fam_code: string | null;
+  group_code: string | null;
+  done_at: string | null;
+  room: number | null;
+  status: 'pendiente' | 'asignado';
+  id_hotel: number | null;
+  hotel_name: string | null;
+  assigned_by: string | null;
+  created_at: string;
+  comps: PreregCompanion[];
+  check: PreregCheck;
+}
+
+export interface PreregOsListItem {
+  name: string;
+  voucher: string;
+  hotel: string;
+  pre: boolean;
+}
+
+export interface PreregDetailResponse {
+  ok: boolean;
+  token?: string;
+  type?: string;
+  hotels?: { id: number; name: string }[];
+  pax?: PreregPaxItem[];
+  os_flight?: string;
+  os_pax?: number;
+  os_list?: PreregOsListItem[];
+  error?: string;
+}
+
+export async function getPreregDetail(folio: number, idAirport: number): Promise<PreregDetailResponse> {
+  const { data } = await api.get<PreregDetailResponse>('/prereg/detail.php', { params: { folio, ap: idAirport } });
+  return data;
+}
+
+export interface PreregAssignResponse {
+  ok: boolean;
+  status?: 'pendiente' | 'asignado';
+  hotel_name?: string;
+  error?: string;
+}
+
+export async function assignPreregHotel(id: number, idHotel: number): Promise<PreregAssignResponse> {
+  const { data } = await api.post<PreregAssignResponse>('/prereg/assign.php', { id, id_hotel: idHotel });
+  return data;
+}
+
+export interface PreregAssignManyResponse {
+  ok: boolean;
+  n?: number;
+  hotel?: string;
+  error?: string;
+}
+
+export async function assignPreregHotelMany(
+  ids: number[],
+  idHotel: number,
+  room?: number
+): Promise<PreregAssignManyResponse> {
+  const { data } = await api.post<PreregAssignManyResponse>('/prereg/assignMany.php', { ids, id_hotel: idHotel, room });
+  return data;
+}
+
+export interface PreregOkResponse {
+  ok: boolean;
+  error?: string;
+}
+
+export async function reopenPreregPax(id: number): Promise<PreregOkResponse> {
+  const { data } = await api.post<PreregOkResponse>('/prereg/reopen.php', { id });
+  return data;
+}
+
+export interface PreregJoinResponse {
+  ok: boolean;
+  leader?: string;
+  error?: string;
+}
+
+export async function joinPreregGroup(id: number, target: number): Promise<PreregJoinResponse> {
+  const { data } = await api.post<PreregJoinResponse>('/prereg/join.php', { id, target });
+  return data;
+}
+
+export async function unjoinPreregGroup(id: number): Promise<PreregOkResponse> {
+  const { data } = await api.post<PreregOkResponse>('/prereg/unjoin.php', { id });
+  return data;
+}
+
+export interface PreregJoinManyResponse {
+  ok: boolean;
+  unidos?: number;
+  error?: string;
+}
+
+export async function joinManyPreregGroup(leader: number, ids: number[]): Promise<PreregJoinManyResponse> {
+  const { data } = await api.post<PreregJoinManyResponse>('/prereg/joinMany.php', { leader, ids });
+  return data;
+}
+
+/**
+ * Sub-fase 3D: QR en el dispositivo. El QR de la O.S. (para que los
+ * pasajeros se pre-registren) se pinta en el cliente con el token ya
+ * firmado por el servidor (pr_token) -- no hace falta un endpoint para
+ * generarlo. Lo que sí es nuevo es el escaneo del QR PERSONAL del
+ * pasajero (su código único, mostrado al terminar su auto-registro) para
+ * jalar sus datos y pre-llenar el alta en la O.S.
+ */
+export interface PreregLookupComp {
+  name: string;
+  type: string;
+  age: number | null;
+}
+
+export interface PreregLookupResponse {
+  ok: boolean;
+  id?: number;
+  code?: string;
+  name?: string;
+  voucher?: string | null;
+  party?: number;
+  comps?: PreregLookupComp[];
+  folio?: number;
+  id_airport?: number;
+  type_airline?: string;
+  folio_display?: string;
+  iata?: string;
+  flight?: string | null;
+  status?: 'pendiente' | 'asignado';
+  id_hotel?: number | null;
+  hotel_name?: string | null;
+  already_in_os?: { hotel: string } | null;
+  flight_state?: PreregFlightState;
+  qr_closed?: boolean;
+  error?: string;
+}
+
+/** `q` es lo leído de la cámara (la URL completa del QR) o el código de 4-10 caracteres tecleado a mano. */
+export async function lookupPreregByQr(q: string): Promise<PreregLookupResponse> {
+  const { data } = await api.get<PreregLookupResponse>('/prereg/lookup.php', { params: { q } });
+  return data;
+}
+
+/** Bitácora: se mostró el QR de pre-registro de esta O.S. (igual que hace la web al abrir el QR). Mejor esfuerzo, no bloquea la UI. */
+export async function logPreregOsQr(folio: number, idAirport: number): Promise<PreregOkResponse> {
+  const { data } = await api.post<PreregOkResponse>('/prereg/logOs.php', { folio, ap: idAirport });
   return data;
 }
