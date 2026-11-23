@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Alert,
@@ -85,9 +86,11 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
     }
   }, [folio, idAirport]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
@@ -237,6 +240,10 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
     navigation.navigate('PreregQrDisplay', { folio, idAirport, folioDisplay, token });
   };
 
+  const verListas = () => {
+    navigation.navigate('PreregListas', { folio, idAirport, folioDisplay });
+  };
+
   return (
     <LinearGradient colors={gradients.hero} style={styles.flex}>
       <StatusBar style="light" />
@@ -275,6 +282,14 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
                 <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
               </Pressable>
             ) : null}
+
+            <Pressable style={styles.tokenBox} onPress={verListas}>
+              <Ionicons name="document-text-outline" size={18} color={colors.teal} />
+              <Text style={styles.tokenText} numberOfLines={1}>
+                Listas de aerolínea / subir lista con IA
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </Pressable>
 
             <View style={styles.searchWrap}>
               <Ionicons name="search" size={16} color={colors.textMuted} />

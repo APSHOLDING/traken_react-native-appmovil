@@ -1536,3 +1536,65 @@ export async function logPreregOsQr(folio: number, idAirport: number): Promise<P
   const { data } = await api.post<PreregOkResponse>('/prereg/logOs.php', { folio, ap: idAirport });
   return data;
 }
+
+// ===== Listas de aerolínea + subida con IA (Pre-registro de Pax) =====
+
+export interface PreregBatchItem {
+  id: number;
+  airline: string;
+  flight: string;
+  date: string;
+  items: number;
+  imported: number;
+  match: boolean;
+}
+
+export interface PreregBatchesResponse {
+  ok: boolean;
+  batches?: PreregBatchItem[];
+  error?: string;
+}
+
+export async function getPreregBatches(folio: number, idAirport: number): Promise<PreregBatchesResponse> {
+  const { data } = await api.get<PreregBatchesResponse>('/prereg/batches.php', { params: { folio, ap: idAirport } });
+  return data;
+}
+
+export interface PreregImportResponse {
+  ok: boolean;
+  nuevos?: number;
+  omitidos?: number;
+  error?: string;
+}
+
+export async function importPreregBatch(folio: number, idAirport: number, batch: number): Promise<PreregImportResponse> {
+  const { data } = await api.post<PreregImportResponse>('/prereg/import.php', { folio, ap: idAirport, batch });
+  return data;
+}
+
+export interface PreregUploadListResponse {
+  ok: boolean;
+  leidos?: number;
+  nuevos?: number;
+  omitidos?: number;
+  error?: string;
+}
+
+/** Sube una foto o PDF de una lista de pasajeros para que la IA la lea --
+ * puede tardar hasta 2 minutos (PDFs grandes a veces reintentan pagina por
+ * pagina en el servidor), por eso el timeout largo. */
+export async function uploadPreregList(
+  folio: number,
+  idAirport: number,
+  file: { uri: string; name: string; mimeType: string }
+): Promise<PreregUploadListResponse> {
+  const form = new FormData();
+  form.append('lista', { uri: file.uri, name: file.name, type: file.mimeType } as any);
+  form.append('folio', String(folio));
+  form.append('ap', String(idAirport));
+  const { data } = await api.post<PreregUploadListResponse>('/prereg/uploadList.php', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+  });
+  return data;
+}
