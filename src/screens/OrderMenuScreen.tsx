@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
@@ -9,7 +9,15 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
-import { cancelOrder, closeOrder, getAuthHeader, getVoucherPdfUrl, sendOrderEmail } from '../api/client';
+import {
+  cancelOrder,
+  closeOrder,
+  confirmPruebaCode,
+  getAuthHeader,
+  getVoucherPdfUrl,
+  requestPruebaCode,
+  sendOrderEmail,
+} from '../api/client';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderMenu'>;
@@ -23,11 +31,54 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
  * esta listo.
  */
 export default function OrderMenuScreen({ route, navigation }: Props) {
-  const { folio, idAirport, folioDisplay, iata, typeAirline, airline, flight } = route.params;
+  const { folio, idAirport, folioDisplay, iata, typeAirline, airline, flight, esPrueba: esPruebaInicial } = route.params;
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDownloadingVouchers, setIsDownloadingVouchers] = useState(false);
+
+  const [esPrueba, setEsPrueba] = useState(!!esPruebaInicial);
+  const [isRequestingPrueba, setIsRequestingPrueba] = useState(false);
+  const [pruebaAccion, setPruebaAccion] = useState<'marcar' | 'quitar' | null>(null);
+  const [pruebaCodigo, setPruebaCodigo] = useState('');
+  const [isConfirmingPrueba, setIsConfirmingPrueba] = useState(false);
+
+  const handleTogglePrueba = async () => {
+    const accion: 'marcar' | 'quitar' = esPrueba ? 'quitar' : 'marcar';
+    setIsRequestingPrueba(true);
+    try {
+      const res = await requestPruebaCode(folio, idAirport, accion);
+      if (res.ok) {
+        setPruebaAccion(accion);
+        setPruebaCodigo('');
+      } else {
+        Alert.alert('No se pudo pedir el código', res.error ?? 'Intenta de nuevo.');
+      }
+    } catch (e) {
+      Alert.alert('Sin conexión', 'No se pudo pedir el código. Intenta de nuevo.');
+    } finally {
+      setIsRequestingPrueba(false);
+    }
+  };
+
+  const handleConfirmPrueba = async () => {
+    if (!pruebaAccion || pruebaCodigo.trim().length < 6) return;
+    setIsConfirmingPrueba(true);
+    try {
+      const res = await confirmPruebaCode(folio, idAirport, pruebaAccion, pruebaCodigo.trim());
+      if (res.ok) {
+        setEsPrueba(!!res.prueba);
+        setPruebaAccion(null);
+        Alert.alert(res.prueba ? 'Marcada como PRUEBA' : 'Ya no es PRUEBA', '');
+      } else {
+        Alert.alert('No se pudo confirmar', res.error ?? 'Intenta de nuevo.');
+      }
+    } catch (e) {
+      Alert.alert('Sin conexión', 'No se pudo confirmar. Intenta de nuevo.');
+    } finally {
+      setIsConfirmingPrueba(false);
+    }
+  };
 
   const goComingSoon = (title: string, icon: IconName) => () =>
     navigation.navigate('ComingSoon', { title, icon });
@@ -239,6 +290,15 @@ export default function OrderMenuScreen({ route, navigation }: Props) {
       onPress: handleCancel,
       loading: isCancelling,
     },
+    {
+      key: 'prueba',
+      label: esPrueba ? 'Quitar marca de PRUEBA' : 'Marcar como PRUEBA',
+      sub: esPrueba ? 'Se pedirá código por correo a Gerencia TI' : 'Etiqueta: no es una operación real',
+      icon: 'flask-outline',
+      color: '#f59e0b',
+      onPress: handleTogglePrueba,
+      loading: isRequestingPrueba,
+    },
   ];
 
   return (
@@ -275,6 +335,44 @@ export default function OrderMenuScreen({ route, navigation }: Props) {
             </Pressable>
           ))}
         </ScrollView>
+
+        <Modal visible={!!pruebaAccion} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalCard, shadow.card]}>
+              <Text style={styles.modalTitle}>
+                {pruebaAccion === 'quitar' ? 'Quitar marca de PRUEBA' : 'Marcar como PRUEBA'}
+              </Text>
+              <Text style={styles.modalText}>
+                Se mandó un código de 6 dígitos por correo a Gerencia TI. Pídeselo y escríbelo aquí para confirmar.
+              </Text>
+              <TextInput
+                value={pruebaCodigo}
+                onChangeText={(t) => setPruebaCodigo(t.replace(/[^0-9]/g, '').slice(0, 6))}
+                placeholder="000000"
+                placeholderTextColor={colors.placeholder}
+                style={styles.modalInput}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+              <View style={styles.modalActions}>
+                <Pressable style={styles.modalCancelBtn} onPress={() => setPruebaAccion(null)} disabled={isConfirmingPrueba}>
+                  <Text style={styles.modalCancelText}>Cancelar</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalConfirmBtn, pruebaCodigo.trim().length < 6 && styles.modalConfirmBtnDisabled]}
+                  onPress={handleConfirmPrueba}
+                  disabled={pruebaCodigo.trim().length < 6 || isConfirmingPrueba}
+                >
+                  {isConfirmingPrueba ? (
+                    <ActivityIndicator color="#06322f" size="small" />
+                  ) : (
+                    <Text style={styles.modalConfirmText}>Confirmar</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -315,4 +413,46 @@ const styles = StyleSheet.create({
   itemText: { flex: 1 },
   itemLabel: { color: colors.white, fontWeight: '800', fontSize: 13.5 },
   itemSub: { color: colors.textMuted, fontSize: 11.5, marginTop: 2 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: colors.navy2,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    padding: 20,
+  },
+  modalTitle: { color: colors.white, fontSize: 15, fontWeight: '800', marginBottom: 8 },
+  modalText: { color: colors.textMuted, fontSize: 12.5, lineHeight: 18, marginBottom: 14 },
+  modalInput: {
+    backgroundColor: colors.inputBg,
+    borderRadius: radii.input,
+    paddingHorizontal: 14,
+    height: 50,
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 6,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  modalActions: { flexDirection: 'row', gap: 10 },
+  modalCancelBtn: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+  modalCancelText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
+  modalConfirmBtn: {
+    flex: 1,
+    backgroundColor: colors.teal,
+    borderRadius: radii.button,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modalConfirmBtnDisabled: { opacity: 0.5 },
+  modalConfirmText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
 });

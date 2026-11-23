@@ -47,6 +47,7 @@ export type OrderMenuParams = {
   typeAirline: string;
   airline?: string;
   flight?: string | null;
+  esPrueba?: boolean;
 };
 
 export type AddTransportParams = OrderMenuParams & { direction: 'in' | 'out' };

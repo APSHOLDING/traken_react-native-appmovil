@@ -115,6 +115,7 @@ export interface OpenOrderDTO {
   flight: string | null;
   date_in: string | null;
   type_airline: string;
+  es_prueba: boolean;
 }
 
 export interface OpenOrdersResponse {
@@ -142,6 +143,31 @@ export interface ExportListUrlResponse {
 export async function getOpenOrdersExportUrl(pairs: { folio: number; idAirport: number }[]): Promise<ExportListUrlResponse> {
   const f = pairs.map((p) => `${p.folio}-${p.idAirport}`).join(',');
   const { data } = await api.get<ExportListUrlResponse>('/open/exportListUrl.php', { params: { f } });
+  return data;
+}
+
+export interface PruebaOkResponse {
+  ok: boolean;
+  prueba?: boolean;
+  error?: string;
+}
+
+/** Pide por correo (a Gerencia TI) el código para marcar/quitar la etiqueta
+ * PRUEBA de una O.S. -- equivalente de op/modulos/open/marcarPrueba.php
+ * (accion=pedir). */
+export async function requestPruebaCode(folio: number, idAirport: number, accion: 'marcar' | 'quitar'): Promise<PruebaOkResponse> {
+  const { data } = await api.post<PruebaOkResponse>('/open/pruebaRequest.php', { folio, ap: idAirport, accion });
+  return data;
+}
+
+/** Confirma el código y marca/quita la etiqueta PRUEBA. */
+export async function confirmPruebaCode(
+  folio: number,
+  idAirport: number,
+  accion: 'marcar' | 'quitar',
+  codigo: string
+): Promise<PruebaOkResponse> {
+  const { data } = await api.post<PruebaOkResponse>('/open/pruebaConfirm.php', { folio, ap: idAirport, accion, codigo });
   return data;
 }
 

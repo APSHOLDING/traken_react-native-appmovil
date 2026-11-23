@@ -255,6 +255,7 @@ export default function OpenOrdersScreen({ navigation }: Props) {
                       typeAirline: item.type_airline,
                       airline: item.airline,
                       flight: item.flight,
+                      esPrueba: item.es_prueba,
                     })
                   }
                 >
