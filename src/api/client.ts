@@ -130,6 +130,21 @@ export async function getOpenOrders(): Promise<OpenOrdersResponse> {
   return data;
 }
 
+export interface ExportListUrlResponse {
+  ok: boolean;
+  url?: string;
+  error?: string;
+}
+
+/** Pide la URL firmada (sin sesión) del Excel de Órdenes Abiertas --
+ * equivalente de op/modulos/open/exportOpenList.php, que no se reimplementa:
+ * solo se arma su enlace firmado (op/include/linkToken.php). */
+export async function getOpenOrdersExportUrl(pairs: { folio: number; idAirport: number }[]): Promise<ExportListUrlResponse> {
+  const f = pairs.map((p) => `${p.folio}-${p.idAirport}`).join(',');
+  const { data } = await api.get<ExportListUrlResponse>('/open/exportListUrl.php', { params: { f } });
+  return data;
+}
+
 export interface CommentDTO {
   user_name: string;
   comment: string;
@@ -1113,6 +1128,7 @@ export interface ReportHotel {
   id_hotel: number;
   name: string;
   total_pax: number;
+  download_path: string;
 }
 
 export interface ReportListResponse {
@@ -1121,6 +1137,7 @@ export interface ReportListResponse {
   script?: 'paxes' | 'paxes_ep';
   hotels?: ReportHotel[];
   total_general?: number;
+  download_path_general?: string;
   error?: string;
 }
 
@@ -1132,12 +1149,14 @@ export async function getReportList(folio: number, idAirport: number): Promise<R
 }
 
 /**
- * Descarga directa del Excel -- mismo endpoint que ya usa la web
- * (paxes.php / paxes_ep.php), que igual que descargar.php de Delay Info
- * nunca exigio sesion, asi que el movil lo llama directo sin token.
+ * Descarga directa del Excel -- a diferencia de descargar.php (Delay Info),
+ * paxes.php/paxes_ep.php SÍ exigen sesión o un enlace firmado
+ * (op/include/authGuard.php + linkToken.php), así que no se puede armar la
+ * URL a mano: hay que usar el `download_path`/`download_path_general` que
+ * ya regresa getReportList() (viene firmado con aps_link_token_qs()).
  */
-export function getReportDownloadUrl(script: 'paxes' | 'paxes_ep', idOrder: number, idHotel: number, idAirport: number): string {
-  return `${siteBase()}/op/modulos/reports/${script}.php?id_hotel=${idHotel}&id_order=${idOrder}&id_airport=${idAirport}`;
+export function getReportDownloadUrl(path: string): string {
+  return `${getSiteBaseUrl()}${path}`;
 }
 
 export interface SendReportResponse {
@@ -1534,6 +1553,32 @@ export async function lookupPreregByQr(q: string): Promise<PreregLookupResponse>
 /** Bitácora: se mostró el QR de pre-registro de esta O.S. (igual que hace la web al abrir el QR). Mejor esfuerzo, no bloquea la UI. */
 export async function logPreregOsQr(folio: number, idAirport: number): Promise<PreregOkResponse> {
   const { data } = await api.post<PreregOkResponse>('/prereg/logOs.php', { folio, ap: idAirport });
+  return data;
+}
+
+export interface PreregListItem {
+  id: number;
+  name: string;
+  party: number;
+  hotel_name: string;
+  ya: boolean;
+  voucher: string;
+  id_hotel: number | null;
+  comps: PreregLookupComp[];
+}
+
+export interface PreregListForOsResponse {
+  ok: boolean;
+  items?: PreregListItem[];
+  pending?: number;
+  error?: string;
+}
+
+/** Aviso pasivo (alta manual, sin pasar por el escaneo de QR): quiénes ya
+ * se pre-registraron para esta O.S. -- equivalente de
+ * op/modulos/open/preregLista.php (aps_prereg_lista), usado por add.php. */
+export async function getPreregListForOs(folio: number, idAirport: number): Promise<PreregListForOsResponse> {
+  const { data } = await api.get<PreregListForOsResponse>('/prereg/listForOs.php', { params: { folio, ap: idAirport } });
   return data;
 }
 

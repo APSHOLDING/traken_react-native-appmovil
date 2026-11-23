@@ -17,11 +17,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
-import { addPax, getHotelsForOrder, HotelDTO, PaxType } from '../api/client';
+import { addPax, getHotelsForOrder, getPreregListForOs, HotelDTO, PaxType, PreregListItem } from '../api/client';
 import VoucherScanButton from '../components/VoucherScanButton';
 import SelectField from '../components/SelectField';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { PreregPrefill, RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddPax'>;
 
@@ -78,7 +78,31 @@ export default function AddPaxScreen({ route, navigation }: Props) {
   const [ocupation, setOcupation] = useState('');
   const [passengers, setPassengers] = useState<PassengerForm[]>([makePassenger('', '')]);
   const [prefillActive, setPrefillActive] = useState(!!prefill);
+  const [appliedPrefill, setAppliedPrefill] = useState<PreregPrefill | null>(prefill ?? null);
   const prefillAppliedRef = useRef(false);
+
+  // Aviso pasivo (alta manual, sin pasar por el escaneo de QR): si ya se
+  // llegó con un prefill (del escaneo), no tiene caso mostrar esta lista.
+  const [preregList, setPreregList] = useState<PreregListItem[]>([]);
+  const [preregPending, setPreregPending] = useState(0);
+  const [showPreregList, setShowPreregList] = useState(false);
+
+  const loadPreregList = useCallback(async () => {
+    if (prefill) return;
+    try {
+      const res = await getPreregListForOs(folio, idAirport);
+      if (res.ok) {
+        setPreregList(res.items ?? []);
+        setPreregPending(res.pending ?? 0);
+      }
+    } catch (e) {
+      // Aviso de mejor esfuerzo: si falla, simplemente no se muestra.
+    }
+  }, [folio, idAirport, prefill]);
+
+  useEffect(() => {
+    loadPreregList();
+  }, [loadPreregList]);
 
   const {
     data: hotelData,
@@ -101,18 +125,15 @@ export default function AddPaxScreen({ route, navigation }: Props) {
   const defaultFSalida = hotelData?.defaultFSalida ?? '';
   const defaultHora = hotelData?.defaultHora ?? '';
 
-  useEffect(() => {
-    if (!hotelData) return;
-    if (hotelData.hotels.length === 1) setIdHotel(hotelData.hotels[0].id);
-
-    if (prefill && !prefillAppliedRef.current) {
-      prefillAppliedRef.current = true;
+  const applyPrefillData = useCallback(
+    (data: PreregPrefill) => {
+      if (!hotelData) return;
       const titular: PassengerForm = {
         ...makePassenger(hotelData.defaultFSalida, hotelData.defaultHora),
-        name: prefill.name,
-        voucher: prefill.voucher,
+        name: data.name,
+        voucher: data.voucher,
       };
-      const comps: PassengerForm[] = prefill.comps.map((c) => {
+      const comps: PassengerForm[] = data.comps.map((c) => {
         const base = makePassenger(hotelData.defaultFSalida, hotelData.defaultHora);
         const type: PaxType = c.type === 'nino' || c.type === 'infante' ? c.type : 'adulto';
         return {
@@ -124,9 +145,34 @@ export default function AddPaxScreen({ route, navigation }: Props) {
         };
       });
       setPassengers([titular, ...comps]);
-      if (prefill.idHotel && hotelData.hotels.some((h) => h.id === prefill.idHotel)) {
-        setIdHotel(prefill.idHotel);
+      if (data.idHotel && hotelData.hotels.some((h) => h.id === data.idHotel)) {
+        setIdHotel(data.idHotel);
       }
+      setAppliedPrefill(data);
+      setPrefillActive(true);
+      setShowPreregList(false);
+    },
+    [hotelData]
+  );
+
+  const handlePickPrereg = (item: PreregListItem) => {
+    applyPrefillData({
+      preregId: item.id,
+      name: item.name,
+      voucher: item.voucher,
+      comps: item.comps,
+      idHotel: item.id_hotel,
+      hotelName: item.hotel_name || null,
+    });
+  };
+
+  useEffect(() => {
+    if (!hotelData) return;
+    if (hotelData.hotels.length === 1) setIdHotel(hotelData.hotels[0].id);
+
+    if (prefill && !prefillAppliedRef.current) {
+      prefillAppliedRef.current = true;
+      applyPrefillData(prefill);
       return;
     }
 
@@ -195,7 +241,9 @@ export default function AddPaxScreen({ route, navigation }: Props) {
             setOcupation('');
             setPassengers([makePassenger(defaultFSalida, defaultHora)]);
             setPrefillActive(false);
+            setAppliedPrefill(null);
             load();
+            loadPreregList();
           },
         },
       ]);
@@ -243,17 +291,47 @@ export default function AddPaxScreen({ route, navigation }: Props) {
                 </View>
               )}
 
-              {prefillActive && prefill && (
+              {prefillActive && appliedPrefill && (
                 <View style={styles.prefillBanner}>
                   <Ionicons name="qr-code-outline" size={16} color="#67e8f9" />
                   <Text style={styles.prefillBannerText}>
-                    Datos precargados desde el pre-registro por QR ({1 + prefill.comps.length}{' '}
-                    {1 + prefill.comps.length === 1 ? 'persona' : 'personas'}).
-                    {prefill.idHotel && idHotel === prefill.idHotel
-                      ? ` Hotel: ${prefill.hotelName ?? ''}.`
+                    Datos precargados desde el pre-registro por QR ({1 + appliedPrefill.comps.length}{' '}
+                    {1 + appliedPrefill.comps.length === 1 ? 'persona' : 'personas'}).
+                    {appliedPrefill.idHotel && idHotel === appliedPrefill.idHotel
+                      ? ` Hotel: ${appliedPrefill.hotelName ?? ''}.`
                       : ' Elige el hotel (el asignado ya no tiene habitaciones disponibles).'}{' '}
                     Revisa y guarda.
                   </Text>
+                </View>
+              )}
+
+              {!prefillActive && preregPending > 0 && (
+                <View style={styles.passiveBannerWrap}>
+                  <Pressable style={styles.passiveBanner} onPress={() => setShowPreregList((v) => !v)}>
+                    <Ionicons name="qr-code-outline" size={16} color="#fcd34d" />
+                    <Text style={styles.passiveBannerText}>
+                      {preregPending} {preregPending === 1 ? 'persona se' : 'personas se'} pre-registraron por QR para
+                      esta O.S. · toca para usar sus datos
+                    </Text>
+                    <Ionicons name={showPreregList ? 'chevron-up' : 'chevron-down'} size={16} color="#fcd34d" />
+                  </Pressable>
+                  {showPreregList && (
+                    <View style={styles.passiveList}>
+                      {preregList
+                        .filter((item) => !item.ya)
+                        .map((item) => (
+                          <Pressable key={item.id} style={styles.passiveItem} onPress={() => handlePickPrereg(item)}>
+                            <Text style={styles.passiveItemName} numberOfLines={1}>
+                              {item.name}
+                            </Text>
+                            <Text style={styles.passiveItemSub}>
+                              {item.party > 1 ? `${item.party} personas` : '1 persona'}
+                              {item.voucher ? ` · Voucher ${item.voucher}` : ''}
+                            </Text>
+                          </Pressable>
+                        ))}
+                    </View>
+                  )}
                 </View>
               )}
 
@@ -524,6 +602,35 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   prefillBannerText: { color: '#67e8f9', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  passiveBannerWrap: { marginBottom: 14 },
+  passiveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(245,158,11,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.35)',
+    borderRadius: radii.input,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  passiveBannerText: { flex: 1, color: '#fcd34d', fontSize: 11.5, lineHeight: 16 },
+  passiveList: {
+    marginTop: 6,
+    borderRadius: radii.input,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    overflow: 'hidden',
+  },
+  passiveItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
+  },
+  passiveItemName: { color: colors.white, fontWeight: '700', fontSize: 13 },
+  passiveItemSub: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
   noRooms: { color: colors.textMuted, fontSize: 13, marginBottom: 8 },
   divider: { height: 1, backgroundColor: colors.cardBorder, marginTop: 20, marginBottom: 14 },
   sectionTitle: { color: colors.white, fontWeight: '800', fontSize: 13.5, marginBottom: 10 },

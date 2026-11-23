@@ -48,13 +48,14 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
       script: res.script ?? 'paxes',
       hotels: res.hotels ?? [],
       totalGeneral: res.total_general ?? 0,
+      downloadPathGeneral: res.download_path_general ?? '',
     }),
     [folio, idAirport]
   );
 
   const handleDownload = useCallback(
-    async (idHotel: number, label: string) => {
-      if (!data) return;
+    async (idHotel: number, label: string, downloadPath: string) => {
+      if (!data || !downloadPath) return;
       const key = String(idHotel);
       setDownloadingKey(key);
       setMsg(null);
@@ -63,7 +64,7 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
         const destination = new File(Paths.cache, fileName);
         if (destination.exists) destination.delete();
 
-        const task = File.createDownloadTask(getReportDownloadUrl(data.script, folio, idHotel, idAirport), destination);
+        const task = File.createDownloadTask(getReportDownloadUrl(downloadPath), destination);
         const downloaded = await task.downloadAsync();
 
         if (!downloaded || !downloaded.exists || downloaded.size === 0) {
@@ -88,7 +89,7 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
         setDownloadingKey(null);
       }
     },
-    [data, folio, idAirport, folioDisplay]
+    [data, folioDisplay]
   );
 
   const handleSend = useCallback(
@@ -178,7 +179,7 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
                 pax={h.total_pax}
                 isDownloading={downloadingKey === String(h.id_hotel)}
                 isSending={sendingKey === String(h.id_hotel)}
-                onDownload={() => handleDownload(h.id_hotel, h.name)}
+                onDownload={() => handleDownload(h.id_hotel, h.name, h.download_path)}
                 onSend={() => handleSend(h.id_hotel)}
               />
             ))}
@@ -189,7 +190,7 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
               general
               isDownloading={downloadingKey === '0'}
               isSending={sendingKey === '0'}
-              onDownload={() => handleDownload(0, 'GENERAL')}
+              onDownload={() => handleDownload(0, 'GENERAL', data.downloadPathGeneral)}
               onSend={() => handleSend(0)}
             />
 

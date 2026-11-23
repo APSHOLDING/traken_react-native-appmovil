@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -12,9 +14,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
-import { getOpenOrders, OpenOrderDTO } from '../api/client';
+import { getOpenOrders, getOpenOrdersExportUrl, getSiteBaseUrl, OpenOrderDTO } from '../api/client';
 import { getCache, saveCache } from '../utils/offlineCache';
 import CommentsModal from '../components/CommentsModal';
 import QrEncuestaModal from '../components/QrEncuestaModal';
@@ -41,6 +45,7 @@ export default function OpenOrdersScreen({ navigation }: Props) {
   const [offlineSince, setOfflineSince] = useState<number | null>(null);
   const [qrOrder, setQrOrder] = useState<OpenOrderDTO | null>(null);
   const [commentsOrder, setCommentsOrder] = useState<OpenOrderDTO | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setIsRefreshing(true);
@@ -91,6 +96,43 @@ export default function OpenOrdersScreen({ navigation }: Props) {
     [orders, q]
   );
 
+  const handleExport = useCallback(async () => {
+    if (filtered.length === 0) {
+      Alert.alert('Nada que exportar', 'No hay órdenes visibles con el filtro actual.');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const res = await getOpenOrdersExportUrl(
+        filtered.map((o) => ({ folio: o.folio, idAirport: o.id_airport }))
+      );
+      if (!res.ok || !res.url) {
+        Alert.alert('No se pudo exportar', res.error ?? 'Intenta de nuevo.');
+        return;
+      }
+      const destination = new File(Paths.cache, `ordenes_abiertas_${Date.now()}.xlsx`);
+      if (destination.exists) destination.delete();
+      const task = File.createDownloadTask(`${getSiteBaseUrl()}${res.url}`, destination);
+      const downloaded = await task.downloadAsync();
+      if (!downloaded || !downloaded.exists || downloaded.size === 0) {
+        throw new Error('empty-download');
+      }
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(downloaded.uri, {
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          dialogTitle: 'Órdenes Abiertas',
+        });
+      } else {
+        Alert.alert('Descargado', 'El Excel se guardó, pero este dispositivo no puede compartirlo/abrirlo directo.');
+      }
+    } catch (e) {
+      Alert.alert('No se pudo exportar', 'Revisa tu conexión e intenta de nuevo.');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [filtered]);
+
   return (
     <LinearGradient colors={gradients.hero} style={styles.flex}>
       <StatusBar style="light" />
@@ -103,7 +145,13 @@ export default function OpenOrdersScreen({ navigation }: Props) {
             <Text style={styles.topTitle}>Órdenes Abiertas</Text>
             <Text style={styles.topSub}>{orders.length} activa(s) este año</Text>
           </View>
-          <View style={styles.backBtn} />
+          <Pressable style={styles.backBtn} onPress={handleExport} disabled={isExporting} hitSlop={10}>
+            {isExporting ? (
+              <ActivityIndicator color={colors.white} size="small" />
+            ) : (
+              <Ionicons name="download-outline" size={20} color={colors.white} />
+            )}
+          </Pressable>
         </View>
 
         <View style={styles.searchWrap}>
