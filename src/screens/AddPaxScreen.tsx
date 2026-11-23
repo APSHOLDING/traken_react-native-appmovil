@@ -19,6 +19,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
 import { addPax, getHotelsForOrder, getPreregListForOs, HotelDTO, PaxType, PreregListItem } from '../api/client';
 import VoucherScanButton from '../components/VoucherScanButton';
+import SupportScanButton from '../components/SupportScanButton';
 import SelectField from '../components/SelectField';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { PreregPrefill, RootStackParamList } from '../navigation/RootNavigator';
@@ -455,6 +456,10 @@ function PassengerCard({
         style={styles.input}
         autoCapitalize="characters"
       />
+
+      <View style={{ marginTop: 8, marginBottom: 4 }}>
+        <SupportScanButton idOrder={idOrder} idAirport={idAirport} onDetected={(codigo) => onChange({ voucher: codigo })} />
+      </View>
 
       <FieldLabel text="Early / Late (opcional)" />
       <ChipRow>

@@ -622,6 +622,37 @@ export async function uploadVoucherPhoto(
   return data;
 }
 
+export interface ScanSupportResponse {
+  ok: boolean;
+  voucher?: string;
+  pnr?: string;
+  codigo?: string;
+  tipo?: 'PNR' | 'voucher';
+  vuelo?: string;
+  vuelo_os?: string;
+  vuelo_ok?: boolean | null;
+  msg?: string;
+}
+
+/** Lee el PNR/número de voucher (y compara el vuelo contra la O.S.) de una
+ * foto -- equivalente de op/modulos/open/leerSoporte.php (solo IA). Distinto
+ * de scanVoucherAI, que lee el NOMBRE del pasajero. */
+export async function scanSupportAI(
+  fileUri: string,
+  idOrder?: number,
+  idAirport?: number
+): Promise<ScanSupportResponse> {
+  const form = new FormData();
+  form.append('foto', { uri: fileUri, name: 'soporte.jpg', type: 'image/jpeg' } as any);
+  if (idOrder) form.append('id_order', String(idOrder));
+  if (idAirport) form.append('id_airport', String(idAirport));
+  const { data } = await api.post<ScanSupportResponse>('/vouchers/scanSupport.php', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 50000,
+  });
+  return data;
+}
+
 export async function removeVoucherPhoto(idPax: number, idOrder: number, idAirport: number): Promise<VoucherPhotoResponse> {
   const { data } = await api.post<VoucherPhotoResponse>('/vouchers/remove.php', {
     id_pax: idPax,
