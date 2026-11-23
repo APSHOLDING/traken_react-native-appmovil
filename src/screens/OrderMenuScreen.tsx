@@ -291,6 +291,14 @@ export default function OrderMenuScreen({ route, navigation }: Props) {
       loading: isCancelling,
     },
     {
+      key: 'otra-os',
+      label: 'Mover pasajero de otra O.S.',
+      sub: 'De la misma estación, con código de autorización',
+      icon: 'swap-horizontal-outline',
+      color: '#2563eb',
+      onPress: () => navigation.navigate('OtraOs', { folio, idAirport, folioDisplay, iata, typeAirline }),
+    },
+    {
       key: 'prueba',
       label: esPrueba ? 'Quitar marca de PRUEBA' : 'Marcar como PRUEBA',
       sub: esPrueba ? 'Se pedirá código por correo a Gerencia TI' : 'Etiqueta: no es una operación real',

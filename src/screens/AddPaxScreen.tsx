@@ -68,7 +68,7 @@ function makePassenger(fSalida: string, hora: string): PassengerForm {
  * completo por cada persona cuando comparten habitacion.
  */
 export default function AddPaxScreen({ route, navigation }: Props) {
-  const { folio, idAirport, folioDisplay, iata, typeAirline, prefill } = route.params;
+  const { folio, idAirport, folioDisplay, iata, typeAirline, prefill, otraOsPrefill } = route.params;
 
   const showOcupation = typeAirline === 'ep' || (typeAirline === 'all' && idAirport === 14);
   const showMeals = typeAirline === 'ep';
@@ -81,6 +81,8 @@ export default function AddPaxScreen({ route, navigation }: Props) {
   const [prefillActive, setPrefillActive] = useState(!!prefill);
   const [appliedPrefill, setAppliedPrefill] = useState<PreregPrefill | null>(prefill ?? null);
   const prefillAppliedRef = useRef(false);
+  const [otraOsActive, setOtraOsActive] = useState(!!otraOsPrefill);
+  const otraOsAppliedRef = useRef(false);
 
   // Aviso pasivo (alta manual, sin pasar por el escaneo de QR): si ya se
   // llegó con un prefill (del escaneo), no tiene caso mostrar esta lista.
@@ -89,7 +91,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
   const [showPreregList, setShowPreregList] = useState(false);
 
   const loadPreregList = useCallback(async () => {
-    if (prefill) return;
+    if (prefill || otraOsPrefill) return;
     try {
       const res = await getPreregListForOs(folio, idAirport);
       if (res.ok) {
@@ -99,7 +101,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
     } catch (e) {
       // Aviso de mejor esfuerzo: si falla, simplemente no se muestra.
     }
-  }, [folio, idAirport, prefill]);
+  }, [folio, idAirport, prefill, otraOsPrefill]);
 
   useEffect(() => {
     loadPreregList();
@@ -177,6 +179,23 @@ export default function AddPaxScreen({ route, navigation }: Props) {
       return;
     }
 
+    if (otraOsPrefill && !otraOsAppliedRef.current) {
+      otraOsAppliedRef.current = true;
+      const type: PaxType = otraOsPrefill.tipo === 'nino' || otraOsPrefill.tipo === 'infante' ? otraOsPrefill.tipo : 'adulto';
+      const edad = parseInt(otraOsPrefill.edad, 10);
+      setPassengers([
+        {
+          ...makePassenger(hotelData.defaultFSalida, hotelData.defaultHora),
+          name: otraOsPrefill.name,
+          voucher: otraOsPrefill.voucher,
+          type,
+          ageC: type === 'nino' && !isNaN(edad) ? edad : 2,
+          ageI: type === 'infante' && !isNaN(edad) ? edad : 0,
+        },
+      ]);
+      return;
+    }
+
     setPassengers([makePassenger(hotelData.defaultFSalida, hotelData.defaultHora)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelData]);
@@ -222,6 +241,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
           lunch: showMeals ? p.lunch : 0,
           dinner: showMeals ? p.dinner : 0,
         })),
+        otra_os_tokens: otraOsActive && otraOsPrefill ? [otraOsPrefill.token] : undefined,
       });
 
       if (res.status === 'dispo') {
@@ -243,6 +263,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
             setPassengers([makePassenger(defaultFSalida, defaultHora)]);
             setPrefillActive(false);
             setAppliedPrefill(null);
+            setOtraOsActive(false);
             load();
             loadPreregList();
           },
@@ -302,6 +323,15 @@ export default function AddPaxScreen({ route, navigation }: Props) {
                       ? ` Hotel: ${appliedPrefill.hotelName ?? ''}.`
                       : ' Elige el hotel (el asignado ya no tiene habitaciones disponibles).'}{' '}
                     Revisa y guarda.
+                  </Text>
+                </View>
+              )}
+
+              {otraOsActive && otraOsPrefill && (
+                <View style={styles.otraOsBanner}>
+                  <Ionicons name="swap-horizontal-outline" size={16} color="#93c5fd" />
+                  <Text style={styles.otraOsBannerText}>
+                    Pasajero autorizado de otra O.S. Revisa y guarda para completar el movimiento.
                   </Text>
                 </View>
               )}
@@ -607,6 +637,19 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   prefillBannerText: { color: '#67e8f9', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  otraOsBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(37,99,235,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(37,99,235,0.35)',
+    borderRadius: radii.input,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 14,
+  },
+  otraOsBannerText: { color: '#93c5fd', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
   passiveBannerWrap: { marginBottom: 14 },
   passiveBanner: {
     flexDirection: 'row',

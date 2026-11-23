@@ -171,6 +171,62 @@ export async function confirmPruebaCode(
   return data;
 }
 
+// ===== Mover pasajero de otra O.S. (misma estación) =====
+
+export interface OtraOsItem {
+  id: number;
+  nombre: string;
+  tipo: string;
+  os: string;
+  hotel: string;
+}
+
+export interface OtraOsSearchResponse {
+  ok: boolean;
+  items?: OtraOsItem[];
+  error?: string;
+}
+
+/** Busca un pasajero en otra O.S. abierta de la misma estación --
+ * equivalente de op/modulos/open/otraOs.php (accion=buscar). */
+export async function searchOtraOs(folio: number, idAirport: number, q: string): Promise<OtraOsSearchResponse> {
+  const { data } = await api.get<OtraOsSearchResponse>('/open/otraOsSearch.php', { params: { folio, ap: idAirport, q } });
+  return data;
+}
+
+export interface OtraOsRequestResponse {
+  ok: boolean;
+  sol_id?: number;
+  minutos?: number;
+  error?: string;
+}
+
+/** Pide el código de confirmación (le llega a Santiago, con copia a Gerencia
+ * TI) para mover a ese pasajero -- accion=pedir. */
+export async function requestOtraOsCode(folio: number, idAirport: number, paxId: number): Promise<OtraOsRequestResponse> {
+  const { data } = await api.post<OtraOsRequestResponse>('/open/otraOsRequest.php', { folio, ap: idAirport, pax_id: paxId });
+  return data;
+}
+
+export interface OtraOsConfirmResponse {
+  ok: boolean;
+  token?: string;
+  pax?: { nombre: string; tipo: string; edad: string; voucher: string; origen: string };
+  error?: string;
+}
+
+/** Confirma el código y entrega el token que hay que mandar en addPax()
+ * (otra_os_tokens) para que el movimiento se aplique al guardar -- accion=confirmar. */
+export async function confirmOtraOsCode(
+  folio: number,
+  idAirport: number,
+  solId: number,
+  codigo: string
+): Promise<OtraOsConfirmResponse> {
+  const { data } = await api.post<OtraOsConfirmResponse>('/open/otraOsConfirm.php', { folio, ap: idAirport, sol_id: solId, codigo });
+  return data;
+}
+
 export interface CommentDTO {
   user_name: string;
   comment: string;
@@ -269,6 +325,9 @@ export interface AddPaxPayload {
   /** Una habitacion puede traer varios pasajeros (ej. una familia); todos
    * comparten la misma habitacion y solo cuentan como 1 cuarto ocupado. */
   passengers: PaxEntry[];
+  /** Tokens de "mover pasajero de otra O.S." (ver otraOsSearch/Request/Confirm
+   * más abajo) -- uno por pasajero autorizado en este mismo guardado. */
+  otra_os_tokens?: string[];
 }
 
 export interface AddPaxResponse {

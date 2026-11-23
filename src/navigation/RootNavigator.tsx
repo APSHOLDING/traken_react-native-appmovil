@@ -36,6 +36,7 @@ import PreregOrderDetailScreen from '../screens/PreregOrderDetailScreen';
 import PreregQrDisplayScreen from '../screens/PreregQrDisplayScreen';
 import PreregScanScreen from '../screens/PreregScanScreen';
 import PreregListasScreen from '../screens/PreregListasScreen';
+import OtraOsScreen from '../screens/OtraOsScreen';
 import { colors } from '../theme/colors';
 import type { ExistingPaxDTO, PreregLookupComp } from '../api/client';
 
@@ -63,7 +64,16 @@ export type PreregPrefill = {
   idHotel: number | null;
   hotelName: string | null;
 };
-export type AddPaxParams = OrderMenuParams & { prefill?: PreregPrefill };
+/** Datos del pasajero autorizado para moverse de otra O.S. (ver OtraOsScreen). */
+export type OtraOsPrefill = {
+  token: string;
+  name: string;
+  tipo: string;
+  edad: string;
+  voucher: string;
+};
+export type AddPaxParams = OrderMenuParams & { prefill?: PreregPrefill; otraOsPrefill?: OtraOsPrefill };
+export type OtraOsParams = OrderMenuParams;
 
 export type RootStackParamList = {
   Login: undefined;
@@ -97,6 +107,7 @@ export type RootStackParamList = {
   PreregQrDisplay: { folio: number; idAirport: number; folioDisplay: string; token: string };
   PreregScan: undefined;
   PreregListas: { folio: number; idAirport: number; folioDisplay: string };
+  OtraOs: OtraOsParams;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -152,6 +163,7 @@ export default function RootNavigator() {
             <Stack.Screen name="PreregQrDisplay" component={PreregQrDisplayScreen} />
             <Stack.Screen name="PreregScan" component={PreregScanScreen} />
             <Stack.Screen name="PreregListas" component={PreregListasScreen} />
+            <Stack.Screen name="OtraOs" component={OtraOsScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
