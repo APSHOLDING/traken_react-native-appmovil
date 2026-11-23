@@ -1,0 +1,44 @@
+# Cada push a develop publica la app de PRUEBAS (perfil/canal preview).
+# - Si el código nativo no cambió (misma huella que un APK ya compilado):
+#   EAS Update; los teléfonos lo bajan solos al abrir la app.
+# - Si cambió (paquetes nativos, permisos, app.json): APK nuevo, que hay que
+#   instalar en los teléfonos (link/QR de EAS).
+name: Publicar en pruebas
+
+on:
+  push:
+    branches: ['develop']
+
+jobs:
+  huella:
+    name: Huella nativa
+    type: fingerprint
+    environment: preview
+
+  buscar_apk:
+    name: ¿Ya hay APK con esta huella?
+    needs: [huella]
+    type: get-build
+    params:
+      platform: android
+      profile: preview
+      fingerprint_hash: ${{ needs.huella.outputs.android_fingerprint_hash }}
+
+  compilar_apk:
+    name: APK nuevo (cambió lo nativo)
+    needs: [buscar_apk]
+    if: ${{ !needs.buscar_apk.outputs.build_id }}
+    type: build
+    params:
+      platform: android
+      profile: preview
+
+  actualizar:
+    name: Actualización por OTA
+    needs: [buscar_apk]
+    if: ${{ needs.buscar_apk.outputs.build_id }}
+    type: update
+    environment: preview
+    params:
+      channel: preview
+      platform: android

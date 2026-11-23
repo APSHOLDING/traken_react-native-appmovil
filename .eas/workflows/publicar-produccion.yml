@@ -1,0 +1,45 @@
+# Cada push a master (Merge del PR «Release a producción») publica la app de PRODUCCIÓN (perfil/canal production).
+# También a mano: npx eas-cli workflow:run .eas/workflows/publicar-produccion.yml
+# - Si el código nativo no cambió (misma huella que un APK ya compilado):
+#   EAS Update; los teléfonos lo bajan solos al abrir la app.
+# - Si cambió (paquetes nativos, permisos, app.json): APK nuevo, que hay que
+#   instalar en los teléfonos (link/QR de EAS).
+name: Publicar en producción
+
+on:
+  push:
+    branches: ['master']
+
+jobs:
+  huella:
+    name: Huella nativa
+    type: fingerprint
+    environment: production
+
+  buscar_apk:
+    name: ¿Ya hay APK con esta huella?
+    needs: [huella]
+    type: get-build
+    params:
+      platform: android
+      profile: production
+      fingerprint_hash: ${{ needs.huella.outputs.android_fingerprint_hash }}
+
+  compilar_apk:
+    name: APK nuevo (cambió lo nativo)
+    needs: [buscar_apk]
+    if: ${{ !needs.buscar_apk.outputs.build_id }}
+    type: build
+    params:
+      platform: android
+      profile: production
+
+  actualizar:
+    name: Actualización por OTA
+    needs: [buscar_apk]
+    if: ${{ needs.buscar_apk.outputs.build_id }}
+    type: update
+    environment: production
+    params:
+      channel: production
+      platform: android

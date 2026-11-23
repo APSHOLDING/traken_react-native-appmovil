@@ -1,0 +1,91 @@
+# Mantiene abierto un solo PR «Release a producción» (develop → master) mientras develop
+# tenga algo que master no. Cada push a develop actualiza su descripción: commits, módulos
+# tocados y si el cambio parece nativo (APK nuevo que hay que instalar en los teléfonos).
+# Al hacer Merge, EAS publica la app de producción sola (.eas/workflows/publicar-produccion.yml).
+name: Release a producción
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: release-pr
+  cancel-in-progress: true
+
+jobs:
+  pr:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Armar y publicar el PR
+        run: |
+          git fetch --quiet origin master develop
+          n=$(gh pr list --base master --head develop --state open --json number -q '.[0].number')
+
+          if git diff --quiet origin/master...origin/develop; then
+            echo "develop no tiene nada que master no tenga; no hay Release." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          rango=origin/master..origin/develop
+          archivos=$(git diff --name-only origin/master...origin/develop)
+          modulos=$(printf '%s\n' "$archivos" | sed -n 's#^src/\([^/]*\)/.*#\1#p' | sort -u)
+          resto=$(printf '%s\n' "$archivos" | grep -v '^src/' || true)
+          otros=$(printf '%s\n' "$resto" | sed 's#/.*##' | grep -v '^$' | sort -u)
+          nativo=$(printf '%s\n' "$archivos" | grep -E '^(package(-lock)?\.json|app\.json|eas\.json|android/|ios/)' || true)
+
+          {
+            echo '# Release a producción'
+            echo
+            echo 'Pruébalo en la app de **pruebas** (canal preview) antes de hacer Merge (usa **Create a merge commit**). Al hacer Merge, EAS publica la app de producción sola.'
+            echo
+            echo '> ⚠️ **Si algo de aquí usa endpoints nuevos del backend**, primero publica ese cambio en el backend de Traken; si no, esa pantalla falla en producción.'
+            echo
+            if [ -n "$nativo" ]; then
+              echo '## 📲 Probablemente requiere APK nuevo'
+              echo
+              echo 'Cambió algo nativo; EAS compilará un APK que **hay que instalar a mano en los teléfonos** (link/QR de EAS). Lo demás llega solo por OTA.'
+              echo
+              printf '%s\n' "$nativo" | sed 's/.*/- `&`/'
+              echo
+            else
+              echo '## Llega sola por OTA'
+              echo
+              echo 'No cambió nada nativo: los teléfonos bajan la actualización al abrir la app.'
+              echo
+            fi
+            echo '## Qué se modificó'
+            echo
+            if [ -n "$modulos" ]; then
+              for m in $modulos; do
+                c=$(printf '%s\n' "$archivos" | grep -c "^src/$m/")
+                echo "- **$m**: $c archivo(s)"
+              done
+            fi
+            for o in $otros; do
+              c=$(printf '%s\n' "$resto" | awk -F/ -v o="$o" '$1==o' | wc -l)
+              echo "- \`$o\`: $c archivo(s)"
+            done
+            echo
+            echo '## Commits'
+            echo
+            git log --no-merges --format='- %s (%an)' "$rango" | head -60
+          } > "$RUNNER_TEMP/body.md"
+
+          if [ -n "$n" ]; then
+            gh pr edit "$n" --body-file "$RUNNER_TEMP/body.md"
+            echo "PR #$n actualizado." >> "$GITHUB_STEP_SUMMARY"
+          else
+            gh pr create --base master --head develop --title 'Release a producción' --body-file "$RUNNER_TEMP/body.md"
+            echo "PR de Release creado." >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -31,6 +31,7 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
@@ -39,3 +40,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Llave de firma de EAS (eas credentials → Download): contraseñas, nunca a git
+credentials.json
+credentials/
