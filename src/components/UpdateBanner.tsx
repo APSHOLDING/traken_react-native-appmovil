@@ -2,43 +2,46 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Updates from 'expo-updates';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, shadow } from '../theme/colors';
 
 /**
- * Aviso de "hay una actualizacion nueva" -- por defecto expo-updates baja
- * la actualizacion OTA en segundo plano pero solo la aplica hasta que el
- * usuario cierre y vuelva a abrir la app por su cuenta, sin avisarle nada.
- * Este banner checa activamente (al abrir la app y cada vez que vuelve de
- * segundo plano), descarga la actualizacion si hay una, y deja reiniciar
- * de inmediato con un boton en vez de esperar a que la persona cierre la
- * app por casualidad.
+ * Aviso de "hay una actualizacion nueva" -- por defecto expo-updates solo
+ * revisa al abrir la app en frio y aplica lo descargado hasta que la persona
+ * la cierre por su cuenta. Aqui tambien se revisa cada vez que la app vuelve
+ * al frente (maximo cada 10 min), se descarga en segundo plano y se ofrece
+ * reiniciar con un boton. Nunca se recarga sola; "Despues" lo oculta hasta
+ * la proxima vez que la app vuelva al frente.
  */
+const MIN_ENTRE_REVISIONES_MS = 10 * 60 * 1000;
+
 export default function UpdateBanner() {
-  const [ready, setReady] = useState(false);
+  const { isUpdatePending } = Updates.useUpdates();
+  const insets = useSafeAreaInsets();
+  const [dismissed, setDismissed] = useState(false);
   const [restarting, setRestarting] = useState(false);
-  const checking = useRef(false);
+  const lastCheck = useRef(0);
 
   const checkForUpdate = useCallback(async () => {
-    if (__DEV__ || !Updates.isEnabled || checking.current) return;
-    checking.current = true;
+    if (__DEV__ || !Updates.isEnabled) return;
+    const now = Date.now();
+    if (now - lastCheck.current < MIN_ENTRE_REVISIONES_MS) return;
+    lastCheck.current = now;
     try {
       const check = await Updates.checkForUpdateAsync();
-      if (check.isAvailable) {
-        await Updates.fetchUpdateAsync();
-        setReady(true);
-      }
+      if (check.isAvailable) await Updates.fetchUpdateAsync(); // deja isUpdatePending en true
     } catch (e) {
       // Silencioso: sin internet o servidor caido -- se reintenta la
       // proxima vez que la app pase a primer plano.
-    } finally {
-      checking.current = false;
     }
   }, []);
 
   useEffect(() => {
     checkForUpdate();
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') checkForUpdate();
+      if (state !== 'active') return;
+      setDismissed(false);
+      checkForUpdate();
     });
     return () => sub.remove();
   }, [checkForUpdate]);
@@ -52,15 +55,18 @@ export default function UpdateBanner() {
     }
   };
 
-  if (!ready) return null;
+  if (!isUpdatePending || dismissed) return null;
 
   return (
-    <View style={[styles.wrap, shadow.card]} pointerEvents="box-none">
+    <View style={[styles.wrap, shadow.card, { bottom: insets.bottom + 18 }]} pointerEvents="box-none">
       <View style={styles.banner}>
         <Ionicons name="cloud-download-outline" size={18} color={colors.teal} />
         <Text style={styles.text}>Hay una actualización disponible</Text>
         <Pressable style={styles.btn} onPress={restart} disabled={restarting} hitSlop={8}>
           <Text style={styles.btnText}>{restarting ? 'Reiniciando…' : 'Reiniciar'}</Text>
+        </Pressable>
+        <Pressable onPress={() => setDismissed(true)} disabled={restarting} hitSlop={8}>
+          <Text style={styles.laterText}>Después</Text>
         </Pressable>
       </View>
     </View>
@@ -72,7 +78,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 12,
     right: 12,
-    bottom: 18,
     zIndex: 999,
   },
   banner: {
@@ -94,4 +99,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   btnText: { color: '#06322f', fontWeight: '800', fontSize: 12 },
+  laterText: { color: 'rgba(255,255,255,0.7)', fontWeight: '700', fontSize: 12 },
 });
