@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii } from '../theme/colors';
-import { removeVoucherPhoto, restoreVoucherPhoto, uploadVoucherPhoto, logVoucherScan } from '../api/client';
+import { removeVoucherPhoto, restoreVoucherPhoto, rotateVoucherPhoto, uploadVoucherPhoto, logVoucherScan } from '../api/client';
 import { iniciarEscaneoVoucher, escanearConOcrLocal, ScanStage } from '../utils/voucherScan';
 import { resizeForUpload } from '../utils/imageResize';
 
@@ -13,6 +13,7 @@ type Props = {
   idAirport: number;
   initialUrl: string | null;
   initialRemoved: boolean;
+  initialRotation?: number;
   /** Se llama cuando se detecta/confirma un nombre, para autocompletar el
    * campo "Nombre" de la pantalla que use este componente. */
   onNameDetected?: (name: string) => void;
@@ -26,10 +27,22 @@ type Props = {
  * respaldo, igual que add.php en la web) para sugerir el nombre, y luego
  * la guarda como soporte del pasajero.
  */
-export default function VoucherPhotoSection({ idPax, idOrder, idAirport, initialUrl, initialRemoved, onNameDetected }: Props) {
+export default function VoucherPhotoSection({
+  idPax,
+  idOrder,
+  idAirport,
+  initialUrl,
+  initialRemoved,
+  initialRotation,
+  onNameDetected,
+}: Props) {
   const [photoUrl, setPhotoUrl] = useState(initialUrl);
   const [removed, setRemoved] = useState(initialRemoved);
+  const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(
+    initialRotation === 90 || initialRotation === 180 || initialRotation === 270 ? initialRotation : 0
+  );
   const [isBusy, setIsBusy] = useState(false);
+  const [isRotating, setIsRotating] = useState(false);
 
   const [scanning, setScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState('');
@@ -186,6 +199,25 @@ export default function VoucherPhotoSection({ idPax, idOrder, idAirport, initial
     ]);
   };
 
+  const handleRotate = async () => {
+    const previous = rotation;
+    const next = ((rotation + 90) % 360) as 0 | 90 | 180 | 270;
+    setRotation(next);
+    setIsRotating(true);
+    try {
+      const res = await rotateVoucherPhoto(idPax, idOrder, idAirport, next);
+      if (!res.ok) {
+        setRotation(previous);
+        Alert.alert('No se pudo guardar el giro', res.error || 'Intenta de nuevo.');
+      }
+    } catch (e) {
+      setRotation(previous);
+      Alert.alert('Sin conexión', 'No se pudo guardar el giro. Intenta de nuevo.');
+    } finally {
+      setIsRotating(false);
+    }
+  };
+
   const handleRestore = async () => {
     setIsBusy(true);
     try {
@@ -213,7 +245,11 @@ export default function VoucherPhotoSection({ idPax, idOrder, idAirport, initial
       </View>
 
       {photoUrl && !scanning && !showGuess && (
-        <Image source={{ uri: photoUrl }} style={styles.thumb} resizeMode="cover" />
+        <Image
+          source={{ uri: photoUrl }}
+          style={[styles.thumb, { transform: [{ rotate: `${rotation}deg` }] }]}
+          resizeMode="cover"
+        />
       )}
 
       {!scanning && !showGuess && (
@@ -235,6 +271,14 @@ export default function VoucherPhotoSection({ idPax, idOrder, idAirport, initial
               <Pressable style={styles.actionBtn} onPress={() => empezarEscaneo('camera')} disabled={isBusy}>
                 <Ionicons name="camera-outline" size={14} color="#fff" />
                 <Text style={styles.actionBtnText}>Reemplazar</Text>
+              </Pressable>
+              <Pressable style={[styles.actionBtn, styles.actionBtnGhost]} onPress={handleRotate} disabled={isBusy || isRotating}>
+                {isRotating ? (
+                  <ActivityIndicator size="small" color="#0f172a" />
+                ) : (
+                  <Ionicons name="reload-outline" size={14} color="#0f172a" />
+                )}
+                <Text style={styles.actionBtnGhostText}>Girar</Text>
               </Pressable>
               <Pressable style={[styles.actionBtn, styles.actionBtnDanger]} onPress={handleRemove} disabled={isBusy}>
                 <Ionicons name="trash-outline" size={14} color="#fff" />

@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
-import { getHotelsForOrder, HotelDTO, PaxType, updatePax } from '../api/client';
+import { deletePax, deleteRoom, ExistingPaxDTO, getHotelsForOrder, getOrderPax, HotelDTO, PaxType, updatePax } from '../api/client';
 import VoucherPhotoSection from '../components/VoucherPhotoSection';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -35,9 +35,11 @@ export default function EditPaxScreen({ route, navigation }: Props) {
   const showMeals = typeAirline === 'ep';
 
   const [hotels, setHotels] = useState<HotelDTO[]>([]);
+  const [roommates, setRoommates] = useState<ExistingPaxDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [idHotel, setIdHotel] = useState<number>(pax.id_hotel);
   const [ocupation, setOcupation] = useState(pax.ocupation || '');
@@ -57,21 +59,24 @@ export default function EditPaxScreen({ route, navigation }: Props) {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const res = await getHotelsForOrder(folio, idAirport);
-      if (res.ok) {
+      const [hotelsRes, paxRes] = await Promise.all([getHotelsForOrder(folio, idAirport), getOrderPax(folio, idAirport)]);
+      if (hotelsRes.ok) {
         // Aqui SI se incluye el hotel actual del pasajero aunque ya no
         // tenga cuartos disponibles -- si no, no podria dejarlo igual.
-        const list = res.hotels ?? [];
+        const list = hotelsRes.hotels ?? [];
         setHotels(list);
       } else {
-        setLoadError(res.error ?? 'No se pudo cargar la información.');
+        setLoadError(hotelsRes.error ?? 'No se pudo cargar la información.');
+      }
+      if (paxRes.ok) {
+        setRoommates((paxRes.items ?? []).filter((p) => p.id !== pax.id && p.id_orders_open === pax.id_orders_open));
       }
     } catch (e) {
       setLoadError('Sin conexión. Revisa tu internet e intenta de nuevo.');
     } finally {
       setIsLoading(false);
     }
-  }, [folio, idAirport]);
+  }, [folio, idAirport, pax.id, pax.id_orders_open]);
 
   useEffect(() => {
     load();
@@ -115,6 +120,61 @@ export default function EditPaxScreen({ route, navigation }: Props) {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleDeletePax = () => {
+    Alert.alert('Eliminar pasajero', `¿Eliminar a ${pax.name}? Esta acción no se puede deshacer desde la app.`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          setIsDeleting(true);
+          try {
+            const res = await deletePax(pax.id, folio, idAirport);
+            if (res.ok) {
+              navigation.goBack();
+            } else {
+              Alert.alert('No se pudo eliminar', res.error ?? res.msg ?? 'Intenta de nuevo.');
+            }
+          } catch (e) {
+            Alert.alert('Sin conexión', 'No se pudo eliminar. Intenta de nuevo.');
+          } finally {
+            setIsDeleting(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleDeleteRoom = () => {
+    const nombres = [pax.name, ...roommates.map((r) => r.name)].join(', ');
+    Alert.alert(
+      'Eliminar habitación completa',
+      `Se eliminarán los ${roommates.length + 1} pasajeros de esta habitación: ${nombres}. Esta acción no se puede deshacer desde la app.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar habitación',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              const res = await deleteRoom(pax.id_orders_open, folio, idAirport);
+              if (res.ok) {
+                navigation.goBack();
+              } else {
+                Alert.alert('No se pudo eliminar', res.error ?? res.msg ?? 'Intenta de nuevo.');
+              }
+            } catch (e) {
+              Alert.alert('Sin conexión', 'No se pudo eliminar. Intenta de nuevo.');
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -186,6 +246,7 @@ export default function EditPaxScreen({ route, navigation }: Props) {
                   idAirport={idAirport}
                   initialUrl={pax.voucher_img_url}
                   initialRemoved={pax.voucher_img_removed}
+                  initialRotation={pax.voucher_img_rotation}
                   onNameDetected={(detected) => setName(detected)}
                 />
 
@@ -273,6 +334,28 @@ export default function EditPaxScreen({ route, navigation }: Props) {
               >
                 <Text style={styles.submitText}>{isSaving ? 'Guardando...' : 'Guardar Cambios'}</Text>
               </Pressable>
+
+              <Pressable
+                style={[styles.deleteBtn, isDeleting && styles.submitBtnDisabled]}
+                onPress={handleDeletePax}
+                disabled={isDeleting || isSaving}
+              >
+                <Ionicons name="trash-outline" size={16} color="#fff" />
+                <Text style={styles.deleteBtnText}>{isDeleting ? 'Eliminando...' : 'Eliminar pasajero'}</Text>
+              </Pressable>
+
+              {roommates.length > 0 && (
+                <Pressable
+                  style={[styles.deleteRoomBtn, isDeleting && styles.submitBtnDisabled]}
+                  onPress={handleDeleteRoom}
+                  disabled={isDeleting || isSaving}
+                >
+                  <Ionicons name="trash-bin-outline" size={16} color={colors.danger} />
+                  <Text style={styles.deleteRoomBtnText}>
+                    Eliminar habitación completa ({roommates.length + 1} pasajeros)
+                  </Text>
+                </Pressable>
+              )}
             </ScrollView>
           </KeyboardAvoidingView>
         )}
@@ -403,4 +486,28 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { opacity: 0.5 },
   submitText: { color: '#06322f', fontWeight: '800', fontSize: 15 },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: colors.danger,
+    borderRadius: radii.button,
+    height: 48,
+    marginTop: 12,
+  },
+  deleteBtnText: { color: '#fff', fontWeight: '800', fontSize: 13.5 },
+  deleteRoomBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: colors.danger,
+    borderRadius: radii.button,
+    height: 48,
+    marginTop: 10,
+  },
+  deleteRoomBtnText: { color: colors.danger, fontWeight: '800', fontSize: 13 },
 });

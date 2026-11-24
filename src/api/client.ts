@@ -568,6 +568,7 @@ export async function sendDelayEmail(to: string, d: DelayFormData): Promise<Send
 
 export interface ExistingPaxDTO {
   id: number;
+  id_orders_open: number;
   name: string;
   voucher: string;
   date_out: string;
@@ -584,6 +585,7 @@ export interface ExistingPaxDTO {
   dinner: number;
   voucher_img_url: string | null;
   voucher_img_removed: boolean;
+  voucher_img_rotation: number;
 }
 
 export interface PaxListResponse {
@@ -626,6 +628,38 @@ export interface UpdatePaxResponse {
 
 export async function updatePax(payload: UpdatePaxPayload): Promise<UpdatePaxResponse> {
   const { data } = await api.post<UpdatePaxResponse>('/orders/updatePax.php', payload);
+  return data;
+}
+
+export interface DeletePaxResponse {
+  ok: boolean;
+  msg?: string;
+  error?: string;
+}
+
+/** Elimina un pasajero -- si su habitación se queda vacía, el servidor también la borra y regresa el cupo al hotel. */
+export async function deletePax(idPax: number, idOrder: number, idAirport: number): Promise<DeletePaxResponse> {
+  const { data } = await api.post<DeletePaxResponse>('/orders/deletePax.php', {
+    id_pax: idPax,
+    id_order: idOrder,
+    id_airport: idAirport,
+  });
+  return data;
+}
+
+export interface DeleteRoomResponse {
+  ok: boolean;
+  msg?: string;
+  error?: string;
+}
+
+/** Elimina una habitación completa (todos sus pasajeros de un jalón) y regresa el cupo al hotel. */
+export async function deleteRoom(idOrdersOpen: number, idOrder: number, idAirport: number): Promise<DeleteRoomResponse> {
+  const { data } = await api.post<DeleteRoomResponse>('/orders/deleteRoom.php', {
+    id_orders_open: idOrdersOpen,
+    id_order: idOrder,
+    id_airport: idAirport,
+  });
   return data;
 }
 
@@ -752,6 +786,28 @@ export async function restoreVoucherPhoto(idPax: number, idOrder: number, idAirp
     id_pax: idPax,
     id_order: idOrder,
     id_airport: idAirport,
+  });
+  return data;
+}
+
+export interface RotateVoucherPhotoResponse {
+  ok: boolean;
+  deg?: number;
+  error?: string;
+}
+
+/** Guarda el giro (0/90/180/270) de la foto de soporte, para que el PDF descargado respete la orientación corregida. */
+export async function rotateVoucherPhoto(
+  idPax: number,
+  idOrder: number,
+  idAirport: number,
+  deg: number
+): Promise<RotateVoucherPhotoResponse> {
+  const { data } = await api.post<RotateVoucherPhotoResponse>('/vouchers/rotate.php', {
+    id_pax: idPax,
+    id_order: idOrder,
+    id_airport: idAirport,
+    deg,
   });
   return data;
 }

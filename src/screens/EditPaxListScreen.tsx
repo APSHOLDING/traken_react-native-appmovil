@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
 import { getOrderPax } from '../api/client';
@@ -44,6 +45,12 @@ export default function EditPaxListScreen({ route, navigation }: Props) {
     () => getOrderPax(folio, idAirport),
     (res) => res.items ?? [],
     [folio, idAirport]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload])
   );
 
   const q = query.trim().toLowerCase();
