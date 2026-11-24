@@ -1190,6 +1190,41 @@ export async function getAllOrders(): Promise<AllOrdersResponse> {
   return data;
 }
 
+/**
+ * Buscador de pasajero por NOMBRE en todas las O.S. de las estaciones del
+ * usuario -- equivalente movil de op/modulos/open/buscarPax.php (la cajita
+ * que la web inyecta sobre Órdenes Abiertas y Reportes).
+ */
+export interface PaxSearchItem {
+  pax: string;
+  tipo: string;
+  voucher: string;
+  hab: string;
+  hotel: string;
+  os: string;
+  folio: number;
+  id_airport: number;
+  iata: string;
+  aerolinea: string;
+  fecha: string;
+  status: 'open' | 'close' | 'cancel' | string;
+}
+
+export interface PaxSearchResponse {
+  ok: boolean;
+  items?: PaxSearchItem[];
+  mas?: boolean;
+  msg?: string;
+  error?: string;
+}
+
+export async function searchPaxByName(q: string, estado: 'open' | 'all' = 'all'): Promise<PaxSearchResponse> {
+  const { data } = await api.get<PaxSearchResponse>('/orders/paxSearch.php', {
+    params: { q, estado },
+  });
+  return data;
+}
+
 /** Detalle de una O.S. -- equivalente movil de op/modulos/details/details.php. */
 export interface OrderDetailInfo {
   folio_display: string;

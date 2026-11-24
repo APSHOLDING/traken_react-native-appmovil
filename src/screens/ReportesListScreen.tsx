@@ -9,6 +9,8 @@ import { colors, gradients, radii, shadow } from '../theme/colors';
 import { getAllOrders } from '../api/client';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import PaxSearchBox from '../components/PaxSearchBox';
+import DateRangeFilter from '../components/DateRangeFilter';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ReportesList'>;
 
@@ -18,6 +20,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ReportesList'>;
  */
 export default function ReportesListScreen({ navigation }: Props) {
   const [query, setQuery] = useState('');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
 
   const {
     data: result,
@@ -35,9 +39,16 @@ export default function ReportesListScreen({ navigation }: Props) {
   const orders = result?.orders ?? [];
 
   const q = query.trim().toLowerCase();
-  const filtered = q
-    ? orders.filter((o) => `${o.folio_display} ${o.airline} ${o.flight ?? ''} ${o.iata}`.toLowerCase().includes(q))
-    : orders;
+  const filtered = orders.filter((o) => {
+    if (q) {
+      const hay = `${o.folio_display} ${o.airline} ${o.flight ?? ''} ${o.iata}`.toLowerCase().includes(q);
+      if (!hay) return false;
+    }
+    const fecha = o.date_in ?? '';
+    if (desde && (!fecha || fecha < desde)) return false;
+    if (hasta && (!fecha || fecha > hasta)) return false;
+    return true;
+  });
 
   return (
     <LinearGradient colors={gradients.hero} style={styles.flex}>
@@ -65,6 +76,19 @@ export default function ReportesListScreen({ navigation }: Props) {
             autoCapitalize="none"
           />
         </View>
+
+        <DateRangeFilter desde={desde} hasta={hasta} onChangeDesde={setDesde} onChangeHasta={setHasta} />
+
+        <PaxSearchBox
+          estado="all"
+          onPick={(item) =>
+            navigation.navigate('ReportePicker', {
+              folio: item.folio,
+              idAirport: item.id_airport,
+              folioDisplay: item.os,
+            })
+          }
+        />
 
         {isLoading ? (
           <ActivityIndicator color={colors.teal} style={{ marginTop: 30 }} />

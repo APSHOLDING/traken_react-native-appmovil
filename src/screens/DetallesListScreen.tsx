@@ -9,6 +9,8 @@ import { colors, gradients, radii, shadow } from '../theme/colors';
 import { getAllOrders } from '../api/client';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import PaxSearchBox from '../components/PaxSearchBox';
+import DateRangeFilter from '../components/DateRangeFilter';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DetallesList'>;
 
@@ -27,6 +29,8 @@ function statusInfo(status: string): { label: string; color: string; bg: string 
  */
 export default function DetallesListScreen({ navigation }: Props) {
   const [query, setQuery] = useState('');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
 
   const {
     data: result,
@@ -47,14 +51,19 @@ export default function DetallesListScreen({ navigation }: Props) {
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
     () =>
-      q
-        ? orders.filter((o) =>
-            `${o.folio_display} ${o.airline} ${o.flight ?? ''} ${o.iata} ${statusInfo(o.status).label}`
-              .toLowerCase()
-              .includes(q)
-          )
-        : orders,
-    [orders, q]
+      orders.filter((o) => {
+        if (q) {
+          const hay = `${o.folio_display} ${o.airline} ${o.flight ?? ''} ${o.iata} ${statusInfo(o.status).label}`
+            .toLowerCase()
+            .includes(q);
+          if (!hay) return false;
+        }
+        const fecha = o.date_in ?? '';
+        if (desde && (!fecha || fecha < desde)) return false;
+        if (hasta && (!fecha || fecha > hasta)) return false;
+        return true;
+      }),
+    [orders, q, desde, hasta]
   );
 
   return (
@@ -83,6 +92,19 @@ export default function DetallesListScreen({ navigation }: Props) {
             autoCapitalize="none"
           />
         </View>
+
+        <DateRangeFilter desde={desde} hasta={hasta} onChangeDesde={setDesde} onChangeHasta={setHasta} />
+
+        <PaxSearchBox
+          estado="all"
+          onPick={(item) =>
+            navigation.navigate('DetalleOrden', {
+              folio: item.folio,
+              idAirport: item.id_airport,
+              folioDisplay: item.os,
+            })
+          }
+        />
 
         {isLoading ? (
           <ActivityIndicator color={colors.teal} style={{ marginTop: 30 }} />
