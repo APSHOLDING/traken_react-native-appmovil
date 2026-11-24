@@ -387,6 +387,77 @@ export async function addTransport(payload: AddTransportPayload): Promise<AddTra
   return data;
 }
 
+export interface TransportRowDTO {
+  id: number;
+  id_hotel: number;
+  hotel_name: string;
+  id_transport: number;
+  transport_name: string;
+  unit: number;
+  unit_name: string;
+  quantity: number;
+  pax: number;
+}
+
+export interface TransportListResponse {
+  ok: boolean;
+  items?: TransportRowDTO[];
+  error?: string;
+}
+
+/** Transporte ya registrado de una O.S. (llegada o salida) -- para mostrarlo arriba del formulario de agregar. */
+export async function getTransportList(
+  idOrder: number,
+  idAirport: number,
+  direction: TransportDirection
+): Promise<TransportListResponse> {
+  const { data } = await api.get<TransportListResponse>('/orders/transportList.php', {
+    params: { id_order: idOrder, id_airport: idAirport, direction },
+  });
+  return data;
+}
+
+export interface UpdateTransportPayload {
+  id_transport_row: number;
+  id_order: number;
+  id_airport: number;
+  id_hotel: number;
+  id_transport: number;
+  unit: number;
+  quantity: number;
+  pax: number;
+}
+
+export interface UpdateTransportResponse {
+  ok: boolean;
+  msg?: string;
+  error?: string;
+}
+
+export async function updateTransport(payload: UpdateTransportPayload): Promise<UpdateTransportResponse> {
+  const { data } = await api.post<UpdateTransportResponse>('/orders/updateTransport.php', payload);
+  return data;
+}
+
+export interface DeleteTransportResponse {
+  ok: boolean;
+  msg?: string;
+  error?: string;
+}
+
+export async function deleteTransport(
+  idTransportRow: number,
+  idOrder: number,
+  idAirport: number
+): Promise<DeleteTransportResponse> {
+  const { data } = await api.post<DeleteTransportResponse>('/orders/deleteTransport.php', {
+    id_transport_row: idTransportRow,
+    id_order: idOrder,
+    id_airport: idAirport,
+  });
+  return data;
+}
+
 export interface CloseOrderResponse {
   ok: boolean;
   status?: 'exito' | 'error';

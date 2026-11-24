@@ -17,7 +17,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
-import { addTransport, getTransportOptions } from '../api/client';
+import {
+  addTransport,
+  deleteTransport,
+  getTransportList,
+  getTransportOptions,
+  TransportRowDTO,
+  updateTransport,
+} from '../api/client';
 import SelectField from '../components/SelectField';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -37,6 +44,8 @@ export default function AddTransportScreen({ route, navigation }: Props) {
   const isArrival = direction === 'in';
 
   const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const [idHotel, setIdHotel] = useState<number | null>(null);
   const [idTransport, setIdTransport] = useState<number | null>(null);
@@ -51,15 +60,34 @@ export default function AddTransportScreen({ route, navigation }: Props) {
     offlineSince,
     reload: load,
   } = useOfflineLoad(
-    `add_transport_options_${folio}_${idAirport}`,
-    () => getTransportOptions(folio, idAirport),
-    (res) => ({ hotels: res.hotels ?? [], transports: res.transports ?? [], units: res.units ?? [] }),
-    [folio, idAirport]
+    `add_transport_options_${folio}_${idAirport}_${direction}`,
+    async () => {
+      const [optsRes, listRes] = await Promise.all([
+        getTransportOptions(folio, idAirport),
+        getTransportList(folio, idAirport, direction),
+      ]);
+      if (!optsRes.ok) return optsRes;
+      return {
+        ok: true as const,
+        hotels: optsRes.hotels ?? [],
+        transports: optsRes.transports ?? [],
+        units: optsRes.units ?? [],
+        rows: listRes.ok ? listRes.items ?? [] : [],
+      };
+    },
+    (res) => ({
+      hotels: res.hotels ?? [],
+      transports: res.transports ?? [],
+      units: res.units ?? [],
+      rows: 'rows' in res ? res.rows ?? [] : [],
+    }),
+    [folio, idAirport, direction]
   );
 
   const hotels = options?.hotels ?? [];
   const transports = options?.transports ?? [];
   const units = options?.units ?? [];
+  const rows = options?.rows ?? [];
 
   React.useEffect(() => {
     if (options?.hotels.length === 1) setIdHotel(options.hotels[0].id);
@@ -71,26 +99,88 @@ export default function AddTransportScreen({ route, navigation }: Props) {
 
   const canSubmit = !!idHotel && !!idTransport && !!unit && qty > 0 && paxNum > 0 && !isSaving;
 
+  const resetForm = () => {
+    setEditingId(null);
+    setIdTransport(null);
+    setUnit(null);
+    setQuantity('1');
+    setPax('1');
+  };
+
+  const handleEdit = (row: TransportRowDTO) => {
+    setEditingId(row.id);
+    setIdHotel(row.id_hotel);
+    setIdTransport(row.id_transport);
+    setUnit(row.unit);
+    setQuantity(String(row.quantity));
+    setPax(String(row.pax));
+  };
+
+  const handleDelete = (row: TransportRowDTO) => {
+    Alert.alert('Eliminar transporte', `¿Eliminar este transporte (${row.hotel_name.trim()})?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          setDeletingId(row.id);
+          try {
+            const res = await deleteTransport(row.id, folio, idAirport);
+            if (res.ok) {
+              if (editingId === row.id) resetForm();
+              load();
+            } else {
+              Alert.alert('No se pudo eliminar', res.error ?? res.msg ?? 'Intenta de nuevo.');
+            }
+          } catch (e) {
+            Alert.alert('Sin conexión', 'No se pudo eliminar. Intenta de nuevo.');
+          } finally {
+            setDeletingId(null);
+          }
+        },
+      },
+    ]);
+  };
+
   const handleSubmit = async () => {
     if (!canSubmit || !idHotel || !idTransport || !unit) return;
     setIsSaving(true);
     try {
-      const res = await addTransport({
-        id_order: folio,
-        id_airport: idAirport,
-        id_hotel: idHotel,
-        id_transport: idTransport,
-        unit,
-        quantity: qty,
-        pax: paxNum,
-        direction,
-      });
+      const res = editingId
+        ? await updateTransport({
+            id_transport_row: editingId,
+            id_order: folio,
+            id_airport: idAirport,
+            id_hotel: idHotel,
+            id_transport: idTransport,
+            unit,
+            quantity: qty,
+            pax: paxNum,
+          })
+        : await addTransport({
+            id_order: folio,
+            id_airport: idAirport,
+            id_hotel: idHotel,
+            id_transport: idTransport,
+            unit,
+            quantity: qty,
+            pax: paxNum,
+            direction,
+          });
 
       if (!res.ok) {
         Alert.alert('No se pudo guardar', res.error ?? res.msg ?? 'Intenta de nuevo.');
         return;
       }
 
+      if (editingId) {
+        resetForm();
+        load();
+        Alert.alert('Transporte actualizado', res.msg ?? '');
+        return;
+      }
+
+      load();
       Alert.alert('Transporte agregado', res.msg ?? '', [
         { text: 'Terminar', style: 'cancel', onPress: () => navigation.navigate('OpenOrders') },
         {
@@ -146,6 +236,52 @@ export default function AddTransportScreen({ route, navigation }: Props) {
                   </Text>
                 </View>
               )}
+
+              {rows.length > 0 && (
+                <>
+                  <FieldLabel text="Ya registrado" />
+                  {rows.map((row) => (
+                    <View key={row.id} style={[styles.rowCard, editingId === row.id && styles.rowCardActive]}>
+                      <View style={styles.rowCardText}>
+                        <Text style={styles.rowCardTitle} numberOfLines={1}>
+                          {row.hotel_name.trim()}
+                        </Text>
+                        <Text style={styles.rowCardSub} numberOfLines={1}>
+                          {row.transport_name} · {row.unit_name.trim()} · {row.quantity} unidad(es) · {row.pax} pax
+                        </Text>
+                      </View>
+                      <Pressable
+                        style={styles.rowCardBtn}
+                        onPress={() => handleEdit(row)}
+                        disabled={deletingId === row.id}
+                      >
+                        <Ionicons name="pencil-outline" size={16} color={colors.teal} />
+                      </Pressable>
+                      <Pressable
+                        style={styles.rowCardBtn}
+                        onPress={() => handleDelete(row)}
+                        disabled={deletingId === row.id}
+                      >
+                        {deletingId === row.id ? (
+                          <ActivityIndicator size="small" color={colors.danger} />
+                        ) : (
+                          <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                        )}
+                      </Pressable>
+                    </View>
+                  ))}
+                </>
+              )}
+
+              {editingId ? (
+                <View style={styles.editHeaderRow}>
+                  <Text style={styles.editHeaderText}>Editando transporte</Text>
+                  <Pressable onPress={resetForm} style={styles.cancelEditBtn}>
+                    <Ionicons name="close-circle-outline" size={14} color={colors.textMuted} />
+                    <Text style={styles.cancelEditText}>Cancelar edición</Text>
+                  </Pressable>
+                </View>
+              ) : null}
 
               <FieldLabel text="Hotel" />
               {hotels.length === 0 ? (
@@ -208,7 +344,9 @@ export default function AddTransportScreen({ route, navigation }: Props) {
                 onPress={handleSubmit}
                 disabled={!canSubmit}
               >
-                <Text style={styles.submitText}>{isSaving ? 'Guardando...' : 'Guardar Transporte'}</Text>
+                <Text style={styles.submitText}>
+                  {isSaving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Guardar Transporte'}
+                </Text>
               </Pressable>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -283,4 +421,36 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { opacity: 0.5 },
   submitText: { color: '#06322f', fontWeight: '800', fontSize: 15 },
+  rowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    padding: 11,
+    marginBottom: 8,
+  },
+  rowCardActive: { borderColor: colors.teal, borderWidth: 1.5 },
+  rowCardText: { flex: 1 },
+  rowCardTitle: { color: colors.white, fontWeight: '700', fontSize: 13 },
+  rowCardSub: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  rowCardBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  editHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 18,
+  },
+  editHeaderText: { color: colors.teal, fontWeight: '800', fontSize: 12.5 },
+  cancelEditBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  cancelEditText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
 });
