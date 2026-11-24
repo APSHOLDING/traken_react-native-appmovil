@@ -1,3 +1,6 @@
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
 /**
  * Ambiente de datos de la app: "sandbox" (datos de prueba, clon separado de
  * la base de datos real) o "production" (datos reales de Traken).
@@ -25,3 +28,16 @@ export const ENVIRONMENT_LABELS: Record<ApiEnvironment, string> = {
   sandbox: 'Sandbox (pruebas)',
   production: 'Producción (datos reales)',
 };
+
+/** La variante se resuelve en app.config.js también al publicar una OTA;
+ * __DEV__ no sirve para distinguir los APK de preview y producción. */
+export function esEntornoPruebas(config = Constants.expoConfig): boolean {
+  const id = 'mx.apsholding.traken.pruebas';
+  return config?.android?.package === id || config?.ios?.bundleIdentifier === id;
+}
+
+/** En un build (EAS) el servidor lo decide el APK: «Traken Pruebas» habla con
+ * el sandbox y «Traken» con producción, sin switch en el login. En desarrollo
+ * y en la web queda null y se elige con el switch. */
+export const FIXED_ENVIRONMENT: ApiEnvironment | null =
+  __DEV__ || Platform.OS === 'web' ? null : esEntornoPruebas() ? 'sandbox' : 'production';

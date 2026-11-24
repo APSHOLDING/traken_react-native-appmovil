@@ -10,7 +10,7 @@ import {
   StationDTO,
   UserDTO,
 } from '../api/client';
-import { ApiEnvironment } from '../config/environment';
+import { ApiEnvironment, FIXED_ENVIRONMENT } from '../config/environment';
 import { getStoredEnvironment, saveStoredEnvironment } from '../utils/environmentStorage';
 import { getLastProfile, saveLastEmail, saveLastProfile } from '../utils/credentials';
 import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [environment, setEnvironmentState] = useState<ApiEnvironment>(getApiEnvironment());
 
   const setEnvironment = async (env: ApiEnvironment) => {
-    if (env === environment) return;
+    if (env === environment || FIXED_ENVIRONMENT) return;
     // Un token de sandbox no sirve contra produccion (ni al reves, son 2
     // bases de datos separadas) -- cambiar de ambiente cierra la sesion
     // actual para no quedar en un estado confuso a medias.
@@ -66,10 +66,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // token guardado no depende del ambiente, asi que se piden ambas
         // cosas al almacenamiento del telefono en paralelo en vez de una
         // tras otra (arranque un poco mas rapido).
-        const [storedEnv, storedToken] = await Promise.all([
+        const [savedEnv, savedToken] = await Promise.all([
           getStoredEnvironment(),
           getToken(TOKEN_KEY),
         ]);
+        let storedToken = savedToken;
+        const storedEnv = FIXED_ENVIRONMENT ?? savedEnv;
+        if (storedEnv !== savedEnv) {
+          // La sesión guardada es del otro ambiente (APK que antes tenía el
+          // switch). Hay que descartarla aquí: contra el servidor equivocado
+          // el 401 llega como excepción y se tomaría por "sin señal".
+          await deleteToken(TOKEN_KEY);
+          await saveStoredEnvironment(storedEnv);
+          storedToken = null;
+        }
         setApiEnvironment(storedEnv);
         setEnvironmentState(storedEnv);
 

@@ -12,6 +12,7 @@ import {
 import { AuthProvider } from './src/context/AuthContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import UpdateBanner from './src/components/UpdateBanner';
+import FranjaPruebas from './src/components/FranjaPruebas';
 import { colors } from './src/theme/colors';
 
 function registerPwa() {
@@ -52,10 +53,12 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <RootNavigator />
-        <UpdateBanner />
-      </AuthProvider>
+      <FranjaPruebas>
+        <AuthProvider>
+          <RootNavigator />
+          <UpdateBanner />
+        </AuthProvider>
+      </FranjaPruebas>
     </SafeAreaProvider>
   );
 }

@@ -19,7 +19,7 @@ import { StatusBar } from 'expo-status-bar';
 import { colors, gradients, radii, shadow } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { getLastEmail } from '../utils/credentials';
-import { PRODUCTION_UNLOCKED } from '../config/environment';
+import { FIXED_ENVIRONMENT, PRODUCTION_UNLOCKED } from '../config/environment';
 
 export default function LoginScreen() {
   const { login, isAuthenticating, error, clearError, environment, setEnvironment } = useAuth();
@@ -98,34 +98,36 @@ export default function LoginScreen() {
               <Text style={styles.brandSubtitle}>Operaciones · Ground Control</Text>
             </Animated.View>
 
-            <View style={styles.envRow}>
-              <Pressable
-                style={[styles.envPill, environment === 'sandbox' && styles.envPillActiveSandbox]}
-                onPress={() => setEnvironment('sandbox')}
-              >
-                <Ionicons name="flask-outline" size={13} color={environment === 'sandbox' ? '#06322f' : colors.textMuted} />
-                <Text style={[styles.envPillText, environment === 'sandbox' && styles.envPillTextActiveSandbox]}>
-                  Sandbox (pruebas)
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.envPill,
-                  environment === 'production' && styles.envPillActiveProd,
-                  !PRODUCTION_UNLOCKED && styles.envPillLocked,
-                ]}
-                onPress={handleTapProduction}
-              >
-                <Ionicons
-                  name={PRODUCTION_UNLOCKED ? 'globe-outline' : 'lock-closed'}
-                  size={13}
-                  color={environment === 'production' ? '#fff' : colors.textMuted}
-                />
-                <Text style={[styles.envPillText, environment === 'production' && styles.envPillTextActiveProd]}>
-                  Producción
-                </Text>
-              </Pressable>
-            </View>
+            {!FIXED_ENVIRONMENT && (
+              <View style={styles.envRow}>
+                <Pressable
+                  style={[styles.envPill, environment === 'sandbox' && styles.envPillActiveSandbox]}
+                  onPress={() => setEnvironment('sandbox')}
+                >
+                  <Ionicons name="flask-outline" size={13} color={environment === 'sandbox' ? '#06322f' : colors.textMuted} />
+                  <Text style={[styles.envPillText, environment === 'sandbox' && styles.envPillTextActiveSandbox]}>
+                    Sandbox (pruebas)
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.envPill,
+                    environment === 'production' && styles.envPillActiveProd,
+                    !PRODUCTION_UNLOCKED && styles.envPillLocked,
+                  ]}
+                  onPress={handleTapProduction}
+                >
+                  <Ionicons
+                    name={PRODUCTION_UNLOCKED ? 'globe-outline' : 'lock-closed'}
+                    size={13}
+                    color={environment === 'production' ? '#fff' : colors.textMuted}
+                  />
+                  <Text style={[styles.envPillText, environment === 'production' && styles.envPillTextActiveProd]}>
+                    Producción
+                  </Text>
+                </Pressable>
+              </View>
+            )}
 
             <Animated.View
               style={[

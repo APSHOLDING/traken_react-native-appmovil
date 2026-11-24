@@ -42,7 +42,7 @@ jobs:
           modulos=$(printf '%s\n' "$archivos" | sed -n 's#^src/\([^/]*\)/.*#\1#p' | sort -u)
           resto=$(printf '%s\n' "$archivos" | grep -v '^src/' || true)
           otros=$(printf '%s\n' "$resto" | sed 's#/.*##' | grep -v '^$' | sort -u)
-          nativo=$(printf '%s\n' "$archivos" | grep -E '^(package(-lock)?\.json|app\.json|eas\.json|android/|ios/)' || true)
+          nativo=$(printf '%s\n' "$archivos" | grep -E '^(package(-lock)?\.json|app\.json|app\.config\.js|eas\.json|android/|ios/)' || true)
 
           {
             echo '# Release a producción'
