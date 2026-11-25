@@ -10,7 +10,7 @@ import {
   StationDTO,
   UserDTO,
 } from '../api/client';
-import { ApiEnvironment, FIXED_ENVIRONMENT } from '../config/environment';
+import { ApiEnvironment, FIXED_ENVIRONMENT, PRODUCTION_UNLOCKED } from '../config/environment';
 import { getStoredEnvironment, saveStoredEnvironment } from '../utils/environmentStorage';
 import { getLastProfile, saveLastEmail, saveLastProfile } from '../utils/credentials';
 import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
@@ -83,6 +83,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setApiEnvironment(storedEnv);
         setEnvironmentState(storedEnv);
 
+        if (storedEnv === 'production' && !PRODUCTION_UNLOCKED) {
+          await deleteToken(TOKEN_KEY);
+          setAuthToken(null);
+          return;
+        }
+
         if (!storedToken) return;
 
         // No basta con confiar en el token guardado: pudo vencer o haber
@@ -120,6 +126,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
+    if (getApiEnvironment() === 'production' && !PRODUCTION_UNLOCKED) {
+      setError('El inicio de sesión en producción está temporalmente deshabilitado.');
+      return false;
+    }
     setIsAuthenticating(true);
     setError(null);
     try {

@@ -17,7 +17,7 @@ export const DEFAULT_ENVIRONMENT: ApiEnvironment = 'sandbox';
 
 // Cambiar a `true` cuando ya se probo suficiente en sandbox y se decide
 // permitir el cambio a datos reales desde la app.
-export const PRODUCTION_UNLOCKED = true;
+export const PRODUCTION_UNLOCKED = false;
 
 export const SITE_BASE_URLS: Record<ApiEnvironment, string> = {
   sandbox: 'https://traken.mx/sandbox',
