@@ -54,7 +54,8 @@ export default function LoginScreen() {
     ]).start();
   }, []);
 
-  const canSubmit = username.trim().length > 0 && password.length > 0 && !isAuthenticating;
+  const productionLoginDisabled = environment === 'production' && !PRODUCTION_UNLOCKED;
+  const canSubmit = !productionLoginDisabled && username.trim().length > 0 && password.length > 0 && !isAuthenticating;
 
   const handlePressIn = () =>
     Animated.spring(pressScale, { toValue: 0.97, useNativeDriver: true, speed: 40 }).start();
@@ -138,7 +139,11 @@ export default function LoginScreen() {
             >
               <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
               <Text style={styles.welcome}>Bienvenido de nuevo</Text>
-              <Text style={styles.welcomeSub}>Inicia sesión para continuar tu operación</Text>
+              <Text style={styles.welcomeSub}>
+                {productionLoginDisabled
+                  ? 'El inicio de sesión en producción está temporalmente deshabilitado.'
+                  : 'Inicia sesión para continuar tu operación'}
+              </Text>
 
               {error ? (
                 <View style={styles.errorBanner}>
