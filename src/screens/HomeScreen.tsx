@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
-import { getNotifications, getOpenOrders } from '../api/client';
+import { getManualUrl, getNotifications, getOpenOrders, getSiteBaseUrl } from '../api/client';
 import { getLastSeenNotifications } from '../utils/notificationsSeen';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -23,6 +25,7 @@ type ModuleCard = {
   gradient: readonly [string, string];
   onPress: () => void;
   badge?: number;
+  loading?: boolean;
 };
 
 /**
@@ -39,6 +42,35 @@ export default function HomeScreen({ navigation }: Props) {
   const [hasUnreadNotifs, setHasUnreadNotifs] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const esAdminMaestro = user?.email?.toLowerCase() === ADMIN_MAESTRO_EMAIL;
+  const [isDownloadingManual, setIsDownloadingManual] = useState(false);
+
+  const handleOpenManual = async () => {
+    setIsDownloadingManual(true);
+    try {
+      const res = await getManualUrl();
+      if (!res.ok || !res.url) {
+        Alert.alert('No se pudo abrir', res.error ?? 'Intenta de nuevo.');
+        return;
+      }
+      const destination = new File(Paths.cache, 'Manual-Operaciones.pdf');
+      if (destination.exists) destination.delete();
+      const task = File.createDownloadTask(`${getSiteBaseUrl()}${res.url}`, destination);
+      const downloaded = await task.downloadAsync();
+      if (!downloaded || !downloaded.exists || downloaded.size === 0) {
+        throw new Error('empty-download');
+      }
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(downloaded.uri, { mimeType: 'application/pdf', dialogTitle: 'Manual de Operaciones' });
+      } else {
+        Alert.alert('Descargado', 'El manual se descargó pero no hay con qué abrirlo en este dispositivo.');
+      }
+    } catch (e) {
+      Alert.alert('Sin conexión', 'No se pudo descargar el manual. Intenta de nuevo.');
+    } finally {
+      setIsDownloadingManual(false);
+    }
+  };
 
   const loadHeader = useCallback(async () => {
     // Las 2 cargas del header son independientes entre si (el contador de
@@ -155,6 +187,14 @@ export default function HomeScreen({ navigation }: Props) {
       gradient: ['#be185d', '#9d174d'],
       onPress: () => navigation.navigate('PreregOrdersList'),
     },
+    {
+      key: 'manual',
+      label: 'Manual de Operaciones',
+      icon: 'book-outline',
+      gradient: ['#475569', '#334155'],
+      onPress: handleOpenManual,
+      loading: isDownloadingManual,
+    },
     ...(user?.acceso_sc_incidencias
       ? [
           {
@@ -237,6 +277,7 @@ export default function HomeScreen({ navigation }: Props) {
                 key={c.key}
                 style={({ pressed }) => [styles.card, shadow.card, pressed && Platform.OS === 'ios' && styles.cardPressed]}
                 onPress={c.onPress}
+                disabled={c.loading}
                 android_ripple={{ color: 'rgba(255,255,255,0.08)' }}
               >
                 {!!c.badge && (
@@ -245,7 +286,11 @@ export default function HomeScreen({ navigation }: Props) {
                   </View>
                 )}
                 <LinearGradient colors={c.gradient} style={styles.iconBadge}>
-                  <Ionicons name={c.icon} size={24} color={colors.white} />
+                  {c.loading ? (
+                    <ActivityIndicator color={colors.white} size="small" />
+                  ) : (
+                    <Ionicons name={c.icon} size={24} color={colors.white} />
+                  )}
                 </LinearGradient>
                 <Text style={styles.cardLabel}>{c.label}</Text>
               </Pressable>

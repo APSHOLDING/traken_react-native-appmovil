@@ -146,6 +146,19 @@ export async function getOpenOrdersExportUrl(pairs: { folio: number; idAirport: 
   return data;
 }
 
+export interface ManualUrlResponse {
+  ok: boolean;
+  url?: string;
+  error?: string;
+}
+
+/** Pide la URL firmada (sin sesión) del Manual de Operaciones en PDF --
+ * equivalente de op/modulos/ayuda/guiaOperaciones.php. */
+export async function getManualUrl(): Promise<ManualUrlResponse> {
+  const { data } = await api.get<ManualUrlResponse>('/ayuda/manualUrl.php');
+  return data;
+}
+
 export interface PruebaOkResponse {
   ok: boolean;
   prueba?: boolean;

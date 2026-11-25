@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii, shadow } from '../theme/colors';
 
@@ -60,56 +60,59 @@ export default function SelectField({
       </Pressable>
 
       <Modal visible={visible} animationType="slide" transparent onRequestClose={() => setVisible(false)}>
-        <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
-          <Pressable style={[styles.sheet, shadow.card]} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>{label}</Text>
-              <Pressable onPress={() => setVisible(false)} hitSlop={10}>
-                <Ionicons name="close-circle" size={22} color={colors.textMuted} />
-              </Pressable>
-            </View>
-            <View style={styles.searchWrap}>
-              <Ionicons name="search" size={16} color={colors.textMuted} />
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Buscar..."
-                placeholderTextColor={colors.placeholder}
-                style={styles.searchInput}
-                autoFocus
-                autoCapitalize="none"
-              />
-            </View>
-            <FlatList
-              data={filtered}
-              keyExtractor={(o) => String(o.id)}
-              keyboardShouldPersistTaps="handled"
-              style={styles.list}
-              contentContainerStyle={styles.listContent}
-              ListEmptyComponent={<Text style={styles.emptyText}>{emptyText ?? 'Sin resultados.'}</Text>}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={[styles.row, item.id === selectedId && styles.rowActive]}
-                  onPress={() => {
-                    onSelect(item.id);
-                    setVisible(false);
-                  }}
-                >
-                  <Text style={[styles.rowText, item.id === selectedId && styles.rowTextActive]} numberOfLines={2}>
-                    {item.label}
-                  </Text>
-                  {item.id === selectedId && <Ionicons name="checkmark" size={18} color={colors.teal} />}
+        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
+            <Pressable style={[styles.sheet, shadow.card]} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.sheetHeader}>
+                <Text style={styles.sheetTitle}>{label}</Text>
+                <Pressable onPress={() => setVisible(false)} hitSlop={10}>
+                  <Ionicons name="close-circle" size={22} color={colors.textMuted} />
                 </Pressable>
-              )}
-            />
+              </View>
+              <View style={styles.searchWrap}>
+                <Ionicons name="search" size={16} color={colors.textMuted} />
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder="Buscar..."
+                  placeholderTextColor={colors.placeholder}
+                  style={styles.searchInput}
+                  autoFocus
+                  autoCapitalize="none"
+                />
+              </View>
+              <FlatList
+                data={filtered}
+                keyExtractor={(o) => String(o.id)}
+                keyboardShouldPersistTaps="handled"
+                style={styles.list}
+                contentContainerStyle={styles.listContent}
+                ListEmptyComponent={<Text style={styles.emptyText}>{emptyText ?? 'Sin resultados.'}</Text>}
+                renderItem={({ item }) => (
+                  <Pressable
+                    style={[styles.row, item.id === selectedId && styles.rowActive]}
+                    onPress={() => {
+                      onSelect(item.id);
+                      setVisible(false);
+                    }}
+                  >
+                    <Text style={[styles.rowText, item.id === selectedId && styles.rowTextActive]} numberOfLines={2}>
+                      {item.label}
+                    </Text>
+                    {item.id === selectedId && <Ionicons name="checkmark" size={18} color={colors.teal} />}
+                  </Pressable>
+                )}
+              />
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
