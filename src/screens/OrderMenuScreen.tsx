@@ -307,6 +307,18 @@ export default function OrderMenuScreen({ route, navigation }: Props) {
       onPress: handleTogglePrueba,
       loading: isRequestingPrueba,
     },
+    ...(iata?.toUpperCase() === 'SJD'
+      ? [
+          {
+            key: 'importar-lista',
+            label: 'Importar lista (Excel)',
+            sub: 'Pegar/elegir lista de pasajeros',
+            icon: 'cloud-upload-outline' as IconName,
+            color: '#0f766e',
+            onPress: () => navigation.navigate('ImportarLista', { folio, idAirport, folioDisplay, iata, typeAirline }),
+          },
+        ]
+      : []),
   ];
 
   return (

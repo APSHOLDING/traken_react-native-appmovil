@@ -37,6 +37,7 @@ import PreregQrDisplayScreen from '../screens/PreregQrDisplayScreen';
 import PreregScanScreen from '../screens/PreregScanScreen';
 import PreregListasScreen from '../screens/PreregListasScreen';
 import OtraOsScreen from '../screens/OtraOsScreen';
+import ImportarListaScreen from '../screens/ImportarListaScreen';
 import { colors } from '../theme/colors';
 import type { ExistingPaxDTO, PreregLookupComp } from '../api/client';
 
@@ -108,6 +109,7 @@ export type RootStackParamList = {
   PreregScan: undefined;
   PreregListas: { folio: number; idAirport: number; folioDisplay: string };
   OtraOs: OtraOsParams;
+  ImportarLista: OrderMenuParams;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -164,6 +166,7 @@ export default function RootNavigator() {
             <Stack.Screen name="PreregScan" component={PreregScanScreen} />
             <Stack.Screen name="PreregListas" component={PreregListasScreen} />
             <Stack.Screen name="OtraOs" component={OtraOsScreen} />
+            <Stack.Screen name="ImportarLista" component={ImportarListaScreen} />
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
