@@ -5,7 +5,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ComponentProps } from 'react';
 import type { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import {
+  navigationRef,
+  setupNotificationTapHandler,
+  flushPendingNotification,
+} from '../utils/notificationNavigation';
 import LoginScreen from '../screens/LoginScreen';
+import ResumenOsScreen from '../screens/ResumenOsScreen';
 import HomeScreen from '../screens/HomeScreen';
 import OpenOrdersScreen from '../screens/OpenOrdersScreen';
 import OrderMenuScreen from '../screens/OrderMenuScreen';
@@ -94,6 +100,7 @@ export type RootStackParamList = {
   DetalleOrden: { folio: number; idAirport: number; folioDisplay: string };
   ReportesList: undefined;
   ReportePicker: { folio: number; idAirport: number; folioDisplay: string };
+  ResumenOs: { folio: number; idAirport: number; folioDisplay: string };
   EditarList: undefined;
   EditarOrden: { folio: number; idAirport: number; folioDisplay: string };
   Notifications: undefined;
@@ -122,6 +129,12 @@ const navTheme = {
 export default function RootNavigator() {
   const { token, isLoading } = useAuth();
 
+  // Tocar una notificacion push abre la O.S. (ver utils/notificationNavigation).
+  React.useEffect(() => setupNotificationTapHandler(), []);
+  React.useEffect(() => {
+    if (token) flushPendingNotification();
+  }, [token]);
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.navy }}>
@@ -131,7 +144,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={flushPendingNotification}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {token ? (
           <>
@@ -151,6 +164,7 @@ export default function RootNavigator() {
             <Stack.Screen name="DetalleOrden" component={DetalleOrdenScreen} />
             <Stack.Screen name="ReportesList" component={ReportesListScreen} />
             <Stack.Screen name="ReportePicker" component={ReportePickerScreen} />
+            <Stack.Screen name="ResumenOs" component={ResumenOsScreen} />
             <Stack.Screen name="EditarList" component={EditarListScreen} />
             <Stack.Screen name="EditarOrden" component={EditarOrdenScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />

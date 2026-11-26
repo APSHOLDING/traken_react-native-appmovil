@@ -17,7 +17,14 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
-import { getReportDownloadUrl, getReportList, ReportHotel, sendReportByEmail } from '../api/client';
+import {
+  FirmaLinksResponse,
+  getFirmaLinks,
+  getReportDownloadUrl,
+  getReportList,
+  ReportHotel,
+  sendReportByEmail,
+} from '../api/client';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -34,6 +41,8 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
   const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
   const [sendingKey, setSendingKey] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [firma, setFirma] = useState<FirmaLinksResponse | null>(null);
+  const [firmaLoading, setFirmaLoading] = useState(false);
 
   const {
     data,
@@ -54,13 +63,13 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
   );
 
   const handleDownload = useCallback(
-    async (idHotel: number, label: string, downloadPath: string) => {
+    async (idHotel: number, label: string, downloadPath: string, firmaMode = false) => {
       if (!data || !downloadPath) return;
-      const key = String(idHotel);
+      const key = (firmaMode ? 'f' : '') + String(idHotel);
       setDownloadingKey(key);
       setMsg(null);
       try {
-        const fileName = `Reporte-${folioDisplay.replace(/[^A-Za-z0-9-]/g, '')}-${label.replace(/[^A-Za-z0-9]/g, '')}.xlsx`;
+        const fileName = `Reporte${firmaMode ? '-PARA-FIRMAR' : ''}-${folioDisplay.replace(/[^A-Za-z0-9-]/g, '')}-${label.replace(/[^A-Za-z0-9]/g, '')}.xlsx`;
         const destination = new File(Paths.cache, fileName);
         if (destination.exists) destination.delete();
 
@@ -91,6 +100,26 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
     },
     [data, folioDisplay]
   );
+
+  const handleLoadFirma = useCallback(async () => {
+    setFirmaLoading(true);
+    setMsg(null);
+    try {
+      const res = await getFirmaLinks(folio, idAirport);
+      if (res.ok) setFirma(res);
+      else setMsg({ ok: false, text: res.error ?? 'No se pudo preparar el reporte para firmar.' });
+    } catch (e: any) {
+      setMsg({
+        ok: false,
+        text:
+          e?.response?.status === 404
+            ? 'El reporte "Para firmar" aún no está disponible en este servidor.'
+            : (e?.userMessage ?? 'Sin conexión. Intenta de nuevo.'),
+      });
+    } finally {
+      setFirmaLoading(false);
+    }
+  }, [folio, idAirport]);
 
   const handleSend = useCallback(
     async (idHotel: number) => {
@@ -193,6 +222,69 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
               onDownload={() => handleDownload(0, 'GENERAL', data.downloadPathGeneral)}
               onSend={() => handleSend(0)}
             />
+
+            <View style={[styles.card, shadow.card, { marginTop: 4 }]}>
+              <Text style={styles.cardTitle}>Lista PARA FIRMAR</Text>
+              <Text style={styles.mailHint}>
+                El mismo reporte con una columna roja "FIRMA PAX", para que el hotel lo imprima y los pasajeros firmen.
+              </Text>
+              {!firma ? (
+                <Pressable
+                  style={[styles.actionBtn, styles.downloadBtn, { marginTop: 10 }]}
+                  onPress={handleLoadFirma}
+                  disabled={firmaLoading}
+                >
+                  {firmaLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="create-outline" size={15} color="#fff" />
+                      <Text style={styles.actionBtnText}>Preparar lista para firmar</Text>
+                    </>
+                  )}
+                </Pressable>
+              ) : (
+                <View style={{ marginTop: 10, gap: 8 }}>
+                  {(firma.hotels ?? []).map((h) => (
+                    <Pressable
+                      key={h.id_hotel}
+                      style={[styles.actionBtn, styles.downloadBtn]}
+                      onPress={() => handleDownload(h.id_hotel, h.name, h.download_path, true)}
+                      disabled={downloadingKey === 'f' + h.id_hotel}
+                    >
+                      <Ionicons name="download-outline" size={15} color="#fff" />
+                      <Text style={styles.actionBtnText} numberOfLines={1}>
+                        {downloadingKey === 'f' + h.id_hotel ? 'Descargando…' : `${h.name} (${h.total_pax} pax)`}
+                      </Text>
+                    </Pressable>
+                  ))}
+                  {!!firma.download_path_general && (
+                    <Pressable
+                      style={[styles.actionBtn, styles.downloadBtn]}
+                      onPress={() => handleDownload(0, 'GENERAL', firma.download_path_general!, true)}
+                      disabled={downloadingKey === 'f0'}
+                    >
+                      <Ionicons name="download-outline" size={15} color="#fff" />
+                      <Text style={styles.actionBtnText}>
+                        {downloadingKey === 'f0' ? 'Descargando…' : `★ GENERAL (${firma.total_general ?? 0} pax)`}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+            </View>
+
+            <Pressable
+              style={[styles.card, shadow.card, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}
+              onPress={() => navigation.navigate('ResumenOs', { folio, idAirport, folioDisplay })}
+            >
+              <Ionicons name="bed-outline" size={20} color={colors.teal} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>Resumen de hab. y pax</Text>
+                <Text style={styles.mailHint}>Habitaciones, adultos, niños e infantes por hotel.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </Pressable>
 
             {msg && (
               <View style={[styles.msgBox, { backgroundColor: msg.ok ? '#dcfce7' : '#fee2e2' }]}>

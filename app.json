@@ -14,10 +14,8 @@
     "android": {
       "package": "mx.apsholding.traken",
       "adaptiveIcon": {
-        "backgroundColor": "#16214d",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -38,8 +36,14 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/android-icon-foreground.png",
+          "icon": "./assets/notification-icon.png",
           "color": "#16214d"
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Traken usa Face ID para abrir tu sesión de forma rápida y segura."
         }
       ],
       "@react-native-community/datetimepicker",

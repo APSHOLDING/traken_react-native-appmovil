@@ -17,7 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
-import { addPax, getHotelsForOrder, getPreregListForOs, HotelDTO, PaxType, PreregListItem } from '../api/client';
+import { getHotelsForOrder, getPreregListForOs, HotelDTO, PaxType, PreregListItem } from '../api/client';
+import { addPax } from '../api/queuedWrites';
 import VoucherScanButton from '../components/VoucherScanButton';
 import SupportScanButton from '../components/SupportScanButton';
 import SelectField from '../components/SelectField';
@@ -254,7 +255,9 @@ export default function AddPaxScreen({ route, navigation }: Props) {
         return;
       }
 
-      Alert.alert('Habitación agregada', '¿Quieres agregar otra habitación a esta O.S.?', [
+      Alert.alert(res.queued ? 'Guardada sin conexión' : 'Habitación agregada', (res.queued ? `${res.msg}
+
+` : '') + '¿Quieres agregar otra habitación a esta O.S.?', [
         { text: 'Terminar', style: 'cancel', onPress: () => navigation.navigate('OpenOrders') },
         {
           text: 'Agregar otra',

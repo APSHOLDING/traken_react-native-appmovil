@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radii } from '../theme/colors';
-import { addComment, CommentDTO, getComments } from '../api/client';
+import { CommentDTO, getComments } from '../api/client';
+import { addComment } from '../api/queuedWrites';
 import { getCache, saveCache } from '../utils/offlineCache';
 import { formatSavedAt } from '../utils/useOfflineLoad';
 
@@ -80,7 +81,14 @@ export default function CommentsModal({ visible, onClose, idOrder, idAirport, fo
     setIsSaving(true);
     try {
       const res = await addComment(idOrder, idAirport, trimmed);
-      if (res.ok) {
+      if (res.ok && res.queued) {
+        // Sin internet: se muestra ya en la lista, marcado como pendiente de enviar.
+        setItems((prev) => [
+          { user_name: 'Tú (pendiente de enviar)', comment: trimmed, created_at: new Date().toISOString() },
+          ...prev,
+        ]);
+        setText('');
+      } else if (res.ok) {
         setText('');
         await load();
       } else {

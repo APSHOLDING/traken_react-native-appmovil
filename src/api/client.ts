@@ -19,6 +19,39 @@ export const api = axios.create({
   },
 });
 
+// Sesion vencida/revocada: el servidor contesta 401 ("Sesion invalida o
+// vencida") en cualquier endpoint que exige token. El login tambien usa 401
+// pero para "contrasena incorrecta" -- ese NO cierra sesion. AuthContext
+// registra aqui la funcion que limpia la sesion y manda al Login.
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(fn: (() => void) | null) {
+  onUnauthorized = fn;
+}
+
+// Mensajes del servidor que no son error de red: 503 = modo proteccion
+// ("escudo"), 410 = app en desuso. Se deja el texto del servidor en
+// `userMessage` para que cualquier pantalla pueda mostrarlo.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status: number | undefined = error?.response?.status;
+    const url: string = error?.config?.url ?? '';
+    if (status === 401 && !url.includes('/auth/login.php') && onUnauthorized) {
+      onUnauthorized();
+    }
+    if (status === 503 || status === 410) {
+      const msg = error?.response?.data?.error;
+      error.userMessage =
+        typeof msg === 'string' && msg
+          ? msg
+          : status === 410
+            ? 'Esta versión de la app ya no está disponible. Actualiza la app.'
+            : 'El servidor está en mantenimiento. Intenta de nuevo en unos minutos.';
+    }
+    return Promise.reject(error);
+  }
+);
+
 /** Cambia a que ambiente (sandbox/production) le pega TODA la app -- las
  * URLs absolutas que arman otras funciones de este archivo (PDF de
  * vouchers, imagen de Delay, descarga de reportes) tambien se recalculan
@@ -1430,6 +1463,59 @@ export interface ReportListResponse {
   total_general?: number;
   download_path_general?: string;
   error?: string;
+}
+
+/** Enlaces firmados del reporte "PARA FIRMAR" (op/api/reports/firmaLinks.php, archivo nuevo de la web). */
+export interface FirmaLinksResponse {
+  ok: boolean;
+  folio_display?: string;
+  hotels?: ReportHotel[];
+  total_general?: number;
+  download_path_general?: string;
+  error?: string;
+}
+
+export async function getFirmaLinks(folio: number, idAirport: number): Promise<FirmaLinksResponse> {
+  const { data } = await api.get<FirmaLinksResponse>('/reports/firmaLinks.php', {
+    params: { id: folio, id_airport: idAirport },
+  });
+  return data;
+}
+
+/** "Resumen de Hab. y Pax" de una O.S. (op/api/reports/resumenOs.php, archivo nuevo de la web). */
+export interface ResumenOsPax {
+  name: string;
+  type: 'A' | 'N' | 'I';
+  date_out: string | null;
+  extended: boolean;
+}
+
+export interface ResumenOsHotel {
+  id_hotel: number;
+  name: string;
+  rooms: number;
+  pax: number;
+  adults: number;
+  children: number;
+  infants: number;
+  habs: { pax: ResumenOsPax[] }[];
+}
+
+export interface ResumenOsResponse {
+  ok: boolean;
+  folio_display?: string;
+  airline?: string;
+  flight?: string | null;
+  totals?: { rooms: number; pax: number; adults: number; children: number; infants: number };
+  hotels?: ResumenOsHotel[];
+  error?: string;
+}
+
+export async function getResumenOs(folio: number, idAirport: number): Promise<ResumenOsResponse> {
+  const { data } = await api.get<ResumenOsResponse>('/reports/resumenOs.php', {
+    params: { id: folio, id_airport: idAirport },
+  });
+  return data;
 }
 
 export async function getReportList(folio: number, idAirport: number): Promise<ReportListResponse> {
