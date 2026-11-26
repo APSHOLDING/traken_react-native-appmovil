@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, gradients } from '../theme/colors';
+import { colors } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import {
   authenticateBiometric,
@@ -120,11 +121,10 @@ export default function BiometricGate({ children }: { children: React.ReactNode 
   if (phase === 'open') return <>{children}</>;
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
+    <LinearGradient colors={['#ffffff', '#f3f6fb']} style={styles.flex}>
+      <StatusBar style="dark" />
       <View style={styles.center}>
-        <View style={styles.logoCard}>
-          <Image source={require('../../assets/logo-traken.png')} style={styles.logo} resizeMode="contain" />
-        </View>
+        <Image source={require('../../assets/logo-traken.png')} style={styles.logo} resizeMode="contain" />
         {phase === 'checking' ? (
           <ActivityIndicator color={colors.teal} style={{ marginTop: 28 }} />
         ) : (
@@ -158,25 +158,16 @@ export default function BiometricGate({ children }: { children: React.ReactNode 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  logoCard: {
-    width: 230,
-    height: 150,
-    borderRadius: 24,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-  logo: { width: '100%', height: '100%' },
-  title: { color: colors.white, fontSize: 18, fontWeight: '800', marginTop: 12 },
-  sub: { color: colors.textMuted, fontSize: 13, marginTop: 6, textAlign: 'center' },
+  logo: { width: 260, height: 140 },
+  title: { color: colors.navy, fontSize: 18, fontWeight: '800', marginTop: 12 },
+  sub: { color: '#64748b', fontSize: 13, marginTop: 6, textAlign: 'center' },
   btn: {
-    backgroundColor: colors.teal,
+    backgroundColor: colors.navy,
     borderRadius: 14,
     paddingVertical: 13,
     paddingHorizontal: 28,
     marginTop: 24,
   },
-  btnText: { color: '#06322f', fontWeight: '800', fontSize: 14 },
-  link: { color: colors.textMuted, fontSize: 12.5, marginTop: 18, textDecorationLine: 'underline' },
+  btnText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  link: { color: '#64748b', fontSize: 12.5, marginTop: 18, textDecorationLine: 'underline' },
 });
