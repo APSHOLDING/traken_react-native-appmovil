@@ -6,7 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { getLiveFlights, LiveFlightAirport, LiveFlightRow } from '../api/client';
 import { getCache, saveCache } from '../utils/offlineCache';
 import { formatSavedAt } from '../utils/useOfflineLoad';
@@ -32,6 +34,8 @@ function faseInfo(fase: string): { color: string; label: string } {
  * op/api/orders/liveFlights.php (mismo cache en disco que usa la web).
  */
 export default function VuelosScreen({ navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [airports, setAirports] = useState<LiveFlightAirport[]>([]);
   const [active, setActive] = useState(0);
   const [viewMode, setViewMode] = useState<'lista' | 'mapa'>('lista');
@@ -81,12 +85,12 @@ export default function VuelosScreen({ navigation }: Props) {
   const ap = airports[active];
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>Vuelos en Tiempo Real</Text>
@@ -94,16 +98,16 @@ export default function VuelosScreen({ navigation }: Props) {
           </View>
           <Pressable style={styles.backBtn} onPress={() => load(true)} hitSlop={10} disabled={isRefreshing}>
             {isRefreshing ? (
-              <ActivityIndicator size="small" color={colors.white} />
+              <ActivityIndicator size="small" color={p.text} />
             ) : (
-              <Ionicons name="refresh" size={20} color={colors.white} />
+              <Ionicons name="refresh" size={20} color={p.text} />
             )}
           </Pressable>
         </View>
 
         {offlineSince && (
           <View style={styles.offlineBanner}>
-            <Ionicons name="cloud-offline-outline" size={16} color="#fde68a" />
+            <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
             <Text style={styles.offlineBannerText}>
               Sin conexión: mostrando lo guardado el {formatSavedAt(offlineSince)}.
             </Text>
@@ -111,10 +115,10 @@ export default function VuelosScreen({ navigation }: Props) {
         )}
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 40 }} />
+          <ActivityIndicator color={p.accent} style={{ marginTop: 40 }} />
         ) : error ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.dangerText} />
             <Text style={styles.errorText}>{error}</Text>
             <Pressable style={styles.retryBtn} onPress={() => load()}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -122,7 +126,7 @@ export default function VuelosScreen({ navigation }: Props) {
           </View>
         ) : airports.length === 0 ? (
           <View style={styles.emptyWrap}>
-            <Ionicons name="airplane-outline" size={28} color={colors.textMuted} />
+            <Ionicons name="airplane-outline" size={28} color={p.textMuted} />
             <Text style={styles.emptyText}>No tienes aeropuertos asignados.</Text>
           </View>
         ) : (
@@ -146,21 +150,21 @@ export default function VuelosScreen({ navigation }: Props) {
                 style={[styles.viewToggleBtn, viewMode === 'lista' && styles.viewToggleBtnActive]}
                 onPress={() => setViewMode('lista')}
               >
-                <Ionicons name="list" size={14} color={viewMode === 'lista' ? '#fff' : colors.textMuted} />
+                <Ionicons name="list" size={14} color={viewMode === 'lista' ? '#fff' : p.textMuted} />
                 <Text style={[styles.viewToggleText, viewMode === 'lista' && styles.viewToggleTextActive]}>Lista</Text>
               </Pressable>
               <Pressable
                 style={[styles.viewToggleBtn, viewMode === 'mapa' && styles.viewToggleBtnActive]}
                 onPress={() => setViewMode('mapa')}
               >
-                <Ionicons name="map" size={14} color={viewMode === 'mapa' ? '#fff' : colors.textMuted} />
+                <Ionicons name="map" size={14} color={viewMode === 'mapa' ? '#fff' : p.textMuted} />
                 <Text style={[styles.viewToggleText, viewMode === 'mapa' && styles.viewToggleTextActive]}>Mapa</Text>
               </Pressable>
             </View>
 
             {ap?.unsupported ? (
               <View style={styles.emptyWrap}>
-                <Ionicons name="radio-outline" size={26} color={colors.textMuted} />
+                <Ionicons name="radio-outline" size={26} color={p.textMuted} />
                 <Text style={styles.emptyText}>Rastreo no disponible todavía para {ap.iata}.</Text>
               </View>
             ) : viewMode === 'mapa' ? (
@@ -186,7 +190,7 @@ export default function VuelosScreen({ navigation }: Props) {
               <ScrollView contentContainerStyle={styles.content}>
                 {!ap?.live?.length ? (
                 <View style={styles.emptyWrap}>
-                  <Ionicons name="airplane-outline" size={26} color={colors.textMuted} />
+                  <Ionicons name="airplane-outline" size={26} color={p.textMuted} />
                   <Text style={styles.emptyText}>Sin aeronaves detectadas cerca en este momento.</Text>
                 </View>
               ) : (
@@ -202,11 +206,11 @@ export default function VuelosScreen({ navigation }: Props) {
                   return (
                     <Pressable
                       key={idx}
-                      style={[styles.card, shadow.card, r.mi_os && styles.cardMio]}
+                      style={[styles.card, p.shadowCard, r.mi_os && styles.cardMio]}
                       onPress={() => setDetail(r)}
                     >
                       <View style={[styles.planeIcon, { transform: [{ rotate: `${r.track_deg ?? 0}deg` }] }]}>
-                        <Ionicons name="airplane" size={18} color={colors.white} />
+                        <Ionicons name="airplane" size={18} color={p.onAccent} />
                       </View>
                       <View style={styles.cardMain}>
                         <View style={styles.cardTitleRow}>
@@ -246,7 +250,7 @@ export default function VuelosScreen({ navigation }: Props) {
                 <View style={styles.modalHead}>
                   <Text style={styles.modalAirline}>{detail.airline || 'Aeronave sin identificar'}</Text>
                   <Pressable onPress={() => setDetail(null)} hitSlop={10}>
-                    <Ionicons name="close-circle" size={22} color={colors.textMuted} />
+                    <Ionicons name="close-circle" size={22} color="#94a3b8" />
                   </Pressable>
                 </View>
                 <Text style={styles.modalCall}>
@@ -280,6 +284,7 @@ export default function VuelosScreen({ navigation }: Props) {
 }
 
 function DetailItem({ label, value }: { label: string; value: string }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.detailItem}>
       <Text style={styles.detailLabel}>{label}</Text>
@@ -288,7 +293,7 @@ function DetailItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -299,40 +304,40 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11, textAlign: 'center', marginTop: 1 },
   offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(245,158,11,0.14)',
+    backgroundColor: p.warnSoft,
     borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.35)',
+    borderColor: p.warnBorder,
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginHorizontal: 16,
     marginBottom: 10,
   },
-  offlineBannerText: { color: '#fde68a', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  offlineBannerText: { color: p.warnText, fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   emptyWrap: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
+  emptyText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
   tabsRow: { paddingHorizontal: 16, gap: 8, paddingBottom: 10 },
   tab: {
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: 20,
     paddingVertical: 7,
     paddingHorizontal: 14,
   },
-  tabActive: { backgroundColor: colors.teal, borderColor: colors.teal },
-  tabText: { color: colors.text, fontSize: 12, fontWeight: '800' },
-  tabTextActive: { color: '#06322f' },
+  tabActive: { backgroundColor: p.accent, borderColor: p.accent },
+  tabText: { color: p.text, fontSize: 12, fontWeight: '800' },
+  tabTextActive: { color: p.onAccent },
   viewToggleRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 10 },
   viewToggleBtn: {
     flex: 1,
@@ -340,14 +345,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: 10,
     paddingVertical: 8,
   },
   viewToggleBtnActive: { backgroundColor: '#0891b2', borderColor: '#0891b2' },
-  viewToggleText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
+  viewToggleText: { color: p.textMuted, fontSize: 12, fontWeight: '700' },
   viewToggleTextActive: { color: '#fff' },
   mapWrap: { flex: 1, marginHorizontal: 16, borderRadius: radii.card, overflow: 'hidden' },
   map: { flex: 1 },
@@ -359,7 +364,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(11,17,32,0.85)',
+    backgroundColor: p.isDark ? 'rgba(11,17,32,0.85)' : 'rgba(255,255,255,0.9)',
     padding: 20,
   },
   content: { padding: 16, paddingBottom: 40 },
@@ -369,30 +374,30 @@ const styles = StyleSheet.create({
     gap: 12,
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 13,
     marginBottom: 10,
   },
-  cardMio: { borderColor: 'rgba(250,204,21,0.5)', backgroundColor: 'rgba(250,204,21,0.08)' },
+  cardMio: { borderColor: 'rgba(250,204,21,0.5)', backgroundColor: p.isDark ? 'rgba(250,204,21,0.08)' : 'rgba(250,204,21,0.14)' },
   planeIcon: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: colors.navy3,
+    backgroundColor: p.isDark ? '#2b3f86' : p.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardMain: { flex: 1 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  cardAirline: { color: colors.white, fontWeight: '800', fontSize: 13, flexShrink: 1 },
-  cardCallsign: { color: colors.textMuted, fontSize: 11, marginTop: 1 },
-  cardMeta: { color: colors.textMuted, fontSize: 11, marginTop: 1 },
+  cardAirline: { color: p.text, fontWeight: '800', fontSize: 13, flexShrink: 1 },
+  cardCallsign: { color: p.textMuted, fontSize: 11, marginTop: 1 },
+  cardMeta: { color: p.textMuted, fontSize: 11, marginTop: 1 },
   mioBadge: { backgroundColor: 'rgba(250,204,21,0.25)', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
-  mioBadgeText: { color: '#fde047', fontSize: 9.5, fontWeight: '900' },
+  mioBadgeText: { color: p.isDark ? '#fde047' : '#a16207', fontSize: 9.5, fontWeight: '900' },
   faseBadge: { borderRadius: 20, paddingHorizontal: 9, paddingVertical: 4 },
   faseBadgeText: { fontSize: 9.5, fontWeight: '800', textTransform: 'uppercase' },
-  footNote: { color: colors.textMuted, fontSize: 10.5, textAlign: 'center', marginTop: 8, lineHeight: 15 },
+  footNote: { color: p.textMuted, fontSize: 10.5, textAlign: 'center', marginTop: 8, lineHeight: 15 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.65)', alignItems: 'center', justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: '#fff', borderRadius: 18, width: '100%', maxWidth: 400, padding: 20 },
   modalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },

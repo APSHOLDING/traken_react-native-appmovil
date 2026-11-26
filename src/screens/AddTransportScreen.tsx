@@ -16,7 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import {
   deleteTransport,
   getTransportList,
@@ -39,6 +41,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AddTransport'>;
  * los 2 endpoints del lado del servidor.
  */
 export default function AddTransportScreen({ route, navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay, iata, direction } = route.params;
 
   const isArrival = direction === 'in';
@@ -202,12 +206,12 @@ export default function AddTransportScreen({ route, navigation }: Props) {
   };
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>Transporte de {isArrival ? 'Llegada' : 'Salida'}</Text>
@@ -217,10 +221,10 @@ export default function AddTransportScreen({ route, navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 40 }} />
+          <ActivityIndicator color={p.accentText} style={{ marginTop: 40 }} />
         ) : loadError ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.dangerText} />
             <Text style={styles.errorText}>{loadError}</Text>
             <Pressable style={styles.retryBtn} onPress={load}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -256,7 +260,7 @@ export default function AddTransportScreen({ route, navigation }: Props) {
                         onPress={() => handleEdit(row)}
                         disabled={deletingId === row.id}
                       >
-                        <Ionicons name="pencil-outline" size={16} color={colors.teal} />
+                        <Ionicons name="pencil-outline" size={16} color={p.accentText} />
                       </Pressable>
                       <Pressable
                         style={styles.rowCardBtn}
@@ -264,9 +268,9 @@ export default function AddTransportScreen({ route, navigation }: Props) {
                         disabled={deletingId === row.id}
                       >
                         {deletingId === row.id ? (
-                          <ActivityIndicator size="small" color={colors.danger} />
+                          <ActivityIndicator size="small" color={p.dangerText} />
                         ) : (
-                          <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                          <Ionicons name="trash-outline" size={16} color={p.dangerText} />
                         )}
                       </Pressable>
                     </View>
@@ -278,7 +282,7 @@ export default function AddTransportScreen({ route, navigation }: Props) {
                 <View style={styles.editHeaderRow}>
                   <Text style={styles.editHeaderText}>Editando transporte</Text>
                   <Pressable onPress={resetForm} style={styles.cancelEditBtn}>
-                    <Ionicons name="close-circle-outline" size={14} color={colors.textMuted} />
+                    <Ionicons name="close-circle-outline" size={14} color={p.textMuted} />
                     <Text style={styles.cancelEditText}>Cancelar edición</Text>
                   </Pressable>
                 </View>
@@ -358,10 +362,12 @@ export default function AddTransportScreen({ route, navigation }: Props) {
 }
 
 function FieldLabel({ text }: { text: string }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return <Text style={styles.fieldLabel}>{text}</Text>;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -372,29 +378,29 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   content: { padding: 16, paddingBottom: 40 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(245,158,11,0.14)',
+    backgroundColor: p.warnSoft,
     borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.35)',
+    borderColor: p.warnBorder,
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 14,
   },
-  offlineBannerText: { color: '#fde68a', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
-  noRooms: { color: colors.textMuted, fontSize: 13, marginBottom: 8 },
+  offlineBannerText: { color: p.warnText, fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  noRooms: { color: p.textMuted, fontSize: 13, marginBottom: 8 },
   fieldLabel: {
-    color: colors.textMuted,
+    color: p.textMuted,
     fontSize: 11.5,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -403,17 +409,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
+    borderWidth: p.isDark ? 0 : 1,
+    borderColor: p.inputBorder,
     borderRadius: radii.input,
     paddingHorizontal: 14,
     height: 46,
-    color: colors.text,
+    color: p.text,
     fontSize: 14,
   },
   row2: { flexDirection: 'row', gap: 12 },
   row2Item: { flex: 1 },
   submitBtn: {
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: radii.button,
     height: 52,
     alignItems: 'center',
@@ -421,29 +429,31 @@ const styles = StyleSheet.create({
     marginTop: 26,
   },
   submitBtnDisabled: { opacity: 0.5 },
-  submitText: { color: '#06322f', fontWeight: '800', fontSize: 15 },
+  submitText: { color: p.onAccent, fontWeight: '800', fontSize: 15 },
   rowCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 11,
     marginBottom: 8,
   },
-  rowCardActive: { borderColor: colors.teal, borderWidth: 1.5 },
+  rowCardActive: { borderColor: p.accentText, borderWidth: 1.5 },
   rowCardText: { flex: 1 },
-  rowCardTitle: { color: colors.white, fontWeight: '700', fontSize: 13 },
-  rowCardSub: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  rowCardTitle: { color: p.text, fontWeight: '700', fontSize: 13 },
+  rowCardSub: { color: p.textMuted, fontSize: 11, marginTop: 2 },
   rowCardBtn: {
     width: 32,
     height: 32,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: p.inputBg,
+    borderWidth: p.isDark ? 0 : 1,
+    borderColor: p.inputBorder,
   },
   editHeaderRow: {
     flexDirection: 'row',
@@ -451,7 +461,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 18,
   },
-  editHeaderText: { color: colors.teal, fontWeight: '800', fontSize: 12.5 },
+  editHeaderText: { color: p.accentText, fontWeight: '800', fontSize: 12.5 },
   cancelEditBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  cancelEditText: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  cancelEditText: { color: p.textMuted, fontSize: 12, fontWeight: '600' },
 });

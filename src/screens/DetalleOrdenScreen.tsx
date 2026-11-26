@@ -18,7 +18,9 @@ import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { getOrderDetail, getOrderFiles, OrderFileDTO, uploadOrderFiles } from '../api/client';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import { resizeForUpload } from '../utils/imageResize';
@@ -32,6 +34,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'DetalleOrden'>;
  * registro. Solo lectura.
  */
 export default function DetalleOrdenScreen({ route, navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay } = route.params;
 
   const {
@@ -130,22 +134,22 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
   };
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>#{folioDisplay}</Text>
           <View style={styles.backBtn} />
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 40 }} />
+          <ActivityIndicator color={p.accent} style={{ marginTop: 40 }} />
         ) : error || !data ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.dangerText} />
             <Text style={styles.errorText}>{error ?? 'No se pudo cargar.'}</Text>
             <Pressable style={styles.retryBtn} onPress={reload}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -155,14 +159,14 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
           <ScrollView contentContainerStyle={styles.content}>
             {offlineSince && (
               <View style={styles.offlineBanner}>
-                <Ionicons name="cloud-offline-outline" size={16} color="#fde68a" />
+                <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
                 <Text style={styles.offlineBannerText}>
                   Sin conexión: mostrando lo guardado el {formatSavedAt(offlineSince)}.
                 </Text>
               </View>
             )}
 
-            <View style={[styles.card, shadow.card]}>
+            <View style={[styles.card, p.shadowCard]}>
               <InfoRow label="Aerolínea" value={data.order.airline} />
               <InfoRow label="Vuelo" value={data.order.flight ?? '—'} />
               <InfoRow label="Evento" value={data.order.event_name ?? '—'} />
@@ -177,7 +181,7 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
               <Text style={styles.emptyText}>No hay pasajeros registrados en esta O.S.</Text>
             ) : (
               data.hotelesPax.map((h, hi) => (
-                <View key={hi} style={[styles.card, shadow.card]}>
+                <View key={hi} style={[styles.card, p.shadowCard]}>
                   <Text style={styles.hotelName}>{h.hotel_name}</Text>
                   {h.rooms.map((r, ri) => (
                     <View key={ri} style={styles.roomBlock}>
@@ -187,7 +191,7 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
                       </View>
                       {r.pax.map((p) => (
                         <View key={p.id} style={styles.paxRow}>
-                          <Ionicons name="person-outline" size={13} color={colors.textMuted} />
+                          <Ionicons name="person-outline" size={13} color={p.textMuted} />
                           <Text style={styles.paxName} numberOfLines={1}>{p.name}</Text>
                           <Text style={styles.paxType}>{p.type}</Text>
                         </View>
@@ -202,10 +206,10 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
               <Text style={styles.sectionTitle}>Comprobantes</Text>
               <Pressable style={styles.addFileBtn} onPress={handleAddFile} disabled={isUploading}>
                 {isUploading ? (
-                  <ActivityIndicator color="#06322f" size="small" />
+                  <ActivityIndicator color={p.onAccent} size="small" />
                 ) : (
                   <>
-                    <Ionicons name="add" size={16} color="#06322f" />
+                    <Ionicons name="add" size={16} color={p.onAccent} />
                     <Text style={styles.addFileBtnText}>Subir</Text>
                   </>
                 )}
@@ -213,7 +217,7 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
             </View>
 
             {isLoadingFiles ? (
-              <ActivityIndicator color={colors.teal} style={{ marginVertical: 16 }} />
+              <ActivityIndicator color={p.accent} style={{ marginVertical: 16 }} />
             ) : files.length === 0 ? (
               <Text style={styles.emptyText}>No hay comprobantes subidos para esta O.S.</Text>
             ) : (
@@ -228,7 +232,7 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
                       <Image source={{ uri: f.url }} style={styles.fileThumbImg} resizeMode="cover" />
                     ) : (
                       <View style={styles.filePdfBox}>
-                        <Ionicons name="document-text-outline" size={26} color={colors.teal} />
+                        <Ionicons name="document-text-outline" size={26} color={p.accentText} />
                       </View>
                     )}
                   </Pressable>
@@ -254,6 +258,7 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
 }
 
 function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={[styles.infoRow, !last && styles.infoRowBorder]}>
       <Text style={styles.infoLabel}>{label}</Text>
@@ -262,7 +267,7 @@ function InfoRow({ label, value, last }: { label: string; value: string; last?: 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -273,74 +278,74 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800' },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800' },
   content: { padding: 16, paddingBottom: 40 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(245,158,11,0.14)',
+    backgroundColor: p.warnSoft,
     borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.35)',
+    borderColor: p.warnBorder,
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 14,
   },
-  offlineBannerText: { color: '#fde68a', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  offlineBannerText: { color: p.warnText, fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
   card: {
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 14,
     marginBottom: 14,
   },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 9 },
-  infoRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.cardBorder },
-  infoLabel: { color: colors.textMuted, fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase' },
-  infoValue: { color: colors.white, fontSize: 13, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
+  infoRowBorder: { borderBottomWidth: 1, borderBottomColor: p.cardBorder },
+  infoLabel: { color: p.textMuted, fontSize: 11.5, fontWeight: '700', textTransform: 'uppercase' },
+  infoValue: { color: p.text, fontSize: 13, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
   sectionTitle: {
-    color: colors.textMuted,
+    color: p.textMuted,
     fontSize: 11.5,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 10,
   },
-  emptyText: { color: colors.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 20 },
-  hotelName: { color: colors.teal, fontWeight: '800', fontSize: 13.5, marginBottom: 10 },
-  roomBlock: { marginBottom: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.cardBorder },
+  emptyText: { color: p.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 20 },
+  hotelName: { color: p.accentText, fontWeight: '800', fontSize: 13.5, marginBottom: 10 },
+  roomBlock: { marginBottom: 10, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: p.cardBorder },
   roomHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  roomLabel: { color: colors.white, fontWeight: '700', fontSize: 12 },
-  roomUpdatedBy: { color: colors.textMuted, fontSize: 10.5 },
+  roomLabel: { color: p.text, fontWeight: '700', fontSize: 12 },
+  roomUpdatedBy: { color: p.textMuted, fontSize: 10.5 },
   paxRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  paxName: { color: colors.text, fontSize: 12, flex: 1 },
-  paxType: { color: colors.textMuted, fontSize: 10.5, textTransform: 'uppercase' },
+  paxName: { color: p.text, fontSize: 12, flex: 1 },
+  paxType: { color: p.textMuted, fontSize: 10.5, textTransform: 'uppercase' },
   filesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   addFileBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: 20,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  addFileBtnText: { color: '#06322f', fontWeight: '800', fontSize: 12 },
+  addFileBtnText: { color: p.onAccent, fontWeight: '800', fontSize: 12 },
   filesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   fileThumb: {
     width: '31%',
     aspectRatio: 1,
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
   },
   fileThumbImg: { width: '100%', height: '100%' },
   filePdfBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },

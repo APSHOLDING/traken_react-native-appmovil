@@ -16,7 +16,9 @@ import { StatusBar } from 'expo-status-bar';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import {
   FirmaLinksResponse,
   getFirmaLinks,
@@ -35,6 +37,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ReportePicker'>;
  * por hotel + uno General, cada uno con Descargar y Enviar por correo.
  */
 export default function ReportePickerScreen({ route, navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay } = route.params;
 
   const [email, setEmail] = useState('');
@@ -151,22 +155,22 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
   );
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>Reporte #{folioDisplay}</Text>
           <View style={styles.backBtn} />
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 40 }} />
+          <ActivityIndicator color={p.accent} style={{ marginTop: 40 }} />
         ) : error || !data ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.dangerText} />
             <Text style={styles.errorText}>{error ?? 'No se pudo cargar.'}</Text>
             <Pressable style={styles.retryBtn} onPress={reload}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -176,7 +180,7 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
           <ScrollView contentContainerStyle={styles.content}>
             {offlineSince && (
               <View style={styles.offlineBanner}>
-                <Ionicons name="cloud-offline-outline" size={16} color="#fde68a" />
+                <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
                 <Text style={styles.offlineBannerText}>
                   Sin conexión: mostrando lo guardado el {formatSavedAt(offlineSince)}. Necesitas internet para
                   descargar o enviar.
@@ -190,7 +194,7 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
                 value={email}
                 onChangeText={setEmail}
                 placeholder="correo@ejemplo.com"
-                placeholderTextColor={colors.placeholder}
+                placeholderTextColor={p.placeholder}
                 style={styles.input}
                 autoCapitalize="none"
                 keyboardType="email-address"
@@ -223,7 +227,7 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
               onSend={() => handleSend(0)}
             />
 
-            <View style={[styles.card, shadow.card, { marginTop: 4 }]}>
+            <View style={[styles.card, p.shadowCard, { marginTop: 4 }]}>
               <Text style={styles.cardTitle}>Lista PARA FIRMAR</Text>
               <Text style={styles.mailHint}>
                 El mismo reporte con una columna roja "FIRMA PAX", para que el hotel lo imprima y los pasajeros firmen.
@@ -275,15 +279,15 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
             </View>
 
             <Pressable
-              style={[styles.card, shadow.card, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}
+              style={[styles.card, p.shadowCard, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}
               onPress={() => navigation.navigate('ResumenOs', { folio, idAirport, folioDisplay })}
             >
-              <Ionicons name="bed-outline" size={20} color={colors.teal} />
+              <Ionicons name="bed-outline" size={20} color={p.accentText} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>Resumen de hab. y pax</Text>
                 <Text style={styles.mailHint}>Habitaciones, adultos, niños e infantes por hotel.</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              <Ionicons name="chevron-forward" size={18} color={p.textMuted} />
             </Pressable>
 
             {msg && (
@@ -317,8 +321,10 @@ function ReportCard({
   onDownload: () => void;
   onSend: () => void;
 }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
-    <View style={[styles.card, shadow.card, general && styles.cardGeneral]}>
+    <View style={[styles.card, p.shadowCard, general && styles.cardGeneral]}>
       <View style={styles.cardTop}>
         <Text style={[styles.cardTitle, general && styles.cardTitleGeneral]} numberOfLines={1}>
           {general ? '★ ' : ''}{title}
@@ -340,10 +346,10 @@ function ReportCard({
         </Pressable>
         <Pressable style={[styles.actionBtn, styles.sendBtn]} onPress={onSend} disabled={isSending}>
           {isSending ? (
-            <ActivityIndicator color={colors.white} size="small" />
+            <ActivityIndicator color="#fff" size="small" />
           ) : (
             <>
-              <Ionicons name="mail-outline" size={14} color={colors.white} />
+              <Ionicons name="mail-outline" size={14} color="#fff" />
               <Text style={styles.actionBtnText}>Enviar</Text>
             </>
           )}
@@ -353,7 +359,7 @@ function ReportCard({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -364,35 +370,35 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800' },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800' },
   content: { padding: 16, paddingBottom: 40 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(245,158,11,0.14)',
+    backgroundColor: p.warnSoft,
     borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.35)',
+    borderColor: p.warnBorder,
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 14,
   },
-  offlineBannerText: { color: '#fde68a', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  offlineBannerText: { color: p.warnText, fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
   mailBox: {
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: radii.card,
     padding: 14,
     marginBottom: 16,
   },
   mailLabel: {
-    color: colors.textMuted,
+    color: p.textMuted,
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -400,29 +406,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
+    borderWidth: p.isDark ? 0 : 1,
+    borderColor: p.inputBorder,
     borderRadius: radii.input,
     paddingHorizontal: 14,
     height: 44,
-    color: colors.text,
+    color: p.text,
     fontSize: 14,
   },
-  mailHint: { color: colors.textMuted, fontSize: 10.5, marginTop: 8, lineHeight: 15 },
+  mailHint: { color: p.textMuted, fontSize: 10.5, marginTop: 8, lineHeight: 15 },
   card: {
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 13,
     marginBottom: 10,
   },
-  cardGeneral: { backgroundColor: colors.navy3, borderColor: colors.navy3 },
+  cardGeneral: { backgroundColor: p.isDark ? '#2b3f86' : p.accent, borderColor: p.isDark ? '#2b3f86' : p.accent },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 },
-  cardTitle: { color: colors.white, fontWeight: '700', fontSize: 13, flexShrink: 1 },
-  cardTitleGeneral: { fontWeight: '800' },
-  countBadge: { backgroundColor: 'rgba(43,183,179,0.16)', borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
+  cardTitle: { color: p.text, fontWeight: '700', fontSize: 13, flexShrink: 1 },
+  cardTitleGeneral: { fontWeight: '800', color: '#ffffff' },
+  countBadge: { backgroundColor: p.accentSoft, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
   countBadgeGeneral: { backgroundColor: 'rgba(255,255,255,0.18)' },
-  countText: { color: colors.teal, fontSize: 10.5, fontWeight: '800' },
+  countText: { color: p.accentText, fontSize: 10.5, fontWeight: '800' },
   countTextGeneral: { color: '#fff' },
   cardActions: { flexDirection: 'row', gap: 8 },
   actionBtn: {

@@ -7,7 +7,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { getPreregBatches, importPreregBatch, PreregBatchItem, uploadPreregList } from '../api/client';
 import { resizeForUpload } from '../utils/imageResize';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -22,6 +24,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'PreregListas'>;
  * cuando termina, y esa pantalla se refresca sola al volver a tener foco.
  */
 export default function PreregListasScreen({ route, navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay } = route.params;
 
   const [batches, setBatches] = useState<PreregBatchItem[]>([]);
@@ -136,12 +140,12 @@ export default function PreregListasScreen({ route, navigation }: Props) {
   };
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>O.S. {folioDisplay}</Text>
@@ -158,18 +162,18 @@ export default function PreregListasScreen({ route, navigation }: Props) {
           </Text>
         </View>
 
-        <Pressable style={[styles.uploadBtn, shadow.card]} onPress={handleAddList} disabled={isUploading}>
-          <Ionicons name="sparkles-outline" size={18} color="#06322f" />
+        <Pressable style={[styles.uploadBtn, p.shadowCard]} onPress={handleAddList} disabled={isUploading}>
+          <Ionicons name="sparkles-outline" size={18} color={p.onAccent} />
           <Text style={styles.uploadBtnText}>Subir lista (foto o PDF) con IA</Text>
         </Pressable>
 
         <Text style={styles.sectionTitle}>Listas del portal de aerolínea</Text>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 30 }} />
+          <ActivityIndicator color={p.accentText} style={{ marginTop: 30 }} />
         ) : error ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.dangerText} />
             <Text style={styles.errorText}>{error}</Text>
             <Pressable style={styles.retryBtn} onPress={load}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -182,7 +186,7 @@ export default function PreregListasScreen({ route, navigation }: Props) {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
-                <Ionicons name="document-outline" size={28} color={colors.textMuted} />
+                <Ionicons name="document-outline" size={28} color={p.textMuted} />
                 <Text style={styles.emptyText}>
                   No hay listas subidas por la aerolínea para la estación de esta O.S.
                 </Text>
@@ -192,7 +196,7 @@ export default function PreregListasScreen({ route, navigation }: Props) {
               const isBusy = busyBatchId === item.id;
               const pendientes = item.items - item.imported;
               return (
-                <View style={[styles.card, shadow.card]}>
+                <View style={[styles.card, p.shadowCard]}>
                   <View style={styles.cardTop}>
                     <Text style={styles.cardAirline} numberOfLines={1}>
                       {item.airline}
@@ -216,7 +220,7 @@ export default function PreregListasScreen({ route, navigation }: Props) {
                     disabled={isBusy}
                   >
                     {isBusy ? (
-                      <ActivityIndicator color="#06322f" size="small" />
+                      <ActivityIndicator color={p.onAccent} size="small" />
                     ) : (
                       <Text style={styles.importBtnText}>
                         {pendientes <= 0 ? 'Volver a importar' : `Importar ${pendientes} pendiente(s)`}
@@ -231,8 +235,8 @@ export default function PreregListasScreen({ route, navigation }: Props) {
 
         <Modal visible={isUploading} transparent animationType="fade">
           <View style={styles.uploadOverlay}>
-            <View style={[styles.uploadCard, shadow.card]}>
-              <ActivityIndicator color={colors.teal} size="large" />
+            <View style={[styles.uploadCard, p.shadowCard]}>
+              <ActivityIndicator color={p.accentText} size="large" />
               <Text style={styles.uploadCardTitle}>La IA está leyendo tu lista...</Text>
               <Text style={styles.uploadCardText}>Puede tardar hasta 2 minutos. No cierres la app.</Text>
             </View>
@@ -243,7 +247,7 @@ export default function PreregListasScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -254,64 +258,64 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   introBox: {
     marginHorizontal: 16,
     marginBottom: 12,
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: radii.card,
     padding: 13,
   },
-  introText: { color: colors.textMuted, fontSize: 12, lineHeight: 17 },
+  introText: { color: p.textMuted, fontSize: 12, lineHeight: 17 },
   uploadBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: radii.button,
     paddingVertical: 13,
     marginHorizontal: 16,
     marginBottom: 20,
   },
-  uploadBtnText: { color: '#06322f', fontWeight: '800', fontSize: 14 },
-  sectionTitle: { color: colors.white, fontWeight: '800', fontSize: 13.5, marginHorizontal: 16, marginBottom: 8 },
+  uploadBtnText: { color: p.onAccent, fontWeight: '800', fontSize: 14 },
+  sectionTitle: { color: p.text, fontWeight: '800', fontSize: 13.5, marginHorizontal: 16, marginBottom: 8 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   listContent: { paddingHorizontal: 16, paddingBottom: 30 },
   emptyWrap: { alignItems: 'center', paddingVertical: 50, gap: 8 },
-  emptyText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
+  emptyText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
   card: {
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 14,
     marginBottom: 10,
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  cardAirline: { color: colors.white, fontWeight: '800', fontSize: 13.5, flexShrink: 1 },
-  matchBadge: { backgroundColor: 'rgba(22,163,74,0.22)', borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
-  matchBadgeText: { color: colors.ok, fontSize: 10, fontWeight: '800' },
-  cardSub: { color: colors.textMuted, fontSize: 11.5, marginTop: 3 },
-  cardCounts: { color: colors.textMuted, fontSize: 11.5, marginTop: 6 },
+  cardAirline: { color: p.text, fontWeight: '800', fontSize: 13.5, flexShrink: 1 },
+  matchBadge: { backgroundColor: p.okSoft, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
+  matchBadgeText: { color: p.okText, fontSize: 10, fontWeight: '800' },
+  cardSub: { color: p.textMuted, fontSize: 11.5, marginTop: 3 },
+  cardCounts: { color: p.textMuted, fontSize: 11.5, marginTop: 6 },
   importBtn: {
     marginTop: 10,
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: radii.button,
     paddingVertical: 10,
     alignItems: 'center',
   },
-  importBtnDone: { backgroundColor: 'rgba(255,255,255,0.12)' },
-  importBtnText: { color: '#06322f', fontWeight: '800', fontSize: 12.5 },
+  importBtnDone: { backgroundColor: p.isDark ? 'rgba(255,255,255,0.12)' : p.textFaint },
+  importBtnText: { color: p.onAccent, fontWeight: '800', fontSize: 12.5 },
   uploadOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: p.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -319,14 +323,14 @@ const styles = StyleSheet.create({
   uploadCard: {
     width: '100%',
     maxWidth: 320,
-    backgroundColor: colors.navy2,
+    backgroundColor: p.modalBg,
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     padding: 22,
     alignItems: 'center',
     gap: 10,
   },
-  uploadCardTitle: { color: colors.white, fontWeight: '800', fontSize: 14, textAlign: 'center' },
-  uploadCardText: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
+  uploadCardTitle: { color: p.text, fontWeight: '800', fontSize: 14, textAlign: 'center' },
+  uploadCardText: { color: p.textMuted, fontSize: 12, textAlign: 'center' },
 });

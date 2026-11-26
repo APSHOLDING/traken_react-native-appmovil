@@ -18,7 +18,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import {
   createOrder,
   CreateOrderHotelInput,
@@ -124,6 +126,8 @@ function checkDateAllowed(dateStr: string): boolean {
  * respuesta.
  */
 export default function CreateOrderScreen({ navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [stations, setStations] = useState<StationOption[]>([]);
@@ -372,8 +376,8 @@ export default function CreateOrderScreen({ navigation }: Props) {
 
   if (result) {
     return (
-      <LinearGradient colors={gradients.hero} style={styles.flex}>
-        <StatusBar style="light" />
+      <LinearGradient colors={p.bg} style={styles.flex}>
+        <StatusBar style={p.isDark ? 'light' : 'dark'} />
         <SafeAreaView style={styles.flex}>
           <View style={styles.resultWrap}>
             {result.sc ? (
@@ -387,7 +391,7 @@ export default function CreateOrderScreen({ navigation }: Props) {
               </View>
             ) : (
               <View style={[styles.resultCard, styles.resultCardOk]}>
-                <Ionicons name="checkmark-circle" size={44} color="#16a34a" />
+                <Ionicons name="checkmark-circle" size={44} color={p.ok} />
                 <Text style={styles.resultCode}>ORDEN #{result.code}</Text>
               </View>
             )}
@@ -404,22 +408,22 @@ export default function CreateOrderScreen({ navigation }: Props) {
   }
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>Crear O.S.</Text>
           <View style={styles.backBtn} />
         </View>
 
         {isLoadingOptions ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 40 }} />
+          <ActivityIndicator color={p.accentText} style={{ marginTop: 40 }} />
         ) : loadError ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.dangerText} />
             <Text style={styles.errorText}>{loadError}</Text>
             <Pressable style={styles.retryBtn} onPress={loadOptions}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -430,7 +434,7 @@ export default function CreateOrderScreen({ navigation }: Props) {
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
               {optionsOfflineSince ? (
                 <View style={styles.offlineBanner}>
-                  <Ionicons name="cloud-offline-outline" size={16} color="#fde68a" />
+                  <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
                   <Text style={styles.offlineBannerText}>
                     Sin conexión: mostrando aeropuertos y eventos guardados el {formatSavedAt(optionsOfflineSince)}.
                     Necesitas internet para poder crear la O.S.
@@ -438,7 +442,7 @@ export default function CreateOrderScreen({ navigation }: Props) {
                 </View>
               ) : catalogOfflineSince ? (
                 <View style={styles.offlineBanner}>
-                  <Ionicons name="cloud-offline-outline" size={16} color="#fde68a" />
+                  <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
                   <Text style={styles.offlineBannerText}>
                     Sin conexión: mostrando aerolíneas y hoteles guardados el {formatSavedAt(catalogOfflineSince)}.
                     Necesitas internet para poder crear la O.S.
@@ -464,7 +468,7 @@ export default function CreateOrderScreen({ navigation }: Props) {
                 value={flight}
                 onChangeText={setFlight}
                 placeholder="# Vuelo"
-                placeholderTextColor={colors.placeholder}
+                placeholderTextColor={p.placeholder}
                 style={styles.input}
                 autoCapitalize="characters"
               />
@@ -480,7 +484,7 @@ export default function CreateOrderScreen({ navigation }: Props) {
 
               {idAirport ? (
                 isLoadingCatalog ? (
-                  <ActivityIndicator color={colors.teal} style={{ marginTop: 16 }} />
+                  <ActivityIndicator color={p.accentText} style={{ marginTop: 16 }} />
                 ) : (
                   <>
                     <FieldLabel text="Aerolínea" />
@@ -506,7 +510,7 @@ export default function CreateOrderScreen({ navigation }: Props) {
                             <Text style={styles.hotelRowLabel}>Hotel {idx + 1}</Text>
                             {hotelRows.length > 1 && (
                               <Pressable onPress={() => removeHotelRow(row.key)} hitSlop={8}>
-                                <Ionicons name="close-circle" size={18} color={colors.danger} />
+                                <Ionicons name="close-circle" size={18} color={p.dangerText} />
                               </Pressable>
                             )}
                           </View>
@@ -521,7 +525,7 @@ export default function CreateOrderScreen({ navigation }: Props) {
                             value={row.dispo}
                             onChangeText={(v) => updateHotelRow(row.key, { dispo: v })}
                             placeholder="Disponibilidad (# de cuartos)"
-                            placeholderTextColor={colors.placeholder}
+                            placeholderTextColor={p.placeholder}
                             keyboardType="number-pad"
                             style={[styles.input, { marginTop: 8 }]}
                           />
@@ -530,7 +534,7 @@ export default function CreateOrderScreen({ navigation }: Props) {
                     )}
                     {hotelsCatalog.length > 0 && (
                       <Pressable style={styles.addHotelBtn} onPress={addHotelRow}>
-                        <Ionicons name="add-circle-outline" size={16} color={colors.teal} />
+                        <Ionicons name="add-circle-outline" size={16} color={p.accentText} />
                         <Text style={styles.addHotelText}>Agregar otro hotel</Text>
                       </Pressable>
                     )}
@@ -540,19 +544,19 @@ export default function CreateOrderScreen({ navigation }: Props) {
 
               <FieldLabel text="Fecha Entrada" />
               <Pressable style={styles.pickerField} onPress={() => setActivePicker('dateIn')}>
-                <Ionicons name="calendar-outline" size={16} color={colors.teal} />
+                <Ionicons name="calendar-outline" size={16} color={p.accentText} />
                 <Text style={styles.pickerFieldText}>{formatDateDisplay(dateIn)}</Text>
               </Pressable>
 
               <FieldLabel text="Fecha Salida" />
               <Pressable style={styles.pickerField} onPress={() => setActivePicker('dateOut')}>
-                <Ionicons name="calendar-outline" size={16} color={colors.teal} />
+                <Ionicons name="calendar-outline" size={16} color={p.accentText} />
                 <Text style={styles.pickerFieldText}>{formatDateDisplay(dateOut)}</Text>
               </Pressable>
 
               <FieldLabel text="Hora Pick Up" />
               <Pressable style={styles.pickerField} onPress={() => setActivePicker('hour')}>
-                <Ionicons name="time-outline" size={16} color={colors.teal} />
+                <Ionicons name="time-outline" size={16} color={p.accentText} />
                 <Text style={styles.pickerFieldText}>{hour} hrs.</Text>
               </Pressable>
 
@@ -561,7 +565,7 @@ export default function CreateOrderScreen({ navigation }: Props) {
                 onPress={handleSubmit}
                 disabled={!canSubmit}
               >
-                {isSaving ? <ActivityIndicator color="#06322f" /> : <Text style={styles.submitText}>CREAR</Text>}
+                {isSaving ? <ActivityIndicator color={p.onAccent} /> : <Text style={styles.submitText}>CREAR</Text>}
               </Pressable>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -626,7 +630,7 @@ export default function CreateOrderScreen({ navigation }: Props) {
                 value={blockedCode}
                 onChangeText={setBlockedCode}
                 placeholder="Código de verificación"
-                placeholderTextColor={colors.placeholder}
+                placeholderTextColor={p.placeholder}
                 secureTextEntry
                 style={styles.modalInput}
               />
@@ -693,10 +697,12 @@ export default function CreateOrderScreen({ navigation }: Props) {
 }
 
 function FieldLabel({ text }: { text: string }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return <Text style={styles.fieldLabel}>{text}</Text>;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -707,28 +713,28 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800' },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800' },
   content: { padding: 16, paddingBottom: 50 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(245,158,11,0.14)',
+    backgroundColor: p.warnSoft,
     borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.35)',
+    borderColor: p.warnBorder,
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 14,
   },
-  offlineBannerText: { color: '#fde68a', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
-  noRooms: { color: colors.textMuted, fontSize: 13, marginBottom: 8 },
+  offlineBannerText: { color: p.warnText, fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  noRooms: { color: p.textMuted, fontSize: 13, marginBottom: 8 },
   fieldLabel: {
-    color: colors.textMuted,
+    color: p.textMuted,
     fontSize: 11.5,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -737,41 +743,46 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: p.isDark ? 'transparent' : p.inputBorder,
     height: 46,
-    color: colors.text,
+    color: p.text,
     fontSize: 14,
   },
   pickerField: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: p.isDark ? 'transparent' : p.inputBorder,
     height: 46,
   },
-  pickerFieldText: { color: colors.text, fontSize: 14, fontWeight: '700' },
-  iosPickerOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.5)' },
+  pickerFieldText: { color: p.text, fontSize: 14, fontWeight: '700' },
+  iosPickerOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: p.overlay },
   iosPickerSheet: { backgroundColor: '#fff', borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 20 },
   iosPickerDone: { alignItems: 'flex-end', paddingHorizontal: 18, paddingVertical: 12 },
-  iosPickerDoneText: { color: colors.teal, fontWeight: '800', fontSize: 15 },
+  iosPickerDoneText: { color: p.accentText, fontWeight: '800', fontSize: 15 },
   hotelRow: {
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: radii.card,
     padding: 12,
     marginBottom: 10,
+    ...(p.isDark ? {} : p.shadowCard),
   },
   hotelRowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  hotelRowLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  hotelRowLabel: { color: p.textMuted, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
   addHotelBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, marginBottom: 6 },
-  addHotelText: { color: colors.teal, fontWeight: '700', fontSize: 12.5 },
+  addHotelText: { color: p.accentText, fontWeight: '700', fontSize: 12.5 },
   submitBtn: {
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: radii.button,
     height: 54,
     alignItems: 'center',
@@ -779,32 +790,32 @@ const styles = StyleSheet.create({
     marginTop: 26,
   },
   submitBtnDisabled: { opacity: 0.5 },
-  submitText: { color: '#06322f', fontWeight: '900', fontSize: 15, letterSpacing: 0.5 },
+  submitText: { color: p.onAccent, fontWeight: '900', fontSize: 15, letterSpacing: 0.5 },
 
   resultWrap: { flex: 1, padding: 20, justifyContent: 'center', gap: 14 },
   resultCard: { borderRadius: 18, padding: 26, alignItems: 'center', gap: 10 },
-  resultCardOk: { backgroundColor: 'rgba(22,163,74,0.14)', borderWidth: 1, borderColor: 'rgba(22,163,74,0.4)' },
-  resultCardWarn: { backgroundColor: 'rgba(217,119,6,0.16)', borderWidth: 1, borderColor: 'rgba(217,119,6,0.45)' },
+  resultCardOk: { backgroundColor: p.okSoft, borderWidth: 1, borderColor: p.okBorder },
+  resultCardWarn: { backgroundColor: p.warnSoft, borderWidth: 1, borderColor: p.warnBorder },
   resultIcon: { fontSize: 34 },
-  resultCode: { color: colors.white, fontSize: 20, fontWeight: '900', letterSpacing: 0.5 },
-  resultText: { color: colors.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 19 },
+  resultCode: { color: p.text, fontSize: 20, fontWeight: '900', letterSpacing: 0.5 },
+  resultText: { color: p.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 19 },
   resultBtn: {
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: radii.button,
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  resultBtnText: { color: '#06322f', fontWeight: '800', fontSize: 14.5 },
+  resultBtnText: { color: p.onAccent, fontWeight: '800', fontSize: 14.5 },
   resultBtnGhost: {
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: radii.button,
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  resultBtnGhostText: { color: colors.white, fontWeight: '700', fontSize: 13.5 },
+  resultBtnGhostText: { color: p.text, fontWeight: '700', fontSize: 13.5 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.72)', alignItems: 'center', justifyContent: 'center', padding: 16 },
   modalCard: { backgroundColor: '#fff', borderRadius: 18, width: '100%', maxWidth: 420, overflow: 'hidden' },

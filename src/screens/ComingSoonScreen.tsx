@@ -5,7 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ComingSoon'>;
@@ -16,23 +18,25 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ComingSoon'>;
  * organizada desde ya, sin fingir que algo esta terminado cuando no lo esta.
  */
 export default function ComingSoonScreen({ route, navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { title, icon } = route.params;
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>{title}</Text>
           <View style={styles.backBtn} />
         </View>
         <View style={styles.content}>
-          <View style={[styles.card, shadow.card]}>
+          <View style={[styles.card, p.shadowCard]}>
             <View style={styles.iconBadge}>
-              <Ionicons name={icon ?? 'construct-outline'} size={30} color={colors.teal} />
+              <Ionicons name={icon ?? 'construct-outline'} size={30} color={p.accentText} />
             </View>
             <Text style={styles.title}>Próximamente</Text>
             <Text style={styles.subtitle}>
@@ -46,7 +50,7 @@ export default function ComingSoonScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -56,14 +60,14 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800' },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800' },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   card: {
     width: '100%',
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 28,
     alignItems: 'center',
   },
@@ -71,14 +75,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 18,
-    backgroundColor: 'rgba(43,183,179,0.15)',
+    backgroundColor: p.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
-  title: { color: colors.white, fontSize: 18, fontWeight: '800' },
+  title: { color: p.text, fontSize: 18, fontWeight: '800' },
   subtitle: {
-    color: colors.textMuted,
+    color: p.textMuted,
     fontSize: 13,
     marginTop: 8,
     textAlign: 'center',

@@ -5,7 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { colors, radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { getNotifications, NotificationItem } from '../api/client';
 import { markNotificationsSeen } from '../utils/notificationsSeen';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -48,6 +50,8 @@ function timeAgo(dateStr: string): string {
  * compilada), y va a seguir siendo la misma pantalla el dia que si llegue.
  */
 export default function NotificationsScreen({ navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -82,22 +86,22 @@ export default function NotificationsScreen({ navigation }: Props) {
   }, [load]);
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>Notificaciones</Text>
           <View style={styles.backBtn} />
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 40 }} />
+          <ActivityIndicator color={p.accentText} style={{ marginTop: 40 }} />
         ) : error ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.danger} />
             <Text style={styles.errorText}>{error}</Text>
             <Pressable style={styles.retryBtn} onPress={() => load(1, true)}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -110,7 +114,7 @@ export default function NotificationsScreen({ navigation }: Props) {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
-                <Ionicons name="notifications-off-outline" size={28} color={colors.textMuted} />
+                <Ionicons name="notifications-off-outline" size={28} color={p.textMuted} />
                 <Text style={styles.emptyText}>Aún no tienes notificaciones.</Text>
                 <Text style={styles.emptySub}>
                   Aquí aparecerán las O.S. y pasajeros que se creen o cambien en tus estaciones.
@@ -120,7 +124,7 @@ export default function NotificationsScreen({ navigation }: Props) {
             renderItem={({ item }) => {
               const info = (item.evento && EVENT_INFO[item.evento]) || DEFAULT_EVENT_INFO;
               return (
-                <View style={[styles.card, shadow.card]}>
+                <View style={[styles.card, p.shadowCard]}>
                   <View style={[styles.iconWrap, { backgroundColor: info.color }]}>
                     <Ionicons name={info.icon} size={18} color="#fff" />
                   </View>
@@ -147,7 +151,7 @@ export default function NotificationsScreen({ navigation }: Props) {
                   disabled={isLoadingMore}
                 >
                   {isLoadingMore ? (
-                    <ActivityIndicator color={colors.teal} />
+                    <ActivityIndicator color={p.accentText} />
                   ) : (
                     <Text style={styles.moreBtnText}>Cargar más</Text>
                   )}
@@ -161,7 +165,7 @@ export default function NotificationsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -172,33 +176,33 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800' },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800' },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   listContent: { paddingHorizontal: 16, paddingBottom: 40 },
   emptyWrap: { alignItems: 'center', paddingVertical: 60, gap: 8, paddingHorizontal: 30 },
-  emptyText: { color: colors.text, fontSize: 14, fontWeight: '700', textAlign: 'center' },
-  emptySub: { color: colors.textMuted, fontSize: 12, textAlign: 'center', lineHeight: 17 },
+  emptyText: { color: p.text, fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  emptySub: { color: p.textMuted, fontSize: 12, textAlign: 'center', lineHeight: 17 },
   card: {
     flexDirection: 'row',
     gap: 12,
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 13,
     marginBottom: 10,
   },
   iconWrap: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   cardMain: { flex: 1 },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  cardTitle: { color: colors.white, fontWeight: '800', fontSize: 13, flexShrink: 1 },
+  cardTitle: { color: p.text, fontWeight: '800', fontSize: 13, flexShrink: 1 },
   iataBadge: { backgroundColor: colors.navy3, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
-  iataText: { color: colors.white, fontSize: 9.5, fontWeight: '800' },
-  cardBody: { color: colors.textMuted, fontSize: 12, marginTop: 3, lineHeight: 16 },
-  cardTime: { color: colors.textMuted, fontSize: 10, marginTop: 5, fontWeight: '600' },
+  iataText: { color: p.text, fontSize: 9.5, fontWeight: '800' },
+  cardBody: { color: p.textMuted, fontSize: 12, marginTop: 3, lineHeight: 16 },
+  cardTime: { color: p.textMuted, fontSize: 10, marginTop: 5, fontWeight: '600' },
   moreBtn: { alignItems: 'center', paddingVertical: 16 },
-  moreBtnText: { color: colors.teal, fontWeight: '800', fontSize: 13 },
+  moreBtnText: { color: p.accentText, fontWeight: '800', fontSize: 13 },
 });

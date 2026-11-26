@@ -5,7 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { colors, radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { getSlaList, SlaEstado, SlaListItem } from '../api/client';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -19,11 +21,11 @@ const ESTADO_FILTERS: { key: SlaEstado | ''; label: string }[] = [
   { key: 'sin_cierre', label: 'Sin cierre +24h' },
 ];
 
-function estadoLabel(item: SlaListItem): { text: string; color: string } {
-  if (item.estado === 'sin_cierre') return { text: '⛔ Sin cierre (+24h)', color: '#fca5a5' };
-  if (item.estado === 'curso') return { text: '⏱ En curso', color: '#93c5fd' };
-  if (item.estado === 'fin') return { text: '✅ Terminada', color: '#4ade80' };
-  return { text: 'Sin iniciar', color: colors.textMuted };
+function estadoLabel(item: SlaListItem, p: ThemeTokens): { text: string; color: string } {
+  if (item.estado === 'sin_cierre') return { text: '⛔ Sin cierre (+24h)', color: p.isDark ? '#fca5a5' : p.dangerText };
+  if (item.estado === 'curso') return { text: '⏱ En curso', color: p.isDark ? '#93c5fd' : '#1d4ed8' };
+  if (item.estado === 'fin') return { text: '✅ Terminada', color: p.isDark ? '#4ade80' : p.okText };
+  return { text: 'Sin iniciar', color: p.textMuted };
 }
 
 function semaforoColor(sem: SlaListItem['semaforo']): string | null {
@@ -39,6 +41,8 @@ function semaforoColor(sem: SlaListItem['semaforo']): string | null {
  * formulario de 11 tiempos.
  */
 export default function SlaListScreen({ navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [items, setItems] = useState<SlaListItem[]>([]);
   const [query, setQuery] = useState('');
   const [estado, setEstado] = useState<SlaEstado | ''>('');
@@ -78,12 +82,12 @@ export default function SlaListScreen({ navigation }: Props) {
   );
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>SLA de Operaciones</Text>
@@ -93,12 +97,12 @@ export default function SlaListScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.searchWrap}>
-          <Ionicons name="search" size={16} color={colors.textMuted} />
+          <Ionicons name="search" size={16} color={p.textMuted} />
           <TextInput
             value={query}
             onChangeText={setQuery}
             placeholder="Buscar folio, estación, aerolínea o vuelo..."
-            placeholderTextColor={colors.placeholder}
+            placeholderTextColor={p.placeholder}
             style={styles.searchInput}
             autoCapitalize="none"
             autoCorrect={false}
@@ -118,10 +122,10 @@ export default function SlaListScreen({ navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 30 }} />
+          <ActivityIndicator color={p.accentText} style={{ marginTop: 30 }} />
         ) : error ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.danger} />
             <Text style={styles.errorText}>{error}</Text>
             <Pressable style={styles.retryBtn} onPress={load}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -134,18 +138,18 @@ export default function SlaListScreen({ navigation }: Props) {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
-                <Ionicons name="timer-outline" size={28} color={colors.textMuted} />
+                <Ionicons name="timer-outline" size={28} color={p.textMuted} />
                 <Text style={styles.emptyText}>
                   {q || estado ? 'Sin resultados para estos filtros.' : 'No hay O.S. con CXLD/DLY recientes.'}
                 </Text>
               </View>
             }
             renderItem={({ item }) => {
-              const e = estadoLabel(item);
+              const e = estadoLabel(item, p);
               const semColor = semaforoColor(item.semaforo);
               return (
                 <Pressable
-                  style={[styles.card, shadow.card]}
+                  style={[styles.card, p.shadowCard]}
                   onPress={() =>
                     navigation.navigate('SlaForm', {
                       folio: item.folio,
@@ -154,7 +158,7 @@ export default function SlaListScreen({ navigation }: Props) {
                     })
                   }
                 >
-                  <View style={[styles.sideBar, { backgroundColor: semColor ?? 'rgba(255,255,255,0.18)' }]} />
+                  <View style={[styles.sideBar, { backgroundColor: semColor ?? p.isDark ? 'rgba(255,255,255,0.18)' : p.cardBorder }]} />
                   <View style={styles.cardBody}>
                     <View style={styles.cardTop}>
                       <Text style={styles.cardFolio}>
@@ -186,7 +190,7 @@ export default function SlaListScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -197,56 +201,56 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 14,
     height: 44,
     marginHorizontal: 16,
     marginBottom: 10,
   },
-  searchInput: { flex: 1, color: colors.text, fontSize: 14 },
+  searchInput: { flex: 1, color: p.text, fontSize: 14 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginHorizontal: 16, marginBottom: 10 },
   chip: {
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: 20,
     paddingVertical: 7,
     paddingHorizontal: 13,
   },
-  chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
-  chipText: { color: colors.text, fontSize: 12, fontWeight: '700' },
-  chipTextActive: { color: '#06322f' },
+  chipActive: { backgroundColor: p.accent, borderColor: p.accent },
+  chipText: { color: p.text, fontSize: 12, fontWeight: '700' },
+  chipTextActive: { color: p.onAccent },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   listContent: { paddingHorizontal: 16, paddingBottom: 30 },
   emptyWrap: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
+  emptyText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
   card: {
     flexDirection: 'row',
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     overflow: 'hidden',
     marginBottom: 10,
   },
   sideBar: { width: 5 },
   cardBody: { flex: 1, padding: 14 },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  cardFolio: { color: colors.white, fontWeight: '800', fontSize: 13.5, flexShrink: 1 },
+  cardFolio: { color: p.text, fontWeight: '800', fontSize: 13.5, flexShrink: 1 },
   estadoText: { fontSize: 11, fontWeight: '700' },
-  cardSub: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
+  cardSub: { color: p.textMuted, fontSize: 12, marginTop: 4 },
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' },
-  eventBadge: { backgroundColor: 'rgba(245,158,11,0.2)', borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
-  eventBadgeText: { color: '#fbbf24', fontSize: 10.5, fontWeight: '800' },
-  metaText: { color: colors.textMuted, fontSize: 11 },
+  eventBadge: { backgroundColor: p.isDark ? 'rgba(245,158,11,0.2)' : p.warnSoft, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
+  eventBadgeText: { color: p.isDark ? '#fbbf24' : p.warnText, fontSize: 10.5, fontWeight: '800' },
+  metaText: { color: p.textMuted, fontSize: 11 },
 });

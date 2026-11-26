@@ -6,16 +6,27 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { lookupPreregByQr, PreregLookupResponse } from '../api/client';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PreregScan'>;
 
-function flightBadge(state?: string): { text: string; color: string } | null {
-  if (state === 'ok') return { text: 'Vuelo ✓', color: colors.ok };
-  if (state === 'bad') return { text: 'Vuelo no coincide', color: colors.danger };
-  if (state === 'num') return { text: 'Vuelo (otro código)', color: colors.warn };
+type BadgeTone = { text: string; color: string; bg: string };
+
+// Oscuro: colores de siempre; claro: texto oscuro sobre fondo suave.
+function tone(p: ThemeTokens, k: 'ok' | 'danger' | 'warn', text: string): BadgeTone {
+  if (p.isDark) return { text, color: p[k], bg: p[k] + '33' };
+  const c = k === 'ok' ? [p.okText, p.okSoft] : k === 'danger' ? [p.dangerText, p.dangerSoft] : [p.warnText, p.warnSoft];
+  return { text, color: c[0], bg: c[1] };
+}
+
+function flightBadge(state: string | undefined, p: ThemeTokens): BadgeTone | null {
+  if (state === 'ok') return tone(p, 'ok', 'Vuelo ✓');
+  if (state === 'bad') return tone(p, 'danger', 'Vuelo no coincide');
+  if (state === 'num') return tone(p, 'warn', 'Vuelo (otro código)');
   return null;
 }
 
@@ -26,6 +37,8 @@ function flightBadge(state?: string): { text: string; color: string } | null {
  * navegador: al confirmar, navega directo a AddPax ya pre-rellenada.
  */
 export default function PreregScanScreen({ navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [permission, requestPermission] = useCameraPermissions();
   const [mode, setMode] = useState<'scanning' | 'manual' | 'loading' | 'result'>('scanning');
   const [manualCode, setManualCode] = useState('');
@@ -93,15 +106,15 @@ export default function PreregScanScreen({ navigation }: Props) {
     });
   };
 
-  const fBadge = flightBadge(result?.flight_state);
+  const fBadge = flightBadge(result?.flight_state, p);
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>Escanear pasajero</Text>
@@ -112,7 +125,7 @@ export default function PreregScanScreen({ navigation }: Props) {
 
         {mode === 'result' && result ? (
           <View style={styles.content}>
-            <View style={[styles.resultCard, shadow.card]}>
+            <View style={[styles.resultCard, p.shadowCard]}>
               <Text style={styles.resultName}>{result.name}</Text>
               <Text style={styles.resultSub}>
                 O.S. {result.folio_display} · {result.iata}
@@ -125,7 +138,7 @@ export default function PreregScanScreen({ navigation }: Props) {
                   </Text>
                 </View>
                 {fBadge ? (
-                  <View style={[styles.badge, { backgroundColor: fBadge.color + '33' }]}>
+                  <View style={[styles.badge, { backgroundColor: fBadge.bg }]}>
                     <Text style={[styles.badgeText, { color: fBadge.color }]}>{fBadge.text}</Text>
                   </View>
                 ) : null}
@@ -136,7 +149,7 @@ export default function PreregScanScreen({ navigation }: Props) {
 
               {result.already_in_os ? (
                 <View style={styles.blockBox}>
-                  <Ionicons name="alert-circle" size={18} color={colors.danger} />
+                  <Ionicons name="alert-circle" size={18} color={p.dangerText} />
                   <Text style={styles.blockText}>
                     Este pasajero ya está capturado en la O.S.
                     {result.already_in_os.hotel ? ` (hotel ${result.already_in_os.hotel})` : ''}. No se puede agregar
@@ -145,7 +158,7 @@ export default function PreregScanScreen({ navigation }: Props) {
                 </View>
               ) : (
                 <Pressable style={styles.confirmBtn} onPress={confirmarAlta}>
-                  <Ionicons name="add-circle-outline" size={18} color="#06322f" />
+                  <Ionicons name="add-circle-outline" size={18} color={p.onAccent} />
                   <Text style={styles.confirmBtnText}>Agregar a la O.S.</Text>
                 </Pressable>
               )}
@@ -162,7 +175,7 @@ export default function PreregScanScreen({ navigation }: Props) {
               value={manualCode}
               onChangeText={setManualCode}
               placeholder="Ej. 7K4P2M"
-              placeholderTextColor={colors.placeholder}
+              placeholderTextColor={p.placeholder}
               style={styles.manualInput}
               autoCapitalize="characters"
               autoCorrect={false}
@@ -177,16 +190,16 @@ export default function PreregScanScreen({ navigation }: Props) {
           </View>
         ) : mode === 'loading' ? (
           <View style={styles.content}>
-            <ActivityIndicator color={colors.teal} size="large" />
+            <ActivityIndicator color={p.accentText} size="large" />
             <Text style={styles.instructions}>Buscando pasajero…</Text>
           </View>
         ) : !permission ? (
           <View style={styles.content}>
-            <ActivityIndicator color={colors.teal} />
+            <ActivityIndicator color={p.accentText} />
           </View>
         ) : !permission.granted ? (
           <View style={styles.content}>
-            <Ionicons name="camera-outline" size={36} color={colors.textMuted} />
+            <Ionicons name="camera-outline" size={36} color={p.textMuted} />
             <Text style={styles.instructions}>Activa el permiso de cámara para escanear el QR del pasajero.</Text>
             <Pressable style={styles.confirmBtn} onPress={requestPermission}>
               <Text style={styles.confirmBtnText}>Activar cámara</Text>
@@ -218,7 +231,7 @@ export default function PreregScanScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -229,11 +242,11 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 14 },
-  instructions: { color: colors.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 19 },
-  errorText: { color: colors.danger, fontSize: 12.5, textAlign: 'center' },
+  instructions: { color: p.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 19 },
+  errorText: { color: p.dangerText, fontSize: 12.5, textAlign: 'center' },
   cameraWrap: { flex: 1 },
   camera: { flex: 1 },
   cameraOverlay: {
@@ -276,11 +289,11 @@ const styles = StyleSheet.create({
   manualLinkText: { color: '#fff', fontSize: 12.5, fontWeight: '700', textDecorationLine: 'underline' },
   manualInput: {
     width: '100%',
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 14,
     height: 48,
-    color: colors.text,
+    color: p.text,
     fontSize: 16,
     textAlign: 'center',
     letterSpacing: 2,
@@ -289,38 +302,38 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 18,
   },
-  resultName: { color: colors.white, fontWeight: '800', fontSize: 16 },
-  resultSub: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
+  resultName: { color: p.text, fontWeight: '800', fontSize: 16 },
+  resultSub: { color: p.textMuted, fontSize: 12, marginTop: 4 },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  badge: { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
-  badgeText: { color: colors.text, fontSize: 10.5, fontWeight: '800' },
-  compsText: { color: colors.textMuted, fontSize: 11.5, marginTop: 10 },
+  badge: { backgroundColor: p.cardStrong, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
+  badgeText: { color: p.text, fontSize: 10.5, fontWeight: '800' },
+  compsText: { color: p.textMuted, fontSize: 11.5, marginTop: 10 },
   blockBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: 'rgba(220,38,38,0.14)',
+    backgroundColor: p.dangerSoft,
     borderRadius: radii.input,
     padding: 12,
     marginTop: 14,
   },
-  blockText: { flex: 1, color: '#fecaca', fontSize: 12, lineHeight: 17 },
+  blockText: { flex: 1, color: p.dangerText, fontSize: 12, lineHeight: 17 },
   confirmBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: radii.button,
     paddingVertical: 13,
     paddingHorizontal: 24,
     marginTop: 14,
   },
-  confirmBtnText: { color: '#06322f', fontWeight: '800', fontSize: 14 },
+  confirmBtnText: { color: p.onAccent, fontWeight: '800', fontSize: 14 },
   rescanLink: { marginTop: 16, alignItems: 'center' },
-  rescanLinkText: { color: colors.teal, fontSize: 13, fontWeight: '700' },
+  rescanLinkText: { color: p.accentText, fontSize: 13, fontWeight: '700' },
 });

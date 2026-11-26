@@ -13,7 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { AuditLogItem, AuditOrigen, getAuditLog } from '../api/client';
 import { getCache, saveCache } from '../utils/offlineCache';
 import { formatSavedAt } from '../utils/useOfflineLoad';
@@ -55,6 +57,8 @@ const ORIGIN_FILTERS: { key: AuditOrigen | ''; label: string }[] = [
  * app movil, marcado con el badge 📱 Móvil en cada renglón.
  */
 export default function BitacoraScreen({ navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [items, setItems] = useState<AuditLogItem[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -128,12 +132,12 @@ export default function BitacoraScreen({ navigation }: Props) {
   };
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>Bitácora</Text>
@@ -144,20 +148,20 @@ export default function BitacoraScreen({ navigation }: Props) {
 
         <View style={styles.filtersWrap}>
           <View style={styles.searchWrap}>
-            <Ionicons name="search" size={16} color={colors.textMuted} />
+            <Ionicons name="search" size={16} color={p.textMuted} />
             <TextInput
               value={query}
               onChangeText={setQuery}
               onSubmitEditing={runSearch}
               placeholder="Buscar folio, detalle, usuario..."
-              placeholderTextColor={colors.placeholder}
+              placeholderTextColor={p.placeholder}
               style={styles.searchInput}
               autoCapitalize="none"
               returnKeyType="search"
             />
             {query.length > 0 && (
               <Pressable onPress={() => { setQuery(''); load(1, true); }} hitSlop={8}>
-                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                <Ionicons name="close-circle" size={16} color={p.textMuted} />
               </Pressable>
             )}
           </View>
@@ -175,10 +179,10 @@ export default function BitacoraScreen({ navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 30 }} />
+          <ActivityIndicator color={p.accentText} style={{ marginTop: 30 }} />
         ) : error ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.danger} />
             <Text style={styles.errorText}>{error}</Text>
             <Pressable style={styles.retryBtn} onPress={() => load(1, true)}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -192,7 +196,7 @@ export default function BitacoraScreen({ navigation }: Props) {
             ListHeaderComponent={
               offlineSince ? (
                 <View style={styles.offlineBanner}>
-                  <Ionicons name="cloud-offline-outline" size={16} color="#fde68a" />
+                  <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
                   <Text style={styles.offlineBannerText}>
                     Sin conexión: mostrando lo guardado el {formatSavedAt(offlineSince)}.
                   </Text>
@@ -201,14 +205,14 @@ export default function BitacoraScreen({ navigation }: Props) {
             }
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
-                <Ionicons name="file-tray-outline" size={28} color={colors.textMuted} />
+                <Ionicons name="file-tray-outline" size={28} color={p.textMuted} />
                 <Text style={styles.emptyText}>
                   {query || origen ? 'Sin eventos para estos filtros.' : 'Aún no hay eventos registrados.'}
                 </Text>
               </View>
             }
             renderItem={({ item }) => (
-              <View style={[styles.card, shadow.card]}>
+              <View style={[styles.card, p.shadowCard]}>
                 <View style={styles.cardTop}>
                   <Text style={styles.cardFecha}>{formatFecha(item.fecha)}</Text>
                   <View
@@ -241,7 +245,7 @@ export default function BitacoraScreen({ navigation }: Props) {
               hasMore ? (
                 <Pressable style={styles.moreBtn} onPress={loadMore} disabled={isLoadingMore}>
                   {isLoadingMore ? (
-                    <ActivityIndicator color={colors.teal} />
+                    <ActivityIndicator color={p.accentText} />
                   ) : (
                     <Text style={styles.moreBtnText}>Cargar más</Text>
                   )}
@@ -255,7 +259,7 @@ export default function BitacoraScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -266,73 +270,73 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   filtersWrap: { paddingHorizontal: 16, marginBottom: 8, gap: 10 },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 14,
     height: 44,
   },
-  searchInput: { flex: 1, color: colors.text, fontSize: 14 },
+  searchInput: { flex: 1, color: p.text, fontSize: 14 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: 20,
     paddingVertical: 7,
     paddingHorizontal: 13,
   },
-  chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
-  chipText: { color: colors.text, fontSize: 12, fontWeight: '700' },
-  chipTextActive: { color: '#06322f' },
+  chipActive: { backgroundColor: p.accent, borderColor: p.accent },
+  chipText: { color: p.text, fontSize: 12, fontWeight: '700' },
+  chipTextActive: { color: p.onAccent },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(245,158,11,0.14)',
+    backgroundColor: p.warnSoft,
     borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.35)',
+    borderColor: p.warnBorder,
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 10,
   },
-  offlineBannerText: { color: '#fde68a', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  offlineBannerText: { color: p.warnText, fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
   listContent: { paddingHorizontal: 16, paddingBottom: 40 },
   emptyWrap: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
+  emptyText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
   card: {
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 13,
     marginBottom: 10,
   },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  cardFecha: { color: colors.textMuted, fontSize: 11, fontWeight: '700' },
+  cardFecha: { color: p.textMuted, fontSize: 11, fontWeight: '700' },
   origenBadge: { borderRadius: 6, paddingVertical: 2, paddingHorizontal: 8 },
   origenBadgeMovil: { backgroundColor: 'rgba(99,102,241,0.22)' },
   origenBadgeWeb: { backgroundColor: 'rgba(148,163,184,0.22)' },
-  origenBadgeText: { color: colors.white, fontSize: 10.5, fontWeight: '800' },
+  origenBadgeText: { color: p.text, fontSize: 10.5, fontWeight: '800' },
   cardMidRow: { flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
   accionPill: { borderRadius: 6, paddingVertical: 3, paddingHorizontal: 9 },
   accionPillText: { color: '#fff', fontSize: 10.5, fontWeight: '800' },
-  moduloPill: { backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 6, paddingVertical: 3, paddingHorizontal: 9 },
-  moduloPillText: { color: colors.text, fontSize: 10.5, fontWeight: '800', textTransform: 'uppercase' },
-  cardRef: { color: colors.white, fontSize: 13.5, fontWeight: '700', marginBottom: 2 },
-  cardUsuario: { color: colors.teal, fontSize: 11.5, fontWeight: '700', marginBottom: 4 },
-  cardDetalle: { color: colors.textMuted, fontSize: 12, lineHeight: 17 },
+  moduloPill: { backgroundColor: p.cardStrong, borderRadius: 6, paddingVertical: 3, paddingHorizontal: 9 },
+  moduloPillText: { color: p.text, fontSize: 10.5, fontWeight: '800', textTransform: 'uppercase' },
+  cardRef: { color: p.text, fontSize: 13.5, fontWeight: '700', marginBottom: 2 },
+  cardUsuario: { color: p.accentText, fontSize: 11.5, fontWeight: '700', marginBottom: 4 },
+  cardDetalle: { color: p.textMuted, fontSize: 12, lineHeight: 17 },
   moreBtn: { alignItems: 'center', paddingVertical: 16 },
-  moreBtnText: { color: colors.teal, fontWeight: '800', fontSize: 13 },
+  moreBtnText: { color: p.accentText, fontWeight: '800', fontSize: 13 },
 });

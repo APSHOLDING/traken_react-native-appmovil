@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Image, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 
 type Props = {
   visible: boolean;
@@ -17,6 +18,8 @@ type Props = {
  * al proyecto).
  */
 export default function QrEncuestaModal({ visible, onClose, folioDisplay, iata }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const encuestaUrl = useMemo(() => {
     let url = `https://apsholding.mx/encuestas/satisfaccion?folio=${encodeURIComponent(folioDisplay)}`;
     if (iata) url += `&estacion=${encodeURIComponent(iata)}`;
@@ -70,10 +73,12 @@ export default function QrEncuestaModal({ visible, onClose, folioDisplay, iata }
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: p.overlay, justifyContent: 'center', alignItems: 'center', padding: 20 },
   card: {
-    backgroundColor: '#f6f2fb',
+    backgroundColor: p.modalBg,
+    borderWidth: 1,
+    borderColor: p.cardBorder,
     borderRadius: 20,
     padding: 22,
     paddingTop: 26,
@@ -82,10 +87,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  brandAps: { fontSize: 24, fontWeight: '900', color: colors.navy, letterSpacing: -0.5 },
-  brandTri: { color: colors.teal, fontSize: 15 },
-  brandHold: { fontSize: 24, fontWeight: '500', color: colors.navy },
-  tag: { fontSize: 9, letterSpacing: 3, color: '#9aa3b2', fontWeight: '700', marginTop: 3, marginBottom: 16 },
+  brandAps: { fontSize: 24, fontWeight: '900', color: p.text, letterSpacing: -0.5 },
+  brandTri: { color: p.accentText, fontSize: 15 },
+  brandHold: { fontSize: 24, fontWeight: '500', color: p.text },
+  tag: { fontSize: 9, letterSpacing: 3, color: p.textFaint, fontWeight: '700', marginTop: 3, marginBottom: 16 },
   qrWrap: {
     backgroundColor: '#fff',
     padding: 12,
@@ -102,26 +107,26 @@ const styles = StyleSheet.create({
     marginLeft: -32,
     backgroundColor: '#fff',
     borderWidth: 3,
-    borderColor: colors.teal,
+    borderColor: p.accent,
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 4,
   },
-  qrBadgeText: { fontSize: 16, fontWeight: '900', color: colors.navy, letterSpacing: 0.5 },
-  foot: { marginTop: 16, fontSize: 12, color: '#8b93a3', textAlign: 'center', lineHeight: 18 },
-  footFolio: { fontWeight: '800', color: colors.navy },
+  qrBadgeText: { fontSize: 16, fontWeight: '900', color: '#16214d', letterSpacing: 0.5 },
+  foot: { marginTop: 16, fontSize: 12, color: p.textMuted, textAlign: 'center', lineHeight: 18 },
+  footFolio: { fontWeight: '800', color: p.text },
   linkBox: {
     marginTop: 14,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: p.inputBg,
     borderRadius: 10,
     padding: 10,
     width: '100%',
   },
-  linkText: { fontSize: 10.5, color: '#334155', textAlign: 'center' },
+  linkText: { fontSize: 10.5, color: p.textMuted, textAlign: 'center' },
   acts: { flexDirection: 'row', gap: 10, marginTop: 18, width: '100%' },
   btn: { flex: 1, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
-  btnGhost: { backgroundColor: '#e2e8f0' },
-  btnGhostText: { color: '#334155', fontWeight: '700', fontSize: 13.5 },
-  btnShare: { backgroundColor: colors.teal },
-  btnShareText: { color: '#06322f', fontWeight: '800', fontSize: 13.5 },
+  btnGhost: { backgroundColor: p.cardStrong },
+  btnGhostText: { color: p.text, fontWeight: '700', fontSize: 13.5 },
+  btnShare: { backgroundColor: p.accent },
+  btnShareText: { color: p.onAccent, fontWeight: '800', fontSize: 13.5 },
 });

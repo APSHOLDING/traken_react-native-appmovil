@@ -18,7 +18,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { addSlaComentario, getSlaState, saveSlaPaso, setSlaModalidad, SlaPasoItem, SlaStateResponse } from '../api/client';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -30,11 +32,21 @@ const MODALIDADES: { key: string; label: string }[] = [
   { key: 'mixto', label: 'Mixto' },
 ];
 
-function semaforoColor(sem?: string | null): string {
-  if (sem === 'verde') return colors.ok;
-  if (sem === 'amarillo') return colors.warn;
-  if (sem === 'rojo') return colors.danger;
-  return colors.textMuted;
+// Semaforo con significado propio: en oscuro los colores de siempre; en claro tonos mas oscuros para contraste.
+function semaforoColor(sem: string | null | undefined, th: ThemeTokens): string {
+  if (sem === 'verde') return th.isDark ? th.ok : th.okText;
+  if (sem === 'amarillo') return th.isDark ? th.warn : th.warnText;
+  if (sem === 'rojo') return th.isDark ? th.danger : th.dangerText;
+  return th.textMuted;
+}
+
+function semaforoBg(sem: string | null | undefined, th: ThemeTokens): string {
+  if (!th.isDark) {
+    if (sem === 'verde') return th.okSoft;
+    if (sem === 'amarillo') return th.warnSoft;
+    if (sem === 'rojo') return th.dangerSoft;
+  }
+  return semaforoColor(sem, th) + '33';
 }
 
 function toISODate(d: Date) {
@@ -63,6 +75,8 @@ function parseHHmm(hhmm: string): Date {
  * nada de eso localmente, solo pinta lo que regresa el servidor.
  */
 export default function SlaFormScreen({ route, navigation }: Props) {
+  const th = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay } = route.params;
 
   const [state, setState] = useState<SlaStateResponse | null>(null);
@@ -217,12 +231,12 @@ export default function SlaFormScreen({ route, navigation }: Props) {
   };
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={th.bg} style={styles.flex}>
+      <StatusBar style={th.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={th.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>O.S. {folioDisplay}</Text>
@@ -232,10 +246,10 @@ export default function SlaFormScreen({ route, navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 30 }} />
+          <ActivityIndicator color={th.accentText} style={{ marginTop: 30 }} />
         ) : error ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={th.dangerText} />
             <Text style={styles.errorText}>{error}</Text>
             <Pressable style={styles.retryBtn} onPress={load}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -243,7 +257,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
           </View>
         ) : state?.grupo === 'noaplica' ? (
           <View style={styles.errorBox}>
-            <Ionicons name="information-circle-outline" size={22} color={colors.textMuted} />
+            <Ionicons name="information-circle-outline" size={22} color={th.textMuted} />
             <Text style={styles.errorText}>Este motivo de operación no necesita SLA.</Text>
           </View>
         ) : (
@@ -255,13 +269,13 @@ export default function SlaFormScreen({ route, navigation }: Props) {
                 </View>
               ) : null}
 
-              <View style={[styles.summaryCard, shadow.card]}>
+              <View style={[styles.summaryCard, th.shadowCard]}>
                 <View style={styles.summaryTop}>
                   <Text style={styles.summaryEvento}>{state?.os?.evento ?? '—'}</Text>
                   {state?.semaforo ? (
-                    <View style={[styles.semPill, { backgroundColor: semaforoColor(state.semaforo) + '33' }]}>
-                      <View style={[styles.semDot, { backgroundColor: semaforoColor(state.semaforo) }]} />
-                      <Text style={[styles.semPillText, { color: semaforoColor(state.semaforo) }]}>
+                    <View style={[styles.semPill, { backgroundColor: semaforoBg(state.semaforo, th) }]}>
+                      <View style={[styles.semDot, { backgroundColor: semaforoColor(state.semaforo, th) }]} />
+                      <Text style={[styles.semPillText, { color: semaforoColor(state.semaforo, th) }]}>
                         {state.semaforo.toUpperCase()}
                       </Text>
                     </View>
@@ -310,7 +324,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
 
               <Text style={styles.sectionTitle}>Tiempos registrados</Text>
               {state?.pasos?.map((p: SlaPasoItem) => (
-                <View key={p.paso} style={[styles.pasoCard, shadow.card, p.tipo === 'sla' && styles.pasoCardSla]}>
+                <View key={p.paso} style={[styles.pasoCard, th.shadowCard, p.tipo === 'sla' && styles.pasoCardSla]}>
                   <View style={styles.pasoTop}>
                     <Text style={styles.pasoNombre}>
                       {p.paso}. {p.nombre}
@@ -324,7 +338,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
                   <Text style={styles.pasoAyuda}>{p.ayuda}</Text>
                   {p.hecho ? (
                     <View style={styles.pasoHechoRow}>
-                      <Ionicons name="checkmark-circle" size={16} color={colors.ok} />
+                      <Ionicons name="checkmark-circle" size={16} color={th.okText} />
                       <Text style={styles.pasoHora}>
                         {p.hora} ({p.fecha}) {p.origen === 'manual' ? '· manual' : '· ahora'}
                       </Text>
@@ -338,11 +352,11 @@ export default function SlaFormScreen({ route, navigation }: Props) {
                         onPress={() => handleAhora(p.paso)}
                         disabled={isSaving}
                       >
-                        <Ionicons name="time" size={14} color="#06322f" />
+                        <Ionicons name="time" size={14} color={th.onAccent} />
                         <Text style={styles.pasoBtnAhoraText}>Ahora</Text>
                       </Pressable>
                       <Pressable style={[styles.pasoBtn, styles.pasoBtnManual]} onPress={() => openManual(p.paso)} disabled={isSaving}>
-                        <Ionicons name="create-outline" size={14} color={colors.text} />
+                        <Ionicons name="create-outline" size={14} color={th.text} />
                         <Text style={styles.pasoBtnManualText}>Hora manual</Text>
                       </Pressable>
                     </View>
@@ -352,7 +366,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
               ))}
 
               <Text style={styles.sectionTitle}>Comentarios</Text>
-              <View style={[styles.card, shadow.card]}>
+              <View style={[styles.card, th.shadowCard]}>
                 {(state?.comentarios ?? []).length === 0 ? (
                   <Text style={styles.emptyText}>Sin comentarios todavía.</Text>
                 ) : (
@@ -370,18 +384,18 @@ export default function SlaFormScreen({ route, navigation }: Props) {
                     value={comentarioText}
                     onChangeText={setComentarioText}
                     placeholder="Agregar comentario..."
-                    placeholderTextColor={colors.placeholder}
+                    placeholderTextColor={th.placeholder}
                     style={styles.addComentarioInput}
                     multiline
                   />
                   <Pressable style={styles.addComentarioBtn} onPress={handleAddComentario} disabled={isSaving}>
-                    <Ionicons name="send" size={16} color="#06322f" />
+                    <Ionicons name="send" size={16} color={th.onAccent} />
                   </Pressable>
                 </View>
               )}
 
               <Text style={styles.sectionTitle}>Bitácora</Text>
-              <View style={[styles.card, shadow.card]}>
+              <View style={[styles.card, th.shadowCard]}>
                 {(state?.bitacora ?? []).length === 0 ? (
                   <Text style={styles.emptyText}>Sin eventos.</Text>
                 ) : (
@@ -407,18 +421,18 @@ export default function SlaFormScreen({ route, navigation }: Props) {
         {/* Modal: hora manual */}
         <Modal visible={manualPaso !== null} transparent animationType="fade" onRequestClose={() => setManualPaso(null)}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalCard, shadow.card]}>
+            <View style={[styles.modalCard, th.shadowCard]}>
               <Text style={styles.modalTitle}>Hora manual</Text>
               <Text style={styles.modalSub}>
                 {manualPaso !== null ? state?.pasos?.find((p) => p.paso === manualPaso)?.nombre : ''}
               </Text>
 
               <Pressable style={styles.pickerField} onPress={() => setActivePicker('date')}>
-                <Ionicons name="calendar-outline" size={16} color={colors.teal} />
+                <Ionicons name="calendar-outline" size={16} color={th.accentText} />
                 <Text style={styles.pickerFieldText}>{manualDate}</Text>
               </Pressable>
               <Pressable style={styles.pickerField} onPress={() => setActivePicker('hour')}>
-                <Ionicons name="time-outline" size={16} color={colors.teal} />
+                <Ionicons name="time-outline" size={16} color={th.accentText} />
                 <Text style={styles.pickerFieldText}>{manualHour} hrs.</Text>
               </Pressable>
 
@@ -445,7 +459,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
                 value={manualNota}
                 onChangeText={setManualNota}
                 placeholder="Motivo de la corrección (obligatorio)..."
-                placeholderTextColor={colors.placeholder}
+                placeholderTextColor={th.placeholder}
                 style={styles.modalInput}
                 multiline
               />
@@ -455,7 +469,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
                   <Text style={styles.modalCancelText}>Cancelar</Text>
                 </Pressable>
                 <Pressable style={styles.modalConfirmBtn} onPress={confirmManual} disabled={isSaving}>
-                  {isSaving ? <ActivityIndicator color="#06322f" /> : <Text style={styles.modalConfirmText}>Guardar</Text>}
+                  {isSaving ? <ActivityIndicator color={th.onAccent} /> : <Text style={styles.modalConfirmText}>Guardar</Text>}
                 </Pressable>
               </View>
             </View>
@@ -465,7 +479,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
         {/* Modal: motivo de cambio de modalidad */}
         <Modal visible={!!modalidadNotaFor} transparent animationType="fade" onRequestClose={() => setModalidadNotaFor(null)}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalCard, shadow.card]}>
+            <View style={[styles.modalCard, th.shadowCard]}>
               <Text style={styles.modalTitle}>Cambiar modalidad</Text>
               <Text style={styles.modalSub}>
                 {state?.config?.modalidad} → {modalidadNotaFor}
@@ -474,7 +488,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
                 value={modalidadNota}
                 onChangeText={setModalidadNota}
                 placeholder="Motivo del cambio (obligatorio)..."
-                placeholderTextColor={colors.placeholder}
+                placeholderTextColor={th.placeholder}
                 style={styles.modalInput}
                 multiline
               />
@@ -483,7 +497,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
                   <Text style={styles.modalCancelText}>Cancelar</Text>
                 </Pressable>
                 <Pressable style={styles.modalConfirmBtn} onPress={confirmModalidad} disabled={isSaving}>
-                  {isSaving ? <ActivityIndicator color="#06322f" /> : <Text style={styles.modalConfirmText}>Guardar</Text>}
+                  {isSaving ? <ActivityIndicator color={th.onAccent} /> : <Text style={styles.modalConfirmText}>Guardar</Text>}
                 </Pressable>
               </View>
             </View>
@@ -494,7 +508,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -505,100 +519,100 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   content: { paddingHorizontal: 16, paddingBottom: 40 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   pruebaBanner: {
-    backgroundColor: 'rgba(245,158,11,0.16)',
+    backgroundColor: p.warnSoft,
     borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.35)',
+    borderColor: p.warnBorder,
     borderRadius: radii.input,
     padding: 10,
     marginBottom: 12,
   },
-  pruebaBannerText: { color: '#fde68a', fontSize: 12 },
+  pruebaBannerText: { color: p.warnText, fontSize: 12 },
   summaryCard: {
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 16,
     marginBottom: 16,
   },
   summaryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  summaryEvento: { color: colors.white, fontSize: 15, fontWeight: '800' },
+  summaryEvento: { color: p.text, fontSize: 15, fontWeight: '800' },
   semPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   semDot: { width: 7, height: 7, borderRadius: 4 },
   semPillText: { fontSize: 11, fontWeight: '800' },
-  summarySub: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
-  summaryMinutos: { color: colors.teal, fontSize: 13, fontWeight: '700', marginTop: 8 },
-  sinCierreText: { color: '#fca5a5', fontSize: 11.5, marginTop: 8 },
-  sinReglaText: { color: colors.textMuted, fontSize: 11.5, marginTop: 8, fontStyle: 'italic' },
-  reglaText: { color: colors.textMuted, fontSize: 11, marginTop: 6 },
-  sectionTitle: { color: colors.white, fontSize: 13.5, fontWeight: '800', marginBottom: 8, marginTop: 4 },
+  summarySub: { color: p.textMuted, fontSize: 12, marginTop: 4 },
+  summaryMinutos: { color: p.accentText, fontSize: 13, fontWeight: '700', marginTop: 8 },
+  sinCierreText: { color: p.dangerText, fontSize: 11.5, marginTop: 8 },
+  sinReglaText: { color: p.textMuted, fontSize: 11.5, marginTop: 8, fontStyle: 'italic' },
+  reglaText: { color: p.textMuted, fontSize: 11, marginTop: 6 },
+  sectionTitle: { color: p.text, fontSize: 13.5, fontWeight: '800', marginBottom: 8, marginTop: 4 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 6 },
   chip: {
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: 20,
     paddingVertical: 7,
     paddingHorizontal: 13,
   },
-  chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
-  chipText: { color: colors.text, fontSize: 12, fontWeight: '700' },
-  chipTextActive: { color: '#06322f' },
-  configInfo: { color: colors.textMuted, fontSize: 11, marginBottom: 16 },
+  chipActive: { backgroundColor: p.accent, borderColor: p.accent },
+  chipText: { color: p.text, fontSize: 12, fontWeight: '700' },
+  chipTextActive: { color: p.onAccent },
+  configInfo: { color: p.textMuted, fontSize: 11, marginBottom: 16 },
   pasoCard: {
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 13,
     marginBottom: 9,
   },
-  pasoCardSla: { borderColor: 'rgba(43,183,179,0.4)' },
+  pasoCardSla: { borderColor: p.accentBorder },
   pasoTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  pasoNombre: { color: colors.white, fontSize: 13, fontWeight: '700', flexShrink: 1 },
-  pasoSlaBadge: { backgroundColor: 'rgba(43,183,179,0.25)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  pasoSlaBadgeText: { color: colors.teal, fontSize: 9.5, fontWeight: '800' },
-  pasoAyuda: { color: colors.textMuted, fontSize: 11, marginTop: 3, lineHeight: 15 },
+  pasoNombre: { color: p.text, fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  pasoSlaBadge: { backgroundColor: p.accentSoft, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  pasoSlaBadgeText: { color: p.accentText, fontSize: 9.5, fontWeight: '800' },
+  pasoAyuda: { color: p.textMuted, fontSize: 11, marginTop: 3, lineHeight: 15 },
   pasoHechoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  pasoHora: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
-  pasoPendienteText: { color: colors.textMuted, fontSize: 11.5, marginTop: 8, fontStyle: 'italic' },
+  pasoHora: { color: p.text, fontSize: 12.5, fontWeight: '700' },
+  pasoPendienteText: { color: p.textMuted, fontSize: 11.5, marginTop: 8, fontStyle: 'italic' },
   pasoActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   pasoBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 8, paddingVertical: 7, paddingHorizontal: 12 },
-  pasoBtnAhora: { backgroundColor: colors.teal },
-  pasoBtnAhoraText: { color: '#06322f', fontWeight: '800', fontSize: 12 },
-  pasoBtnManual: { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: colors.cardBorder },
-  pasoBtnManualText: { color: colors.text, fontWeight: '700', fontSize: 12 },
-  pasoNota: { color: colors.textMuted, fontSize: 11, marginTop: 6, fontStyle: 'italic' },
+  pasoBtnAhora: { backgroundColor: p.accent },
+  pasoBtnAhoraText: { color: p.onAccent, fontWeight: '800', fontSize: 12 },
+  pasoBtnManual: { backgroundColor: p.cardStrong, borderWidth: 1, borderColor: p.cardBorder },
+  pasoBtnManualText: { color: p.text, fontWeight: '700', fontSize: 12 },
+  pasoNota: { color: p.textMuted, fontSize: 11, marginTop: 6, fontStyle: 'italic' },
   card: {
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 4,
     marginBottom: 10,
   },
-  emptyText: { color: colors.textMuted, fontSize: 12.5, padding: 10 },
+  emptyText: { color: p.textMuted, fontSize: 12.5, padding: 10 },
   row: { paddingVertical: 10, paddingHorizontal: 10 },
-  rowBorder: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
+  rowBorder: { borderTopWidth: 1, borderTopColor: p.divider },
   rowLeft: { flex: 1 },
-  comentarioTexto: { color: colors.text, fontSize: 12.5 },
-  comentarioMeta: { color: colors.textMuted, fontSize: 10.5, marginTop: 3 },
+  comentarioTexto: { color: p.text, fontSize: 12.5 },
+  comentarioMeta: { color: p.textMuted, fontSize: 10.5, marginTop: 3 },
   addComentarioRow: { flexDirection: 'row', gap: 8, marginBottom: 16, alignItems: 'flex-end' },
   addComentarioInput: {
     flex: 1,
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: colors.text,
+    color: p.text,
     fontSize: 13,
     maxHeight: 90,
   },
@@ -606,43 +620,43 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bitacoraAccion: { color: colors.text, fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
-  bitacoraNota: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
-  bitacoraPor: { color: colors.teal, fontSize: 10.5, marginTop: 2 },
-  bitacoraFecha: { color: colors.textMuted, fontSize: 10.5, marginTop: 4 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  bitacoraAccion: { color: p.text, fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
+  bitacoraNota: { color: p.textMuted, fontSize: 11, marginTop: 2 },
+  bitacoraPor: { color: p.accentText, fontSize: 10.5, marginTop: 2 },
+  bitacoraFecha: { color: p.textMuted, fontSize: 10.5, marginTop: 4 },
+  modalOverlay: { flex: 1, backgroundColor: p.overlay, alignItems: 'center', justifyContent: 'center', padding: 20 },
   modalCard: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: colors.navy2,
+    backgroundColor: p.modalBg,
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     padding: 18,
   },
-  modalTitle: { color: colors.white, fontSize: 15, fontWeight: '800' },
-  modalSub: { color: colors.textMuted, fontSize: 12, marginTop: 3, marginBottom: 14 },
+  modalTitle: { color: p.text, fontSize: 15, fontWeight: '800' },
+  modalSub: { color: p.textMuted, fontSize: 12, marginTop: 3, marginBottom: 14 },
   pickerField: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 12,
     height: 44,
     marginBottom: 10,
   },
-  pickerFieldText: { color: colors.text, fontSize: 13.5 },
+  pickerFieldText: { color: p.text, fontSize: 13.5 },
   modalInput: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: colors.text,
+    color: p.text,
     fontSize: 13,
     minHeight: 60,
     marginTop: 4,
@@ -650,14 +664,14 @@ const styles = StyleSheet.create({
   },
   modalActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
   modalCancelBtn: { paddingVertical: 10, paddingHorizontal: 16 },
-  modalCancelText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
+  modalCancelText: { color: p.textMuted, fontWeight: '700', fontSize: 13 },
   modalConfirmBtn: {
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 20,
     minWidth: 90,
     alignItems: 'center',
   },
-  modalConfirmText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  modalConfirmText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
 });
