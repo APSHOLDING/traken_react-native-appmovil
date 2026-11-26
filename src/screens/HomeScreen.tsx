@@ -40,7 +40,7 @@ type ModuleCard = {
 const ADMIN_MAESTRO_EMAIL = 'fvazconcelos@traken.mx';
 
 export default function HomeScreen({ navigation }: Props) {
-  const { user, stations, logout } = useAuth();
+  const { user, logout } = useAuth();
   const t = useTheme();
   const [showTheme, setShowTheme] = useState(false);
   const [openCount, setOpenCount] = useState<number | null>(null);
@@ -264,33 +264,6 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       </View>
 
-      {stations.length > 0 ? (
-        <View style={styles.stationsWrap}>
-          {stations.slice(0, 6).map((s) => (
-            <View key={s.id} style={[styles.stationChip, { backgroundColor: t.headerChipBg, borderColor: t.headerChipBorder }]}>
-              <Text style={[styles.stationChipText, { color: t.headerChipText }]}>{s.iata}</Text>
-            </View>
-          ))}
-          {stations.length > 6 ? (
-            <View style={[styles.stationChip, { backgroundColor: t.headerChipBg, borderColor: t.headerChipBorder }]}>
-              <Text style={[styles.stationChipText, { color: t.headerChipText }]}>+{stations.length - 6}</Text>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
-
-      {openCount !== null && (
-        <Pressable
-          style={[styles.openPill, { backgroundColor: t.headerChipBg, borderColor: t.headerChipBorder }]}
-          onPress={() => navigation.navigate('OpenOrders')}
-        >
-          <Ionicons name="checkmark-circle-outline" size={16} color={t.headerChipText} />
-          <Text style={[styles.openPillText, { color: t.headerChipText }]}>
-            {openCount} O.S. abierta{openCount === 1 ? '' : 's'}
-          </Text>
-          <Ionicons name="chevron-forward" size={14} color={t.headerChipText} />
-        </Pressable>
-      )}
     </>
   );
 
@@ -418,25 +391,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
     borderWidth: 1.5,
   },
-  stationsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
-  stationChip: {
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 11,
-    paddingVertical: 4,
-  },
-  stationChipText: { fontWeight: '800', fontSize: 11.5, letterSpacing: 0.3 },
-  openPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-  },
-  openPillText: { fontSize: 12.5, fontWeight: '800' },
   sectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, marginBottom: 10, marginLeft: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   card: {
