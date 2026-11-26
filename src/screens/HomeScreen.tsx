@@ -11,6 +11,7 @@ import * as Sharing from 'expo-sharing';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, radii } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
+import { hexA } from '../theme/themes';
 import ThemePickerModal from '../components/ThemePickerModal';
 import { useAuth } from '../context/AuthContext';
 import { getManualUrl, getNotifications, getOpenOrders, getSiteBaseUrl } from '../api/client';
@@ -123,14 +124,14 @@ export default function HomeScreen({ navigation }: Props) {
     {
       key: 'crear',
       label: 'Crear O.S',
-      icon: 'document-text-outline',
+      icon: 'document-text',
       gradient: ['#2563eb', '#1d4ed8'],
       onPress: () => navigation.navigate('CreateOrder'),
     },
     {
       key: 'abiertos',
       label: 'O.S Abiertos',
-      icon: 'checkmark-circle-outline',
+      icon: 'checkmark-circle',
       gradient: ['#16a34a', '#0f7a37'],
       onPress: () => navigation.navigate('OpenOrders'),
       badge: openCount ?? undefined,
@@ -138,63 +139,63 @@ export default function HomeScreen({ navigation }: Props) {
     {
       key: 'detalles',
       label: 'Detalles O.S',
-      icon: 'albums-outline',
+      icon: 'albums',
       gradient: ['#0891b2', '#0e7490'],
       onPress: () => navigation.navigate('DetallesList'),
     },
     {
       key: 'reportes',
       label: 'Reportes',
-      icon: 'bar-chart-outline',
+      icon: 'bar-chart',
       gradient: ['#7c3aed', '#6d28d9'],
       onPress: () => navigation.navigate('ReportesList'),
     },
     {
       key: 'editar',
       label: 'Editar O.S',
-      icon: 'create-outline',
+      icon: 'create',
       gradient: ['#d97706', '#b45309'],
       onPress: () => navigation.navigate('EditarList'),
     },
     {
       key: 'resumen',
       label: 'Resumen por Estación',
-      icon: 'stats-chart-outline',
+      icon: 'stats-chart',
       gradient: ['#0891b2', '#155e75'],
       onPress: () => navigation.navigate('Resumen'),
     },
     {
       key: 'vuelos',
       label: 'Vuelos en Tiempo Real',
-      icon: 'paper-plane-outline',
+      icon: 'paper-plane',
       gradient: ['#0891b2', '#0e7490'],
       onPress: () => navigation.navigate('Vuelos'),
     },
     {
       key: 'qrHist',
       label: 'Historial de QR',
-      icon: 'qr-code-outline',
+      icon: 'qr-code',
       gradient: ['#4338ca', '#3730a3'],
       onPress: () => navigation.navigate('QrHistList'),
     },
     {
       key: 'sla',
       label: 'SLA de Operaciones',
-      icon: 'timer-outline',
+      icon: 'timer',
       gradient: ['#0f766e', '#115e59'],
       onPress: () => navigation.navigate('SlaList'),
     },
     {
       key: 'prereg',
       label: 'Pre-registro de Pax',
-      icon: 'person-add-outline',
+      icon: 'person-add',
       gradient: ['#be185d', '#9d174d'],
       onPress: () => navigation.navigate('PreregOrdersList'),
     },
     {
       key: 'manual',
       label: 'Manual de Operaciones',
-      icon: 'book-outline',
+      icon: 'book',
       gradient: ['#475569', '#334155'],
       onPress: handleOpenManual,
       loading: isDownloadingManual,
@@ -204,7 +205,7 @@ export default function HomeScreen({ navigation }: Props) {
           {
             key: 'incidenciasSc',
             label: 'Incidencias SC',
-            icon: 'warning-outline' as IconName,
+            icon: 'warning' as IconName,
             gradient: ['#b45309', '#92400e'] as readonly [string, string],
             onPress: () => navigation.navigate('IncidenciasSc'),
           },
@@ -215,7 +216,7 @@ export default function HomeScreen({ navigation }: Props) {
           {
             key: 'bitacora',
             label: 'Bitácora',
-            icon: 'shield-checkmark-outline' as IconName,
+            icon: 'shield-checkmark' as IconName,
             gradient: ['#334155', '#1e293b'] as readonly [string, string],
             onPress: () => navigation.navigate('Bitacora'),
           },
@@ -329,21 +330,41 @@ export default function HomeScreen({ navigation }: Props) {
                 ]}
                 onPress={c.onPress}
                 disabled={c.loading}
-                android_ripple={{ color: t.isDark && t.mode === 'oscuro' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)' }}
+                android_ripple={{ color: t.mode === 'oscuro' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)' }}
               >
-                {!!c.badge && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{c.badge}</Text>
+                {/* marca de agua grande, del color del modulo */}
+                <Ionicons name={c.icon} size={104} color={c.gradient[0]} style={styles.watermark} />
+
+                <View style={styles.cardTop}>
+                  <View style={[styles.iconShadow, { shadowColor: c.gradient[1] }]}>
+                    <LinearGradient colors={c.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconBadge}>
+                      {c.loading ? (
+                        <ActivityIndicator color={colors.white} size="small" />
+                      ) : (
+                        <Ionicons name={c.icon} size={27} color={colors.white} />
+                      )}
+                      <LinearGradient
+                        colors={['rgba(255,255,255,0.38)', 'rgba(255,255,255,0)']}
+                        style={styles.gloss}
+                        pointerEvents="none"
+                      />
+                    </LinearGradient>
                   </View>
-                )}
-                <LinearGradient colors={c.gradient} style={styles.iconBadge}>
-                  {c.loading ? (
-                    <ActivityIndicator color={colors.white} size="small" />
+
+                  {c.badge ? (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{c.badge}</Text>
+                    </View>
                   ) : (
-                    <Ionicons name={c.icon} size={24} color={colors.white} />
+                    <View style={[styles.arrow, { backgroundColor: hexA(c.gradient[0], 0.14) }]}>
+                      <Ionicons name="arrow-forward" size={14} color={c.gradient[0]} />
+                    </View>
                   )}
-                </LinearGradient>
-                <Text style={[styles.cardLabel, { color: t.cardLabel }]}>{c.label}</Text>
+                </View>
+
+                <Text style={[styles.cardLabel, { color: t.cardLabel }]} numberOfLines={2}>
+                  {c.label}
+                </Text>
               </Pressable>
             ))}
           </View>
@@ -421,27 +442,35 @@ const styles = StyleSheet.create({
   card: {
     width: '47.5%',
     flexGrow: 1,
-    borderRadius: radii.card + 2,
+    minHeight: 122,
+    borderRadius: 24,
     borderWidth: 1,
-    paddingVertical: 22,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    gap: 11,
+    padding: 14,
+    justifyContent: 'space-between',
     overflow: 'hidden',
   },
-  cardPressed: { opacity: 0.75, transform: [{ scale: 0.97 }] },
+  cardPressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
+  watermark: { position: 'absolute', right: -22, bottom: -26, opacity: 0.07 },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  iconShadow: {
+    borderRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.42,
+    shadowRadius: 10,
+    elevation: 7,
+  },
   iconBadge: {
-    width: 54,
-    height: 54,
-    borderRadius: 17,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  cardLabel: { fontSize: 12.5, fontWeight: '800', textAlign: 'center', lineHeight: 16 },
+  gloss: { position: 'absolute', top: 0, left: 0, right: 0, height: '55%' },
+  arrow: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  cardLabel: { fontSize: 14, fontWeight: '800', lineHeight: 18, marginTop: 14, letterSpacing: -0.1 },
   badge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
     minWidth: 20,
     height: 20,
     borderRadius: 10,
