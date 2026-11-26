@@ -35,6 +35,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'DetalleOrden'>;
  */
 export default function DetalleOrdenScreen({ route, navigation }: Props) {
   const p = useTheme();
+  const th = p;
   const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay } = route.params;
 
@@ -191,7 +192,7 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
                       </View>
                       {r.pax.map((p) => (
                         <View key={p.id} style={styles.paxRow}>
-                          <Ionicons name="person-outline" size={13} color={p.textMuted} />
+                          <Ionicons name="person-outline" size={13} color={th.textMuted} />
                           <Text style={styles.paxName} numberOfLines={1}>{p.name}</Text>
                           <Text style={styles.paxType}>{p.type}</Text>
                         </View>

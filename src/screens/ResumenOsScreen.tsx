@@ -141,7 +141,7 @@ function HotelBlock({ hotel }: { hotel: ResumenOsHotel }) {
             {hotel.rooms} hab. · {hotel.pax} pax · A {hotel.adults} · N {hotel.children} · I {hotel.infants}
           </Text>
         </View>
-        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={p.textMuted} />
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={th.textMuted} />
       </Pressable>
 
       {open &&
