@@ -18,13 +18,13 @@ import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
 import {
-  addTransport,
   deleteTransport,
   getTransportList,
   getTransportOptions,
   TransportRowDTO,
   updateTransport,
 } from '../api/client';
+import { addTransport } from '../api/queuedWrites';
 import SelectField from '../components/SelectField';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -181,7 +181,8 @@ export default function AddTransportScreen({ route, navigation }: Props) {
       }
 
       load();
-      Alert.alert('Transporte agregado', res.msg ?? '', [
+      const queued = 'queued' in res && !!res.queued;
+      Alert.alert(queued ? 'Guardado sin conexión' : 'Transporte agregado', res.msg ?? '', [
         { text: 'Terminar', style: 'cancel', onPress: () => navigation.navigate('OpenOrders') },
         {
           text: 'Agregar otro',

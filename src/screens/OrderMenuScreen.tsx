@@ -11,13 +11,13 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
 import {
   cancelOrder,
-  closeOrder,
   confirmPruebaCode,
   getAuthHeader,
   getVoucherPdfUrl,
   requestPruebaCode,
   sendOrderEmail,
 } from '../api/client';
+import { closeOrder } from '../api/queuedWrites';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderMenu'>;
@@ -127,9 +127,9 @@ export default function OrderMenuScreen({ route, navigation }: Props) {
           onPress: async () => {
             setIsClosing(true);
             try {
-              const res = await closeOrder(folio, idAirport);
+              const res = await closeOrder(folio, idAirport, folioDisplay);
               if (res.ok) {
-                Alert.alert('O.S. cerrada', res.msg ?? '', [
+                Alert.alert(res.queued ? 'Cierre guardado' : 'O.S. cerrada', res.msg ?? '', [
                   { text: 'OK', onPress: () => navigation.navigate('OpenOrders') },
                 ]);
               } else {

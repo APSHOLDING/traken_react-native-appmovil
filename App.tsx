@@ -13,6 +13,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import UpdateBanner from './src/components/UpdateBanner';
 import BiometricGate from './src/components/BiometricGate';
+import PendingSyncBanner from './src/components/PendingSyncBanner';
 import FranjaPruebas from './src/components/FranjaPruebas';
 import { colors } from './src/theme/colors';
 
@@ -59,6 +60,7 @@ export default function App() {
           <BiometricGate>
             <RootNavigator />
             <UpdateBanner />
+            <PendingSyncBanner />
           </BiometricGate>
         </AuthProvider>
       </FranjaPruebas>

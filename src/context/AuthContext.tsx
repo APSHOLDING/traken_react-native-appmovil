@@ -16,6 +16,7 @@ import { getStoredEnvironment, saveStoredEnvironment } from '../utils/environmen
 import { getLastProfile, saveLastEmail, saveLastProfile } from '../utils/credentials';
 import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
 import { resetBiometric } from '../utils/biometric';
+import { setOutboxUser } from '../utils/outbox';
 
 const TOKEN_KEY = 'traken_token';
 
@@ -180,6 +181,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearError = () => setError(null);
+
+  // La cola de envio sin conexion pertenece a un usuario: solo se envia con su sesion.
+  const outboxUid = user?.id ?? null;
+  useEffect(() => {
+    setOutboxUser(token && outboxUid !== null ? outboxUid : null);
+  }, [token, outboxUid]);
 
   // Cualquier endpoint que conteste 401 (sesion vencida/revocada) cierra la
   // sesion local y manda al Login con un aviso, en vez de seguir con un token
