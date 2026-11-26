@@ -11,6 +11,7 @@ import {
   flushPendingNotification,
 } from '../utils/notificationNavigation';
 import LoginScreen from '../screens/LoginScreen';
+import ResumenOsScreen from '../screens/ResumenOsScreen';
 import HomeScreen from '../screens/HomeScreen';
 import OpenOrdersScreen from '../screens/OpenOrdersScreen';
 import OrderMenuScreen from '../screens/OrderMenuScreen';
@@ -99,6 +100,7 @@ export type RootStackParamList = {
   DetalleOrden: { folio: number; idAirport: number; folioDisplay: string };
   ReportesList: undefined;
   ReportePicker: { folio: number; idAirport: number; folioDisplay: string };
+  ResumenOs: { folio: number; idAirport: number; folioDisplay: string };
   EditarList: undefined;
   EditarOrden: { folio: number; idAirport: number; folioDisplay: string };
   Notifications: undefined;
@@ -162,6 +164,7 @@ export default function RootNavigator() {
             <Stack.Screen name="DetalleOrden" component={DetalleOrdenScreen} />
             <Stack.Screen name="ReportesList" component={ReportesListScreen} />
             <Stack.Screen name="ReportePicker" component={ReportePickerScreen} />
+            <Stack.Screen name="ResumenOs" component={ResumenOsScreen} />
             <Stack.Screen name="EditarList" component={EditarListScreen} />
             <Stack.Screen name="EditarOrden" component={EditarOrdenScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />

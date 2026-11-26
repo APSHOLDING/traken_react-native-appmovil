@@ -1465,6 +1465,59 @@ export interface ReportListResponse {
   error?: string;
 }
 
+/** Enlaces firmados del reporte "PARA FIRMAR" (op/api/reports/firmaLinks.php, archivo nuevo de la web). */
+export interface FirmaLinksResponse {
+  ok: boolean;
+  folio_display?: string;
+  hotels?: ReportHotel[];
+  total_general?: number;
+  download_path_general?: string;
+  error?: string;
+}
+
+export async function getFirmaLinks(folio: number, idAirport: number): Promise<FirmaLinksResponse> {
+  const { data } = await api.get<FirmaLinksResponse>('/reports/firmaLinks.php', {
+    params: { id: folio, id_airport: idAirport },
+  });
+  return data;
+}
+
+/** "Resumen de Hab. y Pax" de una O.S. (op/api/reports/resumenOs.php, archivo nuevo de la web). */
+export interface ResumenOsPax {
+  name: string;
+  type: 'A' | 'N' | 'I';
+  date_out: string | null;
+  extended: boolean;
+}
+
+export interface ResumenOsHotel {
+  id_hotel: number;
+  name: string;
+  rooms: number;
+  pax: number;
+  adults: number;
+  children: number;
+  infants: number;
+  habs: { pax: ResumenOsPax[] }[];
+}
+
+export interface ResumenOsResponse {
+  ok: boolean;
+  folio_display?: string;
+  airline?: string;
+  flight?: string | null;
+  totals?: { rooms: number; pax: number; adults: number; children: number; infants: number };
+  hotels?: ResumenOsHotel[];
+  error?: string;
+}
+
+export async function getResumenOs(folio: number, idAirport: number): Promise<ResumenOsResponse> {
+  const { data } = await api.get<ResumenOsResponse>('/reports/resumenOs.php', {
+    params: { id: folio, id_airport: idAirport },
+  });
+  return data;
+}
+
 export async function getReportList(folio: number, idAirport: number): Promise<ReportListResponse> {
   const { data } = await api.get<ReportListResponse>('/reports/list.php', {
     params: { id: folio, id_airport: idAirport },
