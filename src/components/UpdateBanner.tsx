@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Updates from 'expo-updates';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii, shadow } from '../theme/colors';
+import { hasOutboxWork } from '../utils/outbox';
 
 /**
  * Aviso de "hay una actualizacion nueva" -- por defecto expo-updates solo
@@ -13,37 +14,68 @@ import { colors, radii, shadow } from '../theme/colors';
  * reiniciar con un boton. Nunca se recarga sola; "Despues" lo oculta hasta
  * la proxima vez que la app vuelva al frente.
  */
-const MIN_ENTRE_REVISIONES_MS = 10 * 60 * 1000;
+const MIN_ENTRE_REVISIONES_MS = 30 * 1000;      // se revisa casi cada vez que la app vuelve al frente
+const REVISION_PERIODICA_MS = 3 * 60 * 1000;    // y cada 3 min mientras se usa (solo avisa, no reinicia)
+const SEGUNDOS_FUERA_PARA_AUTOAPLICAR = 15;     // tras estar fuera de la app este tiempo, se aplica sola
 
 export default function UpdateBanner() {
   const { isUpdatePending } = Updates.useUpdates();
   const insets = useSafeAreaInsets();
   const [dismissed, setDismissed] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  const [autoApplying, setAutoApplying] = useState(false);
   const lastCheck = useRef(0);
+  const checking = useRef(false);
 
-  const checkForUpdate = useCallback(async () => {
-    if (__DEV__ || !Updates.isEnabled) return;
+  /**
+   * autoApply = true cuando la persona acaba de abrir la app o de volver a ella: aun no empieza a
+   * capturar nada, asi que si hay una actualizacion se descarga y se aplica sola (unos segundos).
+   * Nunca se reinicia sola si hay acciones sin enviar en la cola del telefono.
+   * Con la app en uso (autoApply = false) solo se descarga y se muestra el aviso con "Reiniciar".
+   */
+  const checkForUpdate = useCallback(async (autoApply: boolean) => {
+    if (__DEV__ || !Updates.isEnabled || checking.current) return;
     const now = Date.now();
     if (now - lastCheck.current < MIN_ENTRE_REVISIONES_MS) return;
     lastCheck.current = now;
+    checking.current = true;
     try {
       const check = await Updates.checkForUpdateAsync();
-      if (check.isAvailable) await Updates.fetchUpdateAsync(); // deja isUpdatePending en true
+      if (check.isAvailable) {
+        await Updates.fetchUpdateAsync(); // deja isUpdatePending en true
+        if (autoApply && !(await hasOutboxWork())) {
+          setAutoApplying(true);
+          await Updates.reloadAsync();
+        }
+      }
     } catch (e) {
+      setAutoApplying(false);
       // Silencioso: sin internet o servidor caido -- se reintenta la
       // proxima vez que la app pase a primer plano.
+    } finally {
+      checking.current = false;
     }
   }, []);
 
   useEffect(() => {
-    checkForUpdate();
+    checkForUpdate(true); // al abrir la app
+    let leftAt: number | null = null;
     const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background') {
+        leftAt = Date.now();
+        return;
+      }
       if (state !== 'active') return;
       setDismissed(false);
-      checkForUpdate();
+      const fueraSeg = leftAt ? (Date.now() - leftAt) / 1000 : 0;
+      leftAt = null;
+      checkForUpdate(fueraSeg >= SEGUNDOS_FUERA_PARA_AUTOAPLICAR);
     });
-    return () => sub.remove();
+    const timer = setInterval(() => checkForUpdate(false), REVISION_PERIODICA_MS);
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
   }, [checkForUpdate]);
 
   const restart = async () => {
@@ -54,6 +86,16 @@ export default function UpdateBanner() {
       setRestarting(false);
     }
   };
+
+  if (autoApplying) {
+    return (
+      <View style={styles.applying} pointerEvents="auto">
+        <Image source={require('../../assets/logo-traken.png')} style={styles.applyingLogo} resizeMode="contain" />
+        <ActivityIndicator color={colors.teal} style={{ marginTop: 22 }} />
+        <Text style={styles.applyingText}>Actualizando Traken…</Text>
+      </View>
+    );
+  }
 
   if (!isUpdatePending || dismissed) return null;
 
@@ -74,6 +116,19 @@ export default function UpdateBanner() {
 }
 
 const styles = StyleSheet.create({
+  applying: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10000,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applyingLogo: { width: 240, height: 130 },
+  applyingText: { color: '#64748b', fontSize: 13, fontWeight: '700', marginTop: 10 },
   wrap: {
     position: 'absolute',
     left: 12,

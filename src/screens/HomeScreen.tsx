@@ -9,7 +9,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { colors, radii } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
+import { hexA } from '../theme/themes';
+import ThemePickerModal from '../components/ThemePickerModal';
 import { useAuth } from '../context/AuthContext';
 import { getManualUrl, getNotifications, getOpenOrders, getSiteBaseUrl } from '../api/client';
 import { getLastSeenNotifications } from '../utils/notificationsSeen';
@@ -38,6 +41,8 @@ const ADMIN_MAESTRO_EMAIL = 'fvazconcelos@traken.mx';
 
 export default function HomeScreen({ navigation }: Props) {
   const { user, stations, logout } = useAuth();
+  const t = useTheme();
+  const [showTheme, setShowTheme] = useState(false);
   const [openCount, setOpenCount] = useState<number | null>(null);
   const [hasUnreadNotifs, setHasUnreadNotifs] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -119,14 +124,14 @@ export default function HomeScreen({ navigation }: Props) {
     {
       key: 'crear',
       label: 'Crear O.S',
-      icon: 'document-text-outline',
+      icon: 'document-text',
       gradient: ['#2563eb', '#1d4ed8'],
       onPress: () => navigation.navigate('CreateOrder'),
     },
     {
       key: 'abiertos',
       label: 'O.S Abiertos',
-      icon: 'checkmark-circle-outline',
+      icon: 'checkmark-circle',
       gradient: ['#16a34a', '#0f7a37'],
       onPress: () => navigation.navigate('OpenOrders'),
       badge: openCount ?? undefined,
@@ -134,63 +139,63 @@ export default function HomeScreen({ navigation }: Props) {
     {
       key: 'detalles',
       label: 'Detalles O.S',
-      icon: 'albums-outline',
+      icon: 'albums',
       gradient: ['#0891b2', '#0e7490'],
       onPress: () => navigation.navigate('DetallesList'),
     },
     {
       key: 'reportes',
       label: 'Reportes',
-      icon: 'bar-chart-outline',
+      icon: 'bar-chart',
       gradient: ['#7c3aed', '#6d28d9'],
       onPress: () => navigation.navigate('ReportesList'),
     },
     {
       key: 'editar',
       label: 'Editar O.S',
-      icon: 'create-outline',
+      icon: 'create',
       gradient: ['#d97706', '#b45309'],
       onPress: () => navigation.navigate('EditarList'),
     },
     {
       key: 'resumen',
       label: 'Resumen por Estación',
-      icon: 'stats-chart-outline',
+      icon: 'stats-chart',
       gradient: ['#0891b2', '#155e75'],
       onPress: () => navigation.navigate('Resumen'),
     },
     {
       key: 'vuelos',
       label: 'Vuelos en Tiempo Real',
-      icon: 'paper-plane-outline',
+      icon: 'paper-plane',
       gradient: ['#0891b2', '#0e7490'],
       onPress: () => navigation.navigate('Vuelos'),
     },
     {
       key: 'qrHist',
       label: 'Historial de QR',
-      icon: 'qr-code-outline',
+      icon: 'qr-code',
       gradient: ['#4338ca', '#3730a3'],
       onPress: () => navigation.navigate('QrHistList'),
     },
     {
       key: 'sla',
       label: 'SLA de Operaciones',
-      icon: 'timer-outline',
+      icon: 'timer',
       gradient: ['#0f766e', '#115e59'],
       onPress: () => navigation.navigate('SlaList'),
     },
     {
       key: 'prereg',
       label: 'Pre-registro de Pax',
-      icon: 'person-add-outline',
+      icon: 'person-add',
       gradient: ['#be185d', '#9d174d'],
       onPress: () => navigation.navigate('PreregOrdersList'),
     },
     {
       key: 'manual',
       label: 'Manual de Operaciones',
-      icon: 'book-outline',
+      icon: 'book',
       gradient: ['#475569', '#334155'],
       onPress: handleOpenManual,
       loading: isDownloadingManual,
@@ -200,7 +205,7 @@ export default function HomeScreen({ navigation }: Props) {
           {
             key: 'incidenciasSc',
             label: 'Incidencias SC',
-            icon: 'warning-outline' as IconName,
+            icon: 'warning' as IconName,
             gradient: ['#b45309', '#92400e'] as readonly [string, string],
             onPress: () => navigation.navigate('IncidenciasSc'),
           },
@@ -211,7 +216,7 @@ export default function HomeScreen({ navigation }: Props) {
           {
             key: 'bitacora',
             label: 'Bitácora',
-            icon: 'shield-checkmark-outline' as IconName,
+            icon: 'shield-checkmark' as IconName,
             gradient: ['#334155', '#1e293b'] as readonly [string, string],
             onPress: () => navigation.navigate('Bitacora'),
           },
@@ -219,110 +224,188 @@ export default function HomeScreen({ navigation }: Props) {
       : []),
   ];
 
+  const header = (
+    <>
+      <View style={styles.topRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.hi, { color: t.headerText }]} numberOfLines={1}>
+            Hola, {user?.firstname}
+          </Text>
+          <Text style={[styles.role, { color: t.headerMuted }]} numberOfLines={1}>
+            {user?.role_name}
+          </Text>
+        </View>
+        <View style={styles.topActions}>
+          <Pressable
+            style={[styles.iconBtn, { backgroundColor: t.headerBtnBg, borderColor: t.headerBtnBorder }]}
+            onPress={() => navigation.navigate('Notifications')}
+            hitSlop={8}
+            android_ripple={{ color: 'rgba(255,255,255,0.2)', radius: 22, borderless: true }}
+          >
+            <Ionicons name="notifications-outline" size={20} color={t.headerBtnIcon} />
+            {hasUnreadNotifs && <View style={[styles.unreadDot, { borderColor: t.headerAsCard ? t.accentDark : colors.navy }]} />}
+          </Pressable>
+          <Pressable
+            style={[styles.iconBtn, { backgroundColor: t.headerBtnBg, borderColor: t.headerBtnBorder }]}
+            onPress={() => setShowTheme(true)}
+            hitSlop={8}
+            android_ripple={{ color: 'rgba(255,255,255,0.2)', radius: 22, borderless: true }}
+          >
+            <Ionicons name="color-palette-outline" size={20} color={t.headerBtnIcon} />
+          </Pressable>
+          <Pressable
+            style={[styles.iconBtn, { backgroundColor: t.headerBtnBg, borderColor: t.headerBtnBorder }]}
+            onPress={logout}
+            hitSlop={8}
+            android_ripple={{ color: 'rgba(255,255,255,0.2)', radius: 22, borderless: true }}
+          >
+            <Ionicons name="log-out-outline" size={20} color={t.headerBtnIcon} />
+          </Pressable>
+        </View>
+      </View>
+
+      {stations.length > 0 ? (
+        <View style={styles.stationsWrap}>
+          {stations.slice(0, 6).map((s) => (
+            <View key={s.id} style={[styles.stationChip, { backgroundColor: t.headerChipBg, borderColor: t.headerChipBorder }]}>
+              <Text style={[styles.stationChipText, { color: t.headerChipText }]}>{s.iata}</Text>
+            </View>
+          ))}
+          {stations.length > 6 ? (
+            <View style={[styles.stationChip, { backgroundColor: t.headerChipBg, borderColor: t.headerChipBorder }]}>
+              <Text style={[styles.stationChipText, { color: t.headerChipText }]}>+{stations.length - 6}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {openCount !== null && (
+        <Pressable
+          style={[styles.openPill, { backgroundColor: t.headerChipBg, borderColor: t.headerChipBorder }]}
+          onPress={() => navigation.navigate('OpenOrders')}
+        >
+          <Ionicons name="checkmark-circle-outline" size={16} color={t.headerChipText} />
+          <Text style={[styles.openPillText, { color: t.headerChipText }]}>
+            {openCount} O.S. abierta{openCount === 1 ? '' : 's'}
+          </Text>
+          <Ionicons name="chevron-forward" size={14} color={t.headerChipText} />
+        </Pressable>
+      )}
+    </>
+  );
+
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={t.bg} style={styles.flex}>
+      <StatusBar style={t.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.teal} />
-          }
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={t.refreshTint} />}
         >
-          <View style={styles.topRow}>
-            <View>
-              <Text style={styles.hi}>Hola, {user?.firstname}</Text>
-              <Text style={styles.role}>{user?.role_name}</Text>
-            </View>
-            <View style={styles.topActions}>
-              <Pressable
-                style={styles.iconBtn}
-                onPress={() => navigation.navigate('Notifications')}
-                hitSlop={8}
-                android_ripple={{ color: 'rgba(255,255,255,0.15)', radius: 22, borderless: true }}
-              >
-                <Ionicons name="notifications-outline" size={20} color={colors.white} />
-                {hasUnreadNotifs && <View style={styles.unreadDot} />}
-              </Pressable>
-              <Pressable
-                style={styles.iconBtn}
-                onPress={logout}
-                hitSlop={8}
-                android_ripple={{ color: 'rgba(255,255,255,0.15)', radius: 22, borderless: true }}
-              >
-                <Ionicons name="log-out-outline" size={20} color={colors.white} />
-              </Pressable>
-            </View>
-          </View>
+          {t.headerAsCard ? (
+            <LinearGradient
+              colors={[t.accent, t.accentDark]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.headerCard, { shadowColor: t.accentDark }]}
+            >
+              {header}
+            </LinearGradient>
+          ) : (
+            <View style={styles.headerPlain}>{header}</View>
+          )}
 
-          {stations.length > 0 ? (
-            <View style={styles.stationsWrap}>
-              {stations.slice(0, 6).map((s) => (
-                <View key={s.id} style={styles.stationChip}>
-                  <Text style={styles.stationChipText}>{s.iata}</Text>
-                </View>
-              ))}
-              {stations.length > 6 ? (
-                <View style={[styles.stationChip, styles.stationChipMore]}>
-                  <Text style={styles.stationChipText}>+{stations.length - 6}</Text>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
+          <Text style={[styles.sectionTitle, { color: t.sectionTitle }]}>ACCESOS</Text>
 
           <View style={styles.grid}>
             {cards.map((c) => (
               <Pressable
                 key={c.key}
-                style={({ pressed }) => [styles.card, shadow.card, pressed && Platform.OS === 'ios' && styles.cardPressed]}
+                style={({ pressed }) => [
+                  styles.card,
+                  t.cardShadow,
+                  { backgroundColor: t.surface, borderColor: t.surfaceBorder },
+                  pressed && styles.cardPressed,
+                ]}
                 onPress={c.onPress}
                 disabled={c.loading}
-                android_ripple={{ color: 'rgba(255,255,255,0.08)' }}
+                android_ripple={{ color: t.mode === 'oscuro' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)' }}
               >
-                {!!c.badge && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{c.badge}</Text>
+                {/* marca de agua grande, del color del modulo */}
+                <Ionicons name={c.icon} size={104} color={c.gradient[0]} style={styles.watermark} />
+
+                <View style={styles.cardTop}>
+                  <View style={[styles.iconShadow, { shadowColor: c.gradient[1] }]}>
+                    <LinearGradient colors={c.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconBadge}>
+                      {c.loading ? (
+                        <ActivityIndicator color={colors.white} size="small" />
+                      ) : (
+                        <Ionicons name={c.icon} size={27} color={colors.white} />
+                      )}
+                      <LinearGradient
+                        colors={['rgba(255,255,255,0.38)', 'rgba(255,255,255,0)']}
+                        style={styles.gloss}
+                        pointerEvents="none"
+                      />
+                    </LinearGradient>
                   </View>
-                )}
-                <LinearGradient colors={c.gradient} style={styles.iconBadge}>
-                  {c.loading ? (
-                    <ActivityIndicator color={colors.white} size="small" />
+
+                  {c.badge ? (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{c.badge}</Text>
+                    </View>
                   ) : (
-                    <Ionicons name={c.icon} size={24} color={colors.white} />
+                    <View style={[styles.arrow, { backgroundColor: hexA(c.gradient[0], 0.14) }]}>
+                      <Ionicons name="arrow-forward" size={14} color={c.gradient[0]} />
+                    </View>
                   )}
-                </LinearGradient>
-                <Text style={styles.cardLabel}>{c.label}</Text>
+                </View>
+
+                <Text style={[styles.cardLabel, { color: t.cardLabel }]} numberOfLines={2}>
+                  {c.label}
+                </Text>
               </Pressable>
             ))}
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      <ThemePickerModal visible={showTheme} onClose={() => setShowTheme(false)} />
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 18, paddingBottom: 40 },
+  headerCard: {
+    borderRadius: 26,
+    padding: 18,
+    marginBottom: 22,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  headerPlain: { marginBottom: 18, paddingHorizontal: 2 },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 14,
+    gap: 10,
   },
-  hi: { color: colors.white, fontSize: 20, fontWeight: '800' },
-  role: { color: colors.textMuted, fontSize: 12.5, marginTop: 2 },
-  topActions: { flexDirection: 'row', gap: 10 },
+  hi: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
+  role: { fontSize: 12.5, marginTop: 2 },
+  topActions: { flexDirection: 'row', gap: 8 },
   iconBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
     overflow: 'hidden',
   },
   unreadDot: {
@@ -334,46 +417,60 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: colors.danger,
     borderWidth: 1.5,
-    borderColor: colors.navy,
   },
-  stationsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 22 },
+  stationsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
   stationChip: {
-    backgroundColor: 'rgba(43,183,179,0.14)',
     borderWidth: 1,
-    borderColor: 'rgba(43,183,179,0.4)',
     borderRadius: 20,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     paddingVertical: 4,
   },
-  stationChipMore: {
-    backgroundColor: 'rgba(245,158,11,0.14)',
-    borderColor: 'rgba(245,158,11,0.4)',
+  stationChipText: { fontWeight: '800', fontSize: 11.5, letterSpacing: 0.3 },
+  openPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
   },
-  stationChipText: { color: colors.teal, fontWeight: '800', fontSize: 11 },
+  openPillText: { fontSize: 12.5, fontWeight: '800' },
+  sectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, marginBottom: 10, marginLeft: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   card: {
-    width: '47%',
-    borderRadius: radii.card,
+    width: '47.5%',
+    flexGrow: 1,
+    minHeight: 122,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
-    paddingVertical: 22,
-    alignItems: 'center',
-    gap: 10,
+    padding: 14,
+    justifyContent: 'space-between',
+    overflow: 'hidden',
   },
-  cardPressed: { opacity: 0.7, transform: [{ scale: 0.98 }] },
+  cardPressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
+  watermark: { position: 'absolute', right: -22, bottom: -26, opacity: 0.07 },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  iconShadow: {
+    borderRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.42,
+    shadowRadius: 10,
+    elevation: 7,
+  },
   iconBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  cardLabel: { color: colors.white, fontSize: 12.5, fontWeight: '700', textAlign: 'center' },
+  gloss: { position: 'absolute', top: 0, left: 0, right: 0, height: '55%' },
+  arrow: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  cardLabel: { fontSize: 14, fontWeight: '800', lineHeight: 18, marginTop: 14, letterSpacing: -0.1 },
   badge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
     minWidth: 20,
     height: 20,
     borderRadius: 10,

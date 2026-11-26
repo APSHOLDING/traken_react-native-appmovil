@@ -167,6 +167,12 @@ export function setOutboxUser(userId: number | null) {
   if (userId !== null) processOutbox();
 }
 
+/** true si hay acciones pendientes o por revisar (no conviene reiniciar la app en ese momento). */
+export async function hasOutboxWork(): Promise<boolean> {
+  const c = await counts();
+  return c.pending > 0 || c.failed > 0;
+}
+
 export async function getOutboxItems(): Promise<OutboxItem[]> {
   if (Platform.OS === 'web' || currentUserId === null) return [];
   try {

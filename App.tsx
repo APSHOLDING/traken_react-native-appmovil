@@ -10,6 +10,7 @@ import {
   Raleway_800ExtraBold,
 } from '@expo-google-fonts/raleway';
 import { AuthProvider } from './src/context/AuthContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import UpdateBanner from './src/components/UpdateBanner';
 import BiometricGate from './src/components/BiometricGate';
@@ -55,6 +56,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      <ThemeProvider>
       <FranjaPruebas>
         <AuthProvider>
           <BiometricGate>
@@ -64,6 +66,7 @@ export default function App() {
           </BiometricGate>
         </AuthProvider>
       </FranjaPruebas>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
