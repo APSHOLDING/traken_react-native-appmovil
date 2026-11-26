@@ -432,6 +432,21 @@ export default function CreateOrderScreen({ navigation }: Props) {
         ) : (
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+              <LinearGradient
+                colors={[p.accent, p.accentDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.heroCard}
+              >
+                <View style={styles.heroIcon}>
+                  <Ionicons name="document-text" size={26} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heroTitle}>Crear O.S.</Text>
+                  <Text style={styles.heroSub}>Registra una nueva Orden de Servicio</Text>
+                </View>
+              </LinearGradient>
+
               {optionsOfflineSince ? (
                 <View style={styles.offlineBanner}>
                   <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
@@ -450,6 +465,7 @@ export default function CreateOrderScreen({ navigation }: Props) {
                 </View>
               ) : null}
 
+              <SectionCard icon="airplane" title="Operación">
               <FieldLabel text="Aeropuerto" />
               {stations.length === 0 ? (
                 <Text style={styles.noRooms}>No tienes estaciones asignadas.</Text>
@@ -481,9 +497,11 @@ export default function CreateOrderScreen({ navigation }: Props) {
                 selectedId={eventId}
                 onSelect={selectEvent}
               />
+              </SectionCard>
 
               {idAirport ? (
-                isLoadingCatalog ? (
+                <SectionCard icon="business" title="Aerolínea y hoteles">
+                {isLoadingCatalog ? (
                   <ActivityIndicator color={p.accentText} style={{ marginTop: 16 }} />
                 ) : (
                   <>
@@ -539,33 +557,48 @@ export default function CreateOrderScreen({ navigation }: Props) {
                       </Pressable>
                     )}
                   </>
-                )
+                )}
+                </SectionCard>
               ) : null}
 
-              <FieldLabel text="Fecha Entrada" />
-              <Pressable style={styles.pickerField} onPress={() => setActivePicker('dateIn')}>
-                <Ionicons name="calendar-outline" size={16} color={p.accentText} />
-                <Text style={styles.pickerFieldText}>{formatDateDisplay(dateIn)}</Text>
-              </Pressable>
+              <SectionCard icon="calendar" title="Fechas y hora">
+                <View style={styles.rowTwo}>
+                  <View style={{ flex: 1 }}>
+                    <FieldLabel text="Fecha Entrada" />
+                    <Pressable style={styles.pickerField} onPress={() => setActivePicker('dateIn')}>
+                      <Ionicons name="calendar-outline" size={16} color={p.accentText} />
+                      <Text style={styles.pickerFieldText}>{formatDateDisplay(dateIn)}</Text>
+                    </Pressable>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <FieldLabel text="Fecha Salida" />
+                    <Pressable style={styles.pickerField} onPress={() => setActivePicker('dateOut')}>
+                      <Ionicons name="calendar-outline" size={16} color={p.accentText} />
+                      <Text style={styles.pickerFieldText}>{formatDateDisplay(dateOut)}</Text>
+                    </Pressable>
+                  </View>
+                </View>
 
-              <FieldLabel text="Fecha Salida" />
-              <Pressable style={styles.pickerField} onPress={() => setActivePicker('dateOut')}>
-                <Ionicons name="calendar-outline" size={16} color={p.accentText} />
-                <Text style={styles.pickerFieldText}>{formatDateDisplay(dateOut)}</Text>
-              </Pressable>
-
-              <FieldLabel text="Hora Pick Up" />
-              <Pressable style={styles.pickerField} onPress={() => setActivePicker('hour')}>
-                <Ionicons name="time-outline" size={16} color={p.accentText} />
-                <Text style={styles.pickerFieldText}>{hour} hrs.</Text>
-              </Pressable>
+                <FieldLabel text="Hora Pick Up" />
+                <Pressable style={styles.pickerField} onPress={() => setActivePicker('hour')}>
+                  <Ionicons name="time-outline" size={16} color={p.accentText} />
+                  <Text style={styles.pickerFieldText}>{hour} hrs.</Text>
+                </Pressable>
+              </SectionCard>
 
               <Pressable
                 style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
                 onPress={handleSubmit}
                 disabled={!canSubmit}
               >
-                {isSaving ? <ActivityIndicator color={p.onAccent} /> : <Text style={styles.submitText}>CREAR</Text>}
+                {isSaving ? (
+                  <ActivityIndicator color={p.onAccent} />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={20} color={p.onAccent} />
+                    <Text style={styles.submitText}>CREAR</Text>
+                  </>
+                )}
               </Pressable>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -696,6 +729,31 @@ export default function CreateOrderScreen({ navigation }: Props) {
   );
 }
 
+/** Tarjeta de seccion (como el "fieldset" de la web): icono + titulo y los campos dentro. */
+function SectionCard({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  title: string;
+  children: React.ReactNode;
+}) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.sectionCard}>
+      <View style={styles.sectionHead}>
+        <View style={styles.sectionIcon}>
+          <Ionicons name={icon} size={16} color={p.accentText} />
+        </View>
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
 function FieldLabel({ text }: { text: string }) {
   const p = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -714,7 +772,49 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   topTitle: { color: p.text, fontSize: 15, fontWeight: '800' },
-  content: { padding: 16, paddingBottom: 50 },
+  content: { padding: 16, paddingBottom: 50, gap: 14 },
+  heroCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: 22,
+    padding: 16,
+    shadowColor: p.accentDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: p.isDark ? 0.35 : 0.25,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  heroIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTitle: { color: '#ffffff', fontSize: 19, fontWeight: '800', letterSpacing: -0.2 },
+  heroSub: { color: 'rgba(255,255,255,0.82)', fontSize: 12.5, marginTop: 2 },
+  sectionCard: {
+    backgroundColor: p.card,
+    borderWidth: 1,
+    borderColor: p.cardBorder,
+    borderRadius: 22,
+    padding: 16,
+    paddingTop: 14,
+    ...(p.isDark ? {} : p.shadowCard),
+  },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 },
+  sectionIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: p.accentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionTitle: { color: p.text, fontSize: 15, fontWeight: '800', letterSpacing: -0.1 },
+  rowTwo: { flexDirection: 'row', gap: 10 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
   errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
   retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
@@ -739,8 +839,8 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 14,
+    marginBottom: 7,
   },
   input: {
     backgroundColor: p.inputBg,
@@ -784,10 +884,17 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   submitBtn: {
     backgroundColor: p.accent,
     borderRadius: radii.button,
-    height: 54,
+    height: 56,
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 26,
+    marginTop: 10,
+    shadowColor: p.accentDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   submitBtnDisabled: { opacity: 0.5 },
   submitText: { color: p.onAccent, fontWeight: '900', fontSize: 15, letterSpacing: 0.5 },
