@@ -20,10 +20,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { radii } from '../theme/colors';
 import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import type { ThemeTokens } from '../theme/themes';
-import { getOpenOrders, getOpenOrdersExportUrl, getSiteBaseUrl, OpenOrderDTO } from '../api/client';
+import { getOpenOrders, getOpenOrdersExportUrl, getSiteBaseUrl, OpenOrderDTO, PaxSearchItem } from '../api/client';
+import { useNetInfo } from '@react-native-community/netinfo';
 import { getCache, saveCache } from '../utils/offlineCache';
 import CommentsModal from '../components/CommentsModal';
 import QrEncuestaModal from '../components/QrEncuestaModal';
+import PaxSearchBox from '../components/PaxSearchBox';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OpenOrders'>;
@@ -50,6 +52,8 @@ export default function OpenOrdersScreen({ navigation }: Props) {
   const [qrOrder, setQrOrder] = useState<OpenOrderDTO | null>(null);
   const [commentsOrder, setCommentsOrder] = useState<OpenOrderDTO | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const net = useNetInfo();
+  const offline = net.isConnected === false || net.isInternetReachable === false;
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setIsRefreshing(true);
@@ -137,6 +141,107 @@ export default function OpenOrdersScreen({ navigation }: Props) {
     }
   }, [filtered]);
 
+  // Resultado de "Buscar pasajero por nombre": abre el menu de esa O.S. (igual que tocar su tarjeta).
+  const openFromPax = (item: PaxSearchItem) => {
+    const match = orders.find((o) => o.folio === item.folio && o.id_airport === item.id_airport);
+    navigation.navigate('OrderMenu', {
+      folio: item.folio,
+      idAirport: item.id_airport,
+      folioDisplay: item.os,
+      iata: item.iata,
+      typeAirline: match?.type_airline ?? 'all',
+      airline: item.aerolinea,
+      flight: match?.flight ?? null,
+      esPrueba: match?.es_prueba,
+    });
+  };
+
+  const showHelp = () =>
+    Alert.alert(
+      'Órdenes Abiertas',
+      '• Busca un pasajero por su nombre (mínimo 3 letras) y toca el resultado para abrir su O.S.\n\n' +
+        '• El segundo buscador filtra por folio, aerolínea o vuelo.\n\n' +
+        '• En cada O.S.: Agregar (pasajeros, transporte, cerrar…), QR de encuesta, Delay y Comentarios.\n\n' +
+        '• "Escanear pasajero (QR)" busca a un pasajero pre-registrado.\n\n' +
+        '• "Exportar a Excel" baja la lista que estás viendo.'
+    );
+
+  // Encabezado que se desplaza junto con la lista: banner, buscador por nombre, filtros y acciones.
+  const header = (
+    <View style={styles.headerWrap}>
+      <LinearGradient colors={[p.accent, p.accentDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
+        <View style={styles.heroRow}>
+          <View style={styles.heroIcon}>
+            <Ionicons name="airplane" size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroTitle}>Órdenes Abiertas</Text>
+            <Text style={styles.heroSub}>Servicios en curso de tu aeropuerto</Text>
+          </View>
+          <Pressable style={styles.helpBtn} onPress={showHelp} hitSlop={8}>
+            <Text style={styles.helpBtnText}>?</Text>
+          </Pressable>
+        </View>
+        <View style={styles.heroChips}>
+          <View style={styles.heroChip}>
+            <View style={[styles.netDot, { backgroundColor: offline ? '#fbbf24' : '#4ade80' }]} />
+            <Text style={styles.heroChipText}>{offline ? 'Sin conexión' : 'Conexión exitosa'}</Text>
+          </View>
+          <View style={styles.heroChip}>
+            <Text style={styles.heroChipText}>{orders.length} activa(s) este año</Text>
+          </View>
+        </View>
+      </LinearGradient>
+
+      <PaxSearchBox estado="open" onPick={openFromPax} />
+
+      <View style={styles.searchWrap}>
+        <Ionicons name="search" size={16} color={p.textMuted} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Buscar folio, aerolínea o vuelo..."
+          placeholderTextColor={p.placeholder}
+          style={styles.searchInput}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+
+      <View style={styles.toolsCol}>
+        <Pressable style={styles.scanBtn} onPress={() => navigation.navigate('PreregScan')}>
+          <Ionicons name="qr-code-outline" size={17} color={p.accentText} />
+          <Text style={styles.scanBtnText}>Escanear pasajero (QR)</Text>
+        </Pressable>
+        <Pressable style={[styles.exportBtn, isExporting && { opacity: 0.6 }]} onPress={handleExport} disabled={isExporting}>
+          {isExporting ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Ionicons name="download-outline" size={17} color="#fff" />
+          )}
+          <Text style={styles.exportBtnText}>Exportar a Excel</Text>
+          <View style={styles.exportCount}>
+            <Text style={styles.exportCountText}>{filtered.length}</Text>
+          </View>
+        </Pressable>
+      </View>
+
+      {error ? (
+        <View style={styles.errorBanner}>
+          <Ionicons name="alert-circle" size={16} color={p.dangerText} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : offlineSince ? (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
+          <Text style={styles.offlineBannerText}>
+            Sin conexión: mostrando lo guardado el {formatSavedAt(offlineSince)}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+
   return (
     <LinearGradient colors={p.bg} style={styles.flex}>
       <StatusBar style={p.isDark ? 'light' : 'dark'} />
@@ -145,50 +250,14 @@ export default function OpenOrdersScreen({ navigation }: Props) {
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
             <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
-          <View>
-            <Text style={styles.topTitle}>Órdenes Abiertas</Text>
-            <Text style={styles.topSub}>{orders.length} activa(s) este año</Text>
-          </View>
-          <Pressable style={styles.backBtn} onPress={handleExport} disabled={isExporting} hitSlop={10}>
-            {isExporting ? (
-              <ActivityIndicator color={p.text} size="small" />
-            ) : (
-              <Ionicons name="download-outline" size={20} color={p.text} />
-            )}
-          </Pressable>
         </View>
-
-        <View style={styles.searchWrap}>
-          <Ionicons name="search" size={16} color={p.textMuted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Buscar folio, aerolínea o vuelo..."
-            placeholderTextColor={p.placeholder}
-            style={styles.searchInput}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-        </View>
-
-        {error ? (
-          <View style={styles.errorBanner}>
-            <Ionicons name="alert-circle" size={16} color={p.dangerText} />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : offlineSince ? (
-          <View style={styles.offlineBanner}>
-            <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
-            <Text style={styles.offlineBannerText}>
-              Sin conexión: mostrando lo guardado el {formatSavedAt(offlineSince)}
-            </Text>
-          </View>
-        ) : null}
 
         <FlatList
           data={filtered}
           keyExtractor={(o) => String(o.id)}
           contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={header}
           removeClippedSubviews
           maxToRenderPerBatch={10}
           windowSize={7}
@@ -370,6 +439,83 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   },
   offlineBannerText: { color: p.warnText, fontSize: 12, flexShrink: 1 },
   listContent: { paddingHorizontal: 16, paddingBottom: 30, gap: 10 },
+  // El encabezado conserva los margenes de 16 que ya traen sus piezas: se cancela el relleno de la lista.
+  headerWrap: { marginHorizontal: -16 },
+  heroCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 22,
+    padding: 16,
+    shadowColor: p.accentDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: p.isDark ? 0.35 : 0.25,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heroIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTitle: { color: '#ffffff', fontSize: 18, fontWeight: '800', letterSpacing: -0.2 },
+  heroSub: { color: 'rgba(255,255,255,0.82)', fontSize: 12, marginTop: 2 },
+  helpBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  helpBtnText: { color: '#16214d', fontWeight: '900', fontSize: 14 },
+  heroChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  heroChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.20)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.30)',
+    borderRadius: 20,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+  },
+  netDot: { width: 8, height: 8, borderRadius: 4 },
+  heroChipText: { color: '#ffffff', fontSize: 11.5, fontWeight: '800' },
+  toolsCol: { marginHorizontal: 16, marginBottom: 12, gap: 8 },
+  scanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: p.accentSoft,
+    borderWidth: 1,
+    borderColor: p.accentBorder,
+  },
+  scanBtnText: { color: p.accentText, fontWeight: '800', fontSize: 13.5 },
+  exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#16214d',
+  },
+  exportBtnText: { color: '#ffffff', fontWeight: '800', fontSize: 13.5 },
+  exportCount: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 1,
+  },
+  exportCountText: { color: '#ffffff', fontSize: 11.5, fontWeight: '800' },
   card: {
     borderRadius: radii.card,
     borderWidth: 1,
