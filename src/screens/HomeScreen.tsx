@@ -366,7 +366,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
     gap: 10,
   },
   hi: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
