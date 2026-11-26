@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
+import { radii } from '../theme/colors';
 import { logVoucherScan } from '../api/client';
 import { iniciarEscaneoVoucher, escanearConOcrLocal, ScanStage } from '../utils/voucherScan';
 import { resizeForUpload } from '../utils/imageResize';
@@ -20,6 +22,8 @@ type Props = {
  * autocompleta el nombre, igual que op/modulos/open/add.php en la web.
  */
 export default function VoucherScanButton({ idOrder, idAirport, onNameDetected }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [scanning, setScanning] = useState(false);
   const [message, setMessage] = useState('');
   const [showOcrOption, setShowOcrOption] = useState(false);
@@ -124,7 +128,7 @@ export default function VoucherScanButton({ idOrder, idAirport, onNameDetected }
     return (
       <View style={styles.scanBox}>
         <Text style={styles.scanMessage}>{message}</Text>
-        {scanning && <ActivityIndicator color={colors.teal} style={{ marginTop: 8 }} />}
+        {scanning && <ActivityIndicator color={p.accentText} style={{ marginTop: 8 }} />}
         {showOcrOption && (
           <View style={styles.fallbackRow}>
             <Pressable onPress={aMano}><Text style={styles.fallbackLink}>Escribir a mano</Text></Pressable>
@@ -137,7 +141,7 @@ export default function VoucherScanButton({ idOrder, idAirport, onNameDetected }
               value={guess}
               onChangeText={setGuess}
               placeholder="Nombre detectado (edítalo si hace falta)"
-              placeholderTextColor={colors.placeholder}
+              placeholderTextColor={p.placeholder}
               style={styles.guessInput}
               autoCapitalize="characters"
             />
@@ -158,41 +162,41 @@ export default function VoucherScanButton({ idOrder, idAirport, onNameDetected }
   return (
     <View style={styles.row}>
       <Pressable style={styles.btn} onPress={() => empezar('camera')}>
-        <Ionicons name="camera-outline" size={14} color="#fff" />
+        <Ionicons name="camera-outline" size={14} color={p.onAccent} />
         <Text style={styles.btnText}>Escanear voucher (opcional)</Text>
       </Pressable>
       <Pressable style={[styles.btn, styles.btnGhost]} onPress={() => empezar('library')}>
-        <Ionicons name="images-outline" size={14} color="#0f172a" />
+        <Ionicons name="images-outline" size={14} color={p.text} />
         <Text style={styles.btnGhostText}>Galería</Text>
       </Pressable>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 4 },
-  btn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#0891b2', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12 },
-  btnGhost: { backgroundColor: '#f1f5f9' },
-  btnText: { color: '#fff', fontWeight: '700', fontSize: 11.5 },
-  btnGhostText: { color: '#0f172a', fontWeight: '700', fontSize: 11.5 },
-  scanBox: { backgroundColor: '#f0f9ff', borderWidth: 1, borderColor: '#bae6fd', borderRadius: radii.input, padding: 12 },
-  scanMessage: { color: '#0369a1', fontSize: 12.5, lineHeight: 18 },
+  btn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: p.accent, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12 },
+  btnGhost: { backgroundColor: p.cardStrong },
+  btnText: { color: p.onAccent, fontWeight: '700', fontSize: 11.5 },
+  btnGhostText: { color: p.text, fontWeight: '700', fontSize: 11.5 },
+  scanBox: { backgroundColor: p.accentSoft, borderWidth: 1, borderColor: p.accentBorder, borderRadius: radii.input, padding: 12 },
+  scanMessage: { color: p.accentText, fontSize: 12.5, lineHeight: 18 },
   fallbackRow: { flexDirection: 'row', gap: 14, marginTop: 8, flexWrap: 'wrap' },
-  fallbackLink: { color: '#0369a1', fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' },
+  fallbackLink: { color: p.accentText, fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' },
   guessInput: {
     marginTop: 10,
-    backgroundColor: '#fff',
+    backgroundColor: p.inputBg,
     borderWidth: 1,
-    borderColor: '#bae6fd',
+    borderColor: p.inputBorder,
     borderRadius: 8,
     paddingHorizontal: 10,
     height: 42,
-    color: '#0f172a',
+    color: p.text,
     fontSize: 13.5,
   },
   guessActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  guessCancelBtn: { flex: 1, backgroundColor: '#e2e8f0', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
-  guessCancelText: { color: '#334155', fontWeight: '700', fontSize: 12.5 },
-  guessUseBtn: { flex: 1, backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
-  guessUseText: { color: '#fff', fontWeight: '700', fontSize: 12.5 },
+  guessCancelBtn: { flex: 1, backgroundColor: p.cardStrong, borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
+  guessCancelText: { color: p.text, fontWeight: '700', fontSize: 12.5 },
+  guessUseBtn: { flex: 1, backgroundColor: p.ok, borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
+  guessUseText: { color: p.onAccent, fontWeight: '700', fontSize: 12.5 },
 });

@@ -8,7 +8,9 @@ import { StatusBar } from 'expo-status-bar';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import {
   cancelOrder,
   confirmPruebaCode,
@@ -31,6 +33,8 @@ type IconName = ComponentProps<typeof Ionicons>['name'];
  * esta listo.
  */
 export default function OrderMenuScreen({ route, navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay, iata, typeAirline, airline, flight, esPrueba: esPruebaInicial } = route.params;
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -322,12 +326,12 @@ export default function OrderMenuScreen({ route, navigation }: Props) {
   ];
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>#{folioDisplay}</Text>
@@ -340,25 +344,25 @@ export default function OrderMenuScreen({ route, navigation }: Props) {
           {items.map((it) => (
             <Pressable
               key={it.key}
-              style={[styles.item, shadow.card]}
+              style={[styles.item, p.shadowCard]}
               onPress={it.onPress}
               disabled={it.loading}
             >
               <View style={[styles.itemIcon, { backgroundColor: it.color }]}>
-                <Ionicons name={it.icon} size={20} color="#fff" />
+                <Ionicons name={it.icon} size={20} color={p.onAccent} />
               </View>
               <View style={styles.itemText}>
                 <Text style={styles.itemLabel}>{it.label}</Text>
                 <Text style={styles.itemSub}>{it.loading ? 'Procesando...' : it.sub}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              <Ionicons name="chevron-forward" size={18} color={p.textMuted} />
             </Pressable>
           ))}
         </ScrollView>
 
         <Modal visible={!!pruebaAccion} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalCard, shadow.card]}>
+            <View style={[styles.modalCard, p.shadowCard]}>
               <Text style={styles.modalTitle}>
                 {pruebaAccion === 'quitar' ? 'Quitar marca de PRUEBA' : 'Marcar como PRUEBA'}
               </Text>
@@ -369,7 +373,7 @@ export default function OrderMenuScreen({ route, navigation }: Props) {
                 value={pruebaCodigo}
                 onChangeText={(t) => setPruebaCodigo(t.replace(/[^0-9]/g, '').slice(0, 6))}
                 placeholder="000000"
-                placeholderTextColor={colors.placeholder}
+                placeholderTextColor={p.placeholder}
                 style={styles.modalInput}
                 keyboardType="number-pad"
                 maxLength={6}
@@ -384,7 +388,7 @@ export default function OrderMenuScreen({ route, navigation }: Props) {
                   disabled={pruebaCodigo.trim().length < 6 || isConfirmingPrueba}
                 >
                   {isConfirmingPrueba ? (
-                    <ActivityIndicator color="#06322f" size="small" />
+                    <ActivityIndicator color={p.onAccent} size="small" />
                   ) : (
                     <Text style={styles.modalConfirmText}>Confirmar</Text>
                   )}
@@ -398,7 +402,7 @@ export default function OrderMenuScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -409,8 +413,8 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   content: { padding: 16, gap: 10 },
   item: {
     flexDirection: 'row',
@@ -418,8 +422,8 @@ const styles = StyleSheet.create({
     gap: 12,
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 14,
     marginBottom: 10,
   },
@@ -431,11 +435,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   itemText: { flex: 1 },
-  itemLabel: { color: colors.white, fontWeight: '800', fontSize: 13.5 },
-  itemSub: { color: colors.textMuted, fontSize: 11.5, marginTop: 2 },
+  itemLabel: { color: p.text, fontWeight: '800', fontSize: 13.5 },
+  itemSub: { color: p.textMuted, fontSize: 11.5, marginTop: 2 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: p.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -443,20 +447,20 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: colors.navy2,
+    backgroundColor: p.modalBg,
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     padding: 20,
   },
-  modalTitle: { color: colors.white, fontSize: 15, fontWeight: '800', marginBottom: 8 },
-  modalText: { color: colors.textMuted, fontSize: 12.5, lineHeight: 18, marginBottom: 14 },
+  modalTitle: { color: p.text, fontSize: 15, fontWeight: '800', marginBottom: 8 },
+  modalText: { color: p.textMuted, fontSize: 12.5, lineHeight: 18, marginBottom: 14 },
   modalInput: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 14,
     height: 50,
-    color: colors.text,
+    color: p.text,
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: 6,
@@ -465,14 +469,14 @@ const styles = StyleSheet.create({
   },
   modalActions: { flexDirection: 'row', gap: 10 },
   modalCancelBtn: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  modalCancelText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
+  modalCancelText: { color: p.textMuted, fontWeight: '700', fontSize: 13 },
   modalConfirmBtn: {
     flex: 1,
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: radii.button,
     paddingVertical: 12,
     alignItems: 'center',
   },
   modalConfirmBtnDisabled: { opacity: 0.5 },
-  modalConfirmText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  modalConfirmText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
 });

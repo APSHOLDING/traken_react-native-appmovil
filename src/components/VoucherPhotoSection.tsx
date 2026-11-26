@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
+import { radii } from '../theme/colors';
 import { removeVoucherPhoto, restoreVoucherPhoto, rotateVoucherPhoto, uploadVoucherPhoto, logVoucherScan } from '../api/client';
 import { iniciarEscaneoVoucher, escanearConOcrLocal, ScanStage } from '../utils/voucherScan';
 import { resizeForUpload } from '../utils/imageResize';
@@ -36,6 +38,8 @@ export default function VoucherPhotoSection({
   initialRotation,
   onNameDetected,
 }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [photoUrl, setPhotoUrl] = useState(initialUrl);
   const [removed, setRemoved] = useState(initialRemoved);
   const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(
@@ -238,7 +242,7 @@ export default function VoucherPhotoSection({
   return (
     <View style={styles.wrap}>
       <View style={[styles.flag, photoUrl ? styles.flagOk : styles.flagWarn]}>
-        <Ionicons name={photoUrl ? 'checkmark-circle' : 'alert-circle-outline'} size={14} color={photoUrl ? '#166534' : '#92400e'} />
+        <Ionicons name={photoUrl ? 'checkmark-circle' : 'alert-circle-outline'} size={14} color={photoUrl ? p.okText : p.warnText} />
         <Text style={[styles.flagText, photoUrl ? styles.flagTextOk : styles.flagTextWarn]}>
           {photoUrl ? 'Soporte cargado' : removed ? 'Soporte quitado (se puede recuperar)' : 'Sin soporte cargado'}
         </Text>
@@ -257,11 +261,11 @@ export default function VoucherPhotoSection({
           {!photoUrl && !removed && (
             <>
               <Pressable style={styles.actionBtn} onPress={() => empezarEscaneo('camera')} disabled={isBusy}>
-                <Ionicons name="camera-outline" size={14} color="#fff" />
+                <Ionicons name="camera-outline" size={14} color={p.onAccent} />
                 <Text style={styles.actionBtnText}>Escanear</Text>
               </Pressable>
               <Pressable style={[styles.actionBtn, styles.actionBtnGhost]} onPress={() => empezarEscaneo('library')} disabled={isBusy}>
-                <Ionicons name="images-outline" size={14} color="#0f172a" />
+                <Ionicons name="images-outline" size={14} color={p.text} />
                 <Text style={styles.actionBtnGhostText}>Galería</Text>
               </Pressable>
             </>
@@ -269,37 +273,37 @@ export default function VoucherPhotoSection({
           {photoUrl && (
             <>
               <Pressable style={styles.actionBtn} onPress={() => empezarEscaneo('camera')} disabled={isBusy}>
-                <Ionicons name="camera-outline" size={14} color="#fff" />
+                <Ionicons name="camera-outline" size={14} color={p.onAccent} />
                 <Text style={styles.actionBtnText}>Reemplazar</Text>
               </Pressable>
               <Pressable style={[styles.actionBtn, styles.actionBtnGhost]} onPress={handleRotate} disabled={isBusy || isRotating}>
                 {isRotating ? (
-                  <ActivityIndicator size="small" color="#0f172a" />
+                  <ActivityIndicator size="small" color={p.text} />
                 ) : (
-                  <Ionicons name="reload-outline" size={14} color="#0f172a" />
+                  <Ionicons name="reload-outline" size={14} color={p.text} />
                 )}
                 <Text style={styles.actionBtnGhostText}>Girar</Text>
               </Pressable>
               <Pressable style={[styles.actionBtn, styles.actionBtnDanger]} onPress={handleRemove} disabled={isBusy}>
-                <Ionicons name="trash-outline" size={14} color="#fff" />
+                <Ionicons name="trash-outline" size={14} color={p.onAccent} />
                 <Text style={styles.actionBtnText}>Quitar</Text>
               </Pressable>
             </>
           )}
           {removed && (
             <Pressable style={[styles.actionBtn, styles.actionBtnRestore]} onPress={handleRestore} disabled={isBusy}>
-              <Ionicons name="refresh-outline" size={14} color="#fff" />
+              <Ionicons name="refresh-outline" size={14} color={p.onAccent} />
               <Text style={styles.actionBtnText}>Recuperar</Text>
             </Pressable>
           )}
-          {isBusy && <ActivityIndicator size="small" color={colors.teal} />}
+          {isBusy && <ActivityIndicator size="small" color={p.accentText} />}
         </View>
       )}
 
       {(scanning || showGuess) && (
         <View style={styles.scanBox}>
           <Text style={styles.scanMessage}>{scanMessage}</Text>
-          {scanning && <ActivityIndicator color={colors.teal} style={{ marginTop: 8 }} />}
+          {scanning && <ActivityIndicator color={p.accentText} style={{ marginTop: 8 }} />}
           {showOcrOption && (
             <View style={styles.fallbackRow}>
               <Pressable onPress={escribirAMano}>
@@ -316,7 +320,7 @@ export default function VoucherPhotoSection({
                 value={guessedName}
                 onChangeText={setGuessedName}
                 placeholder="Nombre detectado (edítalo si hace falta)"
-                placeholderTextColor={colors.placeholder}
+                placeholderTextColor={p.placeholder}
                 style={styles.guessInput}
                 autoCapitalize="characters"
               />
@@ -336,7 +340,7 @@ export default function VoucherPhotoSection({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   wrap: { marginTop: 8, marginBottom: 4 },
   flag: {
     flexDirection: 'row',
@@ -348,45 +352,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginBottom: 10,
   },
-  flagOk: { backgroundColor: '#dcfce7' },
-  flagWarn: { backgroundColor: '#fef3c7' },
+  flagOk: { backgroundColor: p.okSoft },
+  flagWarn: { backgroundColor: p.warnSoft },
   flagText: { fontSize: 11, fontWeight: '700' },
-  flagTextOk: { color: '#166534' },
-  flagTextWarn: { color: '#92400e' },
+  flagTextOk: { color: p.okText },
+  flagTextWarn: { color: p.warnText },
   thumb: { width: '100%', height: 160, borderRadius: radii.input, marginBottom: 10, backgroundColor: '#0000001a' },
   actionsRow: { flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#0891b2',
+    backgroundColor: p.accent,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
-  actionBtnGhost: { backgroundColor: '#f1f5f9' },
-  actionBtnDanger: { backgroundColor: '#dc2626' },
+  actionBtnGhost: { backgroundColor: p.cardStrong },
+  actionBtnDanger: { backgroundColor: p.danger },
   actionBtnRestore: { backgroundColor: '#2563eb' },
-  actionBtnText: { color: '#fff', fontWeight: '700', fontSize: 11.5 },
-  actionBtnGhostText: { color: '#0f172a', fontWeight: '700', fontSize: 11.5 },
-  scanBox: { backgroundColor: '#f0f9ff', borderWidth: 1, borderColor: '#bae6fd', borderRadius: radii.input, padding: 12 },
-  scanMessage: { color: '#0369a1', fontSize: 12.5, lineHeight: 18 },
+  actionBtnText: { color: p.onAccent, fontWeight: '700', fontSize: 11.5 },
+  actionBtnGhostText: { color: p.text, fontWeight: '700', fontSize: 11.5 },
+  scanBox: { backgroundColor: p.accentSoft, borderWidth: 1, borderColor: p.accentBorder, borderRadius: radii.input, padding: 12 },
+  scanMessage: { color: p.accentText, fontSize: 12.5, lineHeight: 18 },
   fallbackRow: { flexDirection: 'row', gap: 14, marginTop: 8, flexWrap: 'wrap' },
-  fallbackLink: { color: '#0369a1', fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' },
+  fallbackLink: { color: p.accentText, fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' },
   guessInput: {
     marginTop: 10,
-    backgroundColor: '#fff',
+    backgroundColor: p.inputBg,
     borderWidth: 1,
-    borderColor: '#bae6fd',
+    borderColor: p.inputBorder,
     borderRadius: 8,
     paddingHorizontal: 10,
     height: 42,
-    color: '#0f172a',
+    color: p.text,
     fontSize: 13.5,
   },
   guessActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  guessCancelBtn: { flex: 1, backgroundColor: '#e2e8f0', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
-  guessCancelText: { color: '#334155', fontWeight: '700', fontSize: 12.5 },
-  guessUseBtn: { flex: 1, backgroundColor: '#16a34a', borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
-  guessUseText: { color: '#fff', fontWeight: '700', fontSize: 12.5 },
+  guessCancelBtn: { flex: 1, backgroundColor: p.cardStrong, borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
+  guessCancelText: { color: p.text, fontWeight: '700', fontSize: 12.5 },
+  guessUseBtn: { flex: 1, backgroundColor: p.ok, borderRadius: 8, paddingVertical: 9, alignItems: 'center' },
+  guessUseText: { color: p.onAccent, fontWeight: '700', fontSize: 12.5 },
 });

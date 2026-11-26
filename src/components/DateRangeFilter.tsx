@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { colors, radii } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 
 function toISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -31,6 +33,8 @@ type Props = {
  * web, filtrando del lado del cliente sobre los datos ya cargados.
  */
 export default function DateRangeFilter({ desde, hasta, onChangeDesde, onChangeHasta }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [activePicker, setActivePicker] = useState<'desde' | 'hasta' | null>(null);
   const hasFilter = !!desde || !!hasta;
 
@@ -45,12 +49,12 @@ export default function DateRangeFilter({ desde, hasta, onChangeDesde, onChangeH
   return (
     <View style={styles.wrap}>
       <Pressable style={styles.field} onPress={() => setActivePicker('desde')}>
-        <Ionicons name="calendar-outline" size={14} color={colors.teal} />
+        <Ionicons name="calendar-outline" size={14} color={p.accentText} />
         <Text style={styles.label}>Desde</Text>
         <Text style={[styles.value, !desde && styles.placeholder]}>{desde ? formatDisplay(desde) : '—'}</Text>
       </Pressable>
       <Pressable style={styles.field} onPress={() => setActivePicker('hasta')}>
-        <Ionicons name="calendar-outline" size={14} color={colors.teal} />
+        <Ionicons name="calendar-outline" size={14} color={p.accentText} />
         <Text style={styles.label}>Hasta</Text>
         <Text style={[styles.value, !hasta && styles.placeholder]}>{hasta ? formatDisplay(hasta) : '—'}</Text>
       </Pressable>
@@ -63,7 +67,7 @@ export default function DateRangeFilter({ desde, hasta, onChangeDesde, onChangeH
           }}
           hitSlop={8}
         >
-          <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+          <Ionicons name="close-circle" size={18} color={p.textMuted} />
         </Pressable>
       ) : null}
 
@@ -98,24 +102,26 @@ export default function DateRangeFilter({ desde, hasta, onChangeDesde, onChangeH
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   wrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 10 },
   field: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: p.isDark ? 'transparent' : p.inputBorder,
     height: 40,
   },
-  label: { color: colors.textMuted, fontSize: 11, fontWeight: '700' },
-  value: { color: colors.text, fontSize: 12, fontWeight: '700', flexShrink: 1 },
-  placeholder: { color: colors.placeholder, fontWeight: '500' },
+  label: { color: p.textMuted, fontSize: 11, fontWeight: '700' },
+  value: { color: p.text, fontSize: 12, fontWeight: '700', flexShrink: 1 },
+  placeholder: { color: p.placeholder, fontWeight: '500' },
   clearBtn: { padding: 4 },
-  iosOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  iosSheet: { backgroundColor: colors.navy2, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 10 },
+  iosOverlay: { flex: 1, backgroundColor: p.overlay, justifyContent: 'flex-end' },
+  iosSheet: { backgroundColor: p.modalBg, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 10 },
   iosDone: { alignItems: 'flex-end', padding: 14 },
-  iosDoneText: { color: colors.teal, fontWeight: '800', fontSize: 14 },
+  iosDoneText: { color: p.accentText, fontWeight: '800', fontSize: 14 },
 });

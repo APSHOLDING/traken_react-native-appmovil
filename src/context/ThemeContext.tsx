@@ -68,6 +68,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
+/**
+ * Estilos que cambian con el tema. `factory` se define a nivel de modulo:
+ *   const makeStyles = (p: ThemeTokens) => StyleSheet.create({ ... });
+ *   const styles = useThemedStyles(makeStyles);
+ */
+export function useThemedStyles<T>(factory: (p: ThemeTokens) => T): T {
+  const p = useTheme();
+  return useMemo(() => factory(p), [p, factory]);
+}
+
 export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
   if (!ctx) throw new Error('useTheme debe usarse dentro de <ThemeProvider>');

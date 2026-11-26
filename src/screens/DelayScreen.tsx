@@ -19,7 +19,9 @@ import { StatusBar } from 'expo-status-bar';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { DelayFormData, getDelayImageUrl, getDelayPreviewUrl, sendDelayEmail } from '../api/client';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -46,6 +48,8 @@ const CYAN = '#0891b2';
  * encuesta de verdad, en vez de reconstruir el diseno a mano en RN.
  */
 export default function DelayScreen({ route, navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay, iata, airline, flight } = route.params;
 
   const [lang, setLang] = useState('es');
@@ -130,12 +134,12 @@ export default function DelayScreen({ route, navigation }: Props) {
   };
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>Aviso de Retraso</Text>
@@ -164,7 +168,7 @@ export default function DelayScreen({ route, navigation }: Props) {
               value={airlineText}
               onChangeText={setAirlineText}
               placeholder="Ej: AEROMEXICO"
-              placeholderTextColor={colors.placeholder}
+              placeholderTextColor={p.placeholder}
               style={styles.input}
             />
 
@@ -173,7 +177,7 @@ export default function DelayScreen({ route, navigation }: Props) {
               value={flightText}
               onChangeText={setFlightText}
               placeholder="Ej: AM-431"
-              placeholderTextColor={colors.placeholder}
+              placeholderTextColor={p.placeholder}
               style={styles.input}
               autoCapitalize="characters"
             />
@@ -183,7 +187,7 @@ export default function DelayScreen({ route, navigation }: Props) {
               value={dest}
               onChangeText={setDest}
               placeholder="Ej: CANCUN (CUN)"
-              placeholderTextColor={colors.placeholder}
+              placeholderTextColor={p.placeholder}
               style={styles.input}
               autoCapitalize="characters"
             />
@@ -195,7 +199,7 @@ export default function DelayScreen({ route, navigation }: Props) {
                   value={pickup}
                   onChangeText={setPickup}
                   placeholder="HH:MM"
-                  placeholderTextColor={colors.placeholder}
+                  placeholderTextColor={p.placeholder}
                   style={styles.input}
                 />
               </View>
@@ -205,7 +209,7 @@ export default function DelayScreen({ route, navigation }: Props) {
                   value={departure}
                   onChangeText={setDeparture}
                   placeholder="HH:MM"
-                  placeholderTextColor={colors.placeholder}
+                  placeholderTextColor={p.placeholder}
                   style={styles.input}
                 />
               </View>
@@ -216,7 +220,7 @@ export default function DelayScreen({ route, navigation }: Props) {
               value={date}
               onChangeText={setDate}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor={colors.placeholder}
+              placeholderTextColor={p.placeholder}
               style={styles.input}
             />
 
@@ -232,7 +236,7 @@ export default function DelayScreen({ route, navigation }: Props) {
                   )}
                   {imageError ? (
                     <View style={styles.imageErrorBox}>
-                      <Ionicons name="alert-circle-outline" size={22} color={colors.danger} />
+                      <Ionicons name="alert-circle-outline" size={22} color={p.dangerText} />
                       <Text style={styles.imageErrorText}>No se pudo generar la imagen. Revisa tu conexión.</Text>
                       <Pressable style={styles.retryImageBtn} onPress={showPreview}>
                         <Text style={styles.retryImageText}>Reintentar</Text>
@@ -269,7 +273,7 @@ export default function DelayScreen({ route, navigation }: Props) {
                   value={mail}
                   onChangeText={setMail}
                   placeholder="correo@ejemplo.com"
-                  placeholderTextColor={colors.placeholder}
+                  placeholderTextColor={p.placeholder}
                   style={styles.input}
                   autoCapitalize="none"
                   keyboardType="email-address"
@@ -301,10 +305,11 @@ export default function DelayScreen({ route, navigation }: Props) {
 }
 
 function FieldLabel({ text }: { text: string }) {
+  const styles = useThemedStyles(makeStyles);
   return <Text style={styles.fieldLabel}>{text}</Text>;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -315,11 +320,11 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   content: { padding: 16, paddingBottom: 50 },
   fieldLabel: {
-    color: colors.textMuted,
+    color: p.textMuted,
     fontSize: 11.5,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -328,27 +333,29 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
+    borderWidth: p.isDark ? 0 : 1,
+    borderColor: p.inputBorder,
     borderRadius: radii.input,
     paddingHorizontal: 14,
     height: 46,
-    color: colors.text,
+    color: p.text,
     fontSize: 14,
   },
   row2: { flexDirection: 'row', gap: 12 },
   row2Item: { flex: 1 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
-  chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
-  chipText: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
-  chipTextActive: { color: '#06322f' },
+  chipActive: { backgroundColor: p.accent, borderColor: p.accent },
+  chipText: { color: p.text, fontSize: 12.5, fontWeight: '700' },
+  chipTextActive: { color: p.onAccent },
   previewBtn: {
     backgroundColor: CYAN,
     borderRadius: radii.button,

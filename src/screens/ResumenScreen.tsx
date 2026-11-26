@@ -5,7 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { colors, radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { getResumenEstacion, ResumenRow, ResumenTotales } from '../api/client';
 import { getCache, saveCache } from '../utils/offlineCache';
 import { formatSavedAt } from '../utils/useOfflineLoad';
@@ -31,6 +33,8 @@ function shiftPeriodo(periodo: string, delta: number): string {
  * habitaciones y pasajeros por estacion en el mes elegido. Solo lectura.
  */
 export default function ResumenScreen({ navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [periodo, setPeriodo] = useState(currentPeriodo());
   const [rows, setRows] = useState<ResumenRow[]>([]);
   const [totales, setTotales] = useState<ResumenTotales | null>(null);
@@ -91,12 +95,12 @@ export default function ResumenScreen({ navigation }: Props) {
   const isCurrentMonth = periodo === currentPeriodo();
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>Resumen por Estación</Text>
           <View style={styles.backBtn} />
@@ -105,7 +109,7 @@ export default function ResumenScreen({ navigation }: Props) {
         <ScrollView contentContainerStyle={styles.content}>
           {offlineSince && (
             <View style={styles.offlineBanner}>
-              <Ionicons name="cloud-offline-outline" size={16} color="#fde68a" />
+              <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
               <Text style={styles.offlineBannerText}>
                 Sin conexión: mostrando lo guardado el {formatSavedAt(offlineSince)}.
               </Text>
@@ -114,7 +118,7 @@ export default function ResumenScreen({ navigation }: Props) {
 
           <View style={styles.periodRow}>
             <Pressable style={styles.periodBtn} onPress={() => setPeriodo((p) => shiftPeriodo(p, -1))} hitSlop={8}>
-              <Ionicons name="chevron-back" size={18} color={colors.white} />
+              <Ionicons name="chevron-back" size={18} color={p.text} />
             </Pressable>
             <View style={styles.periodLabelWrap}>
               <Text style={styles.periodLabel}>{mesLabel || periodo}</Text>
@@ -125,7 +129,7 @@ export default function ResumenScreen({ navigation }: Props) {
               )}
             </View>
             <Pressable style={styles.periodBtn} onPress={() => setPeriodo((p) => shiftPeriodo(p, 1))} hitSlop={8}>
-              <Ionicons name="chevron-forward" size={18} color={colors.white} />
+              <Ionicons name="chevron-forward" size={18} color={p.text} />
             </Pressable>
           </View>
 
@@ -134,10 +138,10 @@ export default function ResumenScreen({ navigation }: Props) {
           )}
 
           {isLoading ? (
-            <ActivityIndicator color={colors.teal} style={{ marginTop: 30 }} />
+            <ActivityIndicator color={p.accentText} style={{ marginTop: 30 }} />
           ) : error ? (
             <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={18} color={colors.danger} />
+              <Ionicons name="alert-circle" size={18} color={p.danger} />
               <Text style={styles.errorText}>{error}</Text>
               <Pressable style={styles.retryBtn} onPress={load}>
                 <Text style={styles.retryText}>Reintentar</Text>
@@ -145,13 +149,13 @@ export default function ResumenScreen({ navigation }: Props) {
             </View>
           ) : rows.length === 0 ? (
             <View style={styles.emptyWrap}>
-              <Ionicons name="bar-chart-outline" size={28} color={colors.textMuted} />
+              <Ionicons name="bar-chart-outline" size={28} color={p.textMuted} />
               <Text style={styles.emptyText}>Sin operaciones registradas en {mesLabel || 'este mes'}.</Text>
             </View>
           ) : (
             <>
               {rows.map((r) => (
-                <View key={r.iata} style={[styles.card, shadow.card]}>
+                <View key={r.iata} style={[styles.card, p.shadowCard]}>
                   <View style={styles.cardHead}>
                     <View style={styles.iataBadge}>
                       <Text style={styles.iataText}>{r.iata}</Text>
@@ -189,6 +193,7 @@ export default function ResumenScreen({ navigation }: Props) {
 }
 
 function Stat({ label, value, light }: { label: string; value: number; light?: boolean }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.statItem}>
       <Text style={[styles.statValue, light && styles.statValueLight]}>{value}</Text>
@@ -197,7 +202,7 @@ function Stat({ label, value, light }: { label: string; value: number; light?: b
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -208,21 +213,21 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800' },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800' },
   content: { padding: 16, paddingBottom: 40 },
   offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(245,158,11,0.14)',
+    backgroundColor: p.warnSoft,
     borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.35)',
+    borderColor: p.warnBorder,
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 14,
   },
-  offlineBannerText: { color: '#fde68a', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  offlineBannerText: { color: p.warnText, fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
   periodRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -233,39 +238,39 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
   periodLabelWrap: { alignItems: 'center', flex: 1 },
-  periodLabel: { color: colors.white, fontWeight: '800', fontSize: 15, textTransform: 'capitalize' },
-  periodToday: { color: colors.teal, fontSize: 11, fontWeight: '700', marginTop: 3 },
-  adminNote: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginBottom: 14, marginTop: 4 },
+  periodLabel: { color: p.text, fontWeight: '800', fontSize: 15, textTransform: 'capitalize' },
+  periodToday: { color: p.accentText, fontSize: 11, fontWeight: '700', marginTop: 3 },
+  adminNote: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginBottom: 14, marginTop: 4 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   emptyWrap: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
+  emptyText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
   card: {
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 14,
     marginTop: 14,
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  iataBadge: { backgroundColor: colors.teal, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
-  iataText: { color: '#06322f', fontWeight: '900', fontSize: 12 },
-  airportName: { color: colors.white, fontWeight: '700', fontSize: 13, flex: 1 },
+  iataBadge: { backgroundColor: p.accent, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 4 },
+  iataText: { color: p.onAccent, fontWeight: '900', fontSize: 12 },
+  airportName: { color: p.text, fontWeight: '700', fontSize: 13, flex: 1 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   statItem: { alignItems: 'center', flex: 1 },
-  statValue: { color: colors.white, fontWeight: '900', fontSize: 16 },
+  statValue: { color: p.text, fontWeight: '900', fontSize: 16 },
   statValueLight: { color: '#fff' },
-  statLabel: { color: colors.textMuted, fontSize: 9.5, fontWeight: '700', textTransform: 'uppercase', marginTop: 2 },
+  statLabel: { color: p.textMuted, fontSize: 9.5, fontWeight: '700', textTransform: 'uppercase', marginTop: 2 },
   statLabelLight: { color: 'rgba(255,255,255,0.75)' },
   totalCard: { backgroundColor: colors.navy3, borderColor: colors.navy3, marginBottom: 6 },
   totalLabel: { color: '#fff', fontWeight: '900', fontSize: 11, letterSpacing: 1, marginBottom: 10, textAlign: 'center' },

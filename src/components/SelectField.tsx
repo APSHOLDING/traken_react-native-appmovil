@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 
 export interface SelectOption {
   id: number;
@@ -35,6 +37,8 @@ export default function SelectField({
   disabled,
   emptyText,
 }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [visible, setVisible] = useState(false);
   const [query, setQuery] = useState('');
 
@@ -56,26 +60,26 @@ export default function SelectField({
         <Text style={[styles.fieldText, !selected && styles.fieldPlaceholder]} numberOfLines={1}>
           {selected ? selected.label : placeholder}
         </Text>
-        <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+        <Ionicons name="chevron-down" size={16} color={p.textMuted} />
       </Pressable>
 
       <Modal visible={visible} animationType="slide" transparent onRequestClose={() => setVisible(false)}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
-            <Pressable style={[styles.sheet, shadow.card]} onPress={(e) => e.stopPropagation()}>
+            <Pressable style={[styles.sheet, p.shadowCard]} onPress={(e) => e.stopPropagation()}>
               <View style={styles.sheetHeader}>
                 <Text style={styles.sheetTitle}>{label}</Text>
                 <Pressable onPress={() => setVisible(false)} hitSlop={10}>
-                  <Ionicons name="close-circle" size={22} color={colors.textMuted} />
+                  <Ionicons name="close-circle" size={22} color={p.textMuted} />
                 </Pressable>
               </View>
               <View style={styles.searchWrap}>
-                <Ionicons name="search" size={16} color={colors.textMuted} />
+                <Ionicons name="search" size={16} color={p.textMuted} />
                 <TextInput
                   value={query}
                   onChangeText={setQuery}
                   placeholder="Buscar..."
-                  placeholderTextColor={colors.placeholder}
+                  placeholderTextColor={p.placeholder}
                   style={styles.searchInput}
                   autoFocus
                   autoCapitalize="none"
@@ -99,7 +103,7 @@ export default function SelectField({
                     <Text style={[styles.rowText, item.id === selectedId && styles.rowTextActive]} numberOfLines={2}>
                       {item.label}
                     </Text>
-                    {item.id === selectedId && <Ionicons name="checkmark" size={18} color={colors.teal} />}
+                    {item.id === selectedId && <Ionicons name="checkmark" size={18} color={p.accentText} />}
                   </Pressable>
                 )}
               />
@@ -111,23 +115,25 @@ export default function SelectField({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: p.isDark ? 'transparent' : p.inputBorder,
     height: 46,
   },
   fieldDisabled: { opacity: 0.5 },
-  fieldText: { color: colors.text, fontSize: 14, fontWeight: '700', flexShrink: 1, marginRight: 8 },
-  fieldPlaceholder: { color: colors.placeholder, fontWeight: '500' },
-  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'flex-end' },
+  fieldText: { color: p.text, fontSize: 14, fontWeight: '700', flexShrink: 1, marginRight: 8 },
+  fieldPlaceholder: { color: p.placeholder, fontWeight: '500' },
+  overlay: { flex: 1, backgroundColor: p.overlay, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: colors.navy2,
+    backgroundColor: p.modalBg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 16,
@@ -142,21 +148,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 14,
   },
-  sheetTitle: { color: colors.white, fontSize: 15, fontWeight: '800' },
+  sheetTitle: { color: p.text, fontSize: 15, fontWeight: '800' },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: p.isDark ? 'transparent' : p.inputBorder,
     height: 44,
     marginBottom: 12,
   },
-  searchInput: { flex: 1, color: colors.text, fontSize: 14 },
+  searchInput: { flex: 1, color: p.text, fontSize: 14 },
   list: { flexGrow: 0 },
   listContent: { paddingBottom: 10 },
-  emptyText: { color: colors.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 30 },
+  emptyText: { color: p.textMuted, fontSize: 13, textAlign: 'center', paddingVertical: 30 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -166,7 +174,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 4,
   },
-  rowActive: { backgroundColor: 'rgba(43,183,179,0.14)' },
-  rowText: { color: colors.text, fontSize: 14, flexShrink: 1, marginRight: 8 },
-  rowTextActive: { color: colors.teal, fontWeight: '700' },
+  rowActive: { backgroundColor: p.accentSoft },
+  rowText: { color: p.text, fontSize: 14, flexShrink: 1, marginRight: 8 },
+  rowTextActive: { color: p.accentText, fontWeight: '700' },
 });

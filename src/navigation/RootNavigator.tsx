@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
+import { useTheme } from '../context/ThemeContext';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ComponentProps } from 'react';
 import type { Ionicons } from '@expo/vector-icons';
@@ -121,13 +122,18 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const navTheme = {
-  ...DarkTheme,
-  colors: { ...DarkTheme.colors, background: colors.navy },
-};
 
 export default function RootNavigator() {
   const { token, isLoading } = useAuth();
+  const theme = useTheme();
+  // El fondo del navegador sigue el tema: al cambiar de pantalla no parpadea un fondo oscuro.
+  const navTheme = React.useMemo(
+    () => ({
+      ...(theme.isDark ? DarkTheme : DefaultTheme),
+      colors: { ...(theme.isDark ? DarkTheme.colors : DefaultTheme.colors), background: theme.bg[0] },
+    }),
+    [theme.isDark, theme.bg]
+  );
 
   // Tocar una notificacion push abre la O.S. (ver utils/notificationNavigation).
   React.useEffect(() => setupNotificationTapHandler(), []);
@@ -137,8 +143,8 @@ export default function RootNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.navy }}>
-        <ActivityIndicator size="large" color={colors.teal} />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bg[0] }}>
+        <ActivityIndicator size="large" color={theme.accent} />
       </View>
     );
   }

@@ -6,7 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { getSiteBaseUrl, logPreregOsQr } from '../api/client';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -19,6 +21,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'PreregQrDisplay'>;
  * (pr_token, en detail.php) -- aqui solo se pinta, no se genera nada nuevo.
  */
 export default function PreregQrDisplayScreen({ route, navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay, token } = route.params;
   const url = `${getSiteBaseUrl()}/registro/?t=${encodeURIComponent(token)}`;
 
@@ -36,12 +40,12 @@ export default function PreregQrDisplayScreen({ route, navigation }: Props) {
   };
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>O.S. {folioDisplay}</Text>
@@ -56,7 +60,7 @@ export default function PreregQrDisplayScreen({ route, navigation }: Props) {
             agregarse a la O.S.
           </Text>
 
-          <View style={[styles.qrCard, shadow.card]}>
+          <View style={[styles.qrCard, p.shadowCard]}>
             <QRCode value={url} size={240} backgroundColor="#fff" color="#0f172a" />
           </View>
 
@@ -66,7 +70,7 @@ export default function PreregQrDisplayScreen({ route, navigation }: Props) {
           </Text>
 
           <Pressable style={styles.shareBtn} onPress={compartir}>
-            <Ionicons name="share-outline" size={18} color="#06322f" />
+            <Ionicons name="share-outline" size={18} color={p.onAccent} />
             <Text style={styles.shareBtnText}>Compartir enlace</Text>
           </Pressable>
         </View>
@@ -75,7 +79,7 @@ export default function PreregQrDisplayScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -86,23 +90,23 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   content: { flex: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 10 },
-  instructions: { color: colors.textMuted, fontSize: 12.5, textAlign: 'center', lineHeight: 18, marginBottom: 20 },
+  instructions: { color: p.textMuted, fontSize: 12.5, textAlign: 'center', lineHeight: 18, marginBottom: 20 },
   qrCard: {
     backgroundColor: '#fff',
     borderRadius: radii.card,
     padding: 20,
     marginBottom: 20,
   },
-  codeLabel: { color: colors.textMuted, fontSize: 11.5, marginBottom: 6 },
+  codeLabel: { color: p.textMuted, fontSize: 11.5, marginBottom: 6 },
   code: {
-    color: colors.text,
+    color: p.text,
     fontSize: 12.5,
     fontWeight: '600',
     textAlign: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -112,10 +116,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: radii.button,
     paddingVertical: 13,
     paddingHorizontal: 24,
   },
-  shareBtnText: { color: '#06322f', fontWeight: '800', fontSize: 14 },
+  shareBtnText: { color: p.onAccent, fontWeight: '800', fontSize: 14 },
 });

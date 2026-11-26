@@ -18,7 +18,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import {
   getCreateOrderHotels,
   getCreateOrderOptions,
@@ -71,6 +73,8 @@ function formatDateDisplay(iso: string): string {
  * deshabilitados alla tambien, no es un recorte de esta version).
  */
 export default function EditarOrdenScreen({ route, navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay } = route.params;
 
   const [isLoading, setIsLoading] = useState(true);
@@ -199,22 +203,22 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
   };
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>#{folioDisplay}</Text>
           <View style={styles.backBtn} />
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 40 }} />
+          <ActivityIndicator color={p.accentText} style={{ marginTop: 40 }} />
         ) : loadError ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.dangerText} />
             <Text style={styles.errorText}>{loadError}</Text>
           </View>
         ) : (
@@ -235,7 +239,7 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
                 value={flight}
                 onChangeText={setFlight}
                 placeholder="# Vuelo"
-                placeholderTextColor={colors.placeholder}
+                placeholderTextColor={p.placeholder}
                 style={styles.input}
                 autoCapitalize="characters"
               />
@@ -255,7 +259,7 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
                   <View style={styles.hotelRowTop}>
                     <Text style={styles.hotelRowLabel}>Hotel {idx + 1}</Text>
                     <Pressable onPress={() => removeHotelRow(row)} hitSlop={8}>
-                      <Ionicons name="close-circle" size={18} color={colors.danger} />
+                      <Ionicons name="close-circle" size={18} color={p.dangerText} />
                     </Pressable>
                   </View>
                   {row.isNew ? (
@@ -277,32 +281,32 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
                     value={row.dispo}
                     onChangeText={(v) => updateHotelRow(row.key, { dispo: v })}
                     placeholder="Disponibilidad (# de cuartos)"
-                    placeholderTextColor={colors.placeholder}
+                    placeholderTextColor={p.placeholder}
                     keyboardType="number-pad"
                     style={[styles.input, { marginTop: 8 }]}
                   />
                 </View>
               ))}
               <Pressable style={styles.addHotelBtn} onPress={addHotelRow}>
-                <Ionicons name="add-circle-outline" size={16} color={colors.teal} />
+                <Ionicons name="add-circle-outline" size={16} color={p.accentText} />
                 <Text style={styles.addHotelText}>Agregar hotel</Text>
               </Pressable>
 
               <FieldLabel text="Fecha Entrada" />
               <Pressable style={styles.pickerField} onPress={() => setActivePicker('dateIn')}>
-                <Ionicons name="calendar-outline" size={16} color={colors.teal} />
+                <Ionicons name="calendar-outline" size={16} color={p.accentText} />
                 <Text style={styles.pickerFieldText}>{formatDateDisplay(dateIn)}</Text>
               </Pressable>
 
               <FieldLabel text="Fecha Salida" />
               <Pressable style={styles.pickerField} onPress={() => setActivePicker('dateOut')}>
-                <Ionicons name="calendar-outline" size={16} color={colors.teal} />
+                <Ionicons name="calendar-outline" size={16} color={p.accentText} />
                 <Text style={styles.pickerFieldText}>{formatDateDisplay(dateOut)}</Text>
               </Pressable>
 
               <FieldLabel text="Hora Pick Up" />
               <Pressable style={styles.pickerField} onPress={() => setActivePicker('hour')}>
-                <Ionicons name="time-outline" size={16} color={colors.teal} />
+                <Ionicons name="time-outline" size={16} color={p.accentText} />
                 <Text style={styles.pickerFieldText}>{hour} hrs.</Text>
               </Pressable>
 
@@ -311,7 +315,7 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
                 onPress={handleSubmit}
                 disabled={!canSubmit}
               >
-                {isSaving ? <ActivityIndicator color="#06322f" /> : <Text style={styles.submitText}>ACTUALIZAR</Text>}
+                {isSaving ? <ActivityIndicator color={p.onAccent} /> : <Text style={styles.submitText}>ACTUALIZAR</Text>}
               </Pressable>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -352,10 +356,12 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
 }
 
 function FieldLabel({ text }: { text: string }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return <Text style={styles.fieldLabel}>{text}</Text>;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -366,12 +372,12 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800' },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800' },
   content: { padding: 16, paddingBottom: 50 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
   fieldLabel: {
-    color: colors.textMuted,
+    color: p.textMuted,
     fontSize: 11.5,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -380,45 +386,51 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
+    borderWidth: p.isDark ? 0 : 1,
+    borderColor: p.inputBorder,
     borderRadius: radii.input,
     paddingHorizontal: 14,
     height: 46,
-    color: colors.text,
+    color: p.text,
     fontSize: 14,
   },
   readonlyField: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: p.inputBg,
+    borderWidth: p.isDark ? 0 : 1,
+    borderColor: p.inputBorder,
     borderRadius: radii.input,
     paddingHorizontal: 14,
     height: 46,
     justifyContent: 'center',
   },
-  readonlyText: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
+  readonlyText: { color: p.textMuted, fontSize: 14, fontWeight: '600' },
   pickerField: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
+    borderWidth: p.isDark ? 0 : 1,
+    borderColor: p.inputBorder,
     borderRadius: radii.input,
     paddingHorizontal: 14,
     height: 46,
   },
-  pickerFieldText: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  pickerFieldText: { color: p.text, fontSize: 14, fontWeight: '700' },
   hotelRow: {
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: radii.card,
     padding: 12,
     marginBottom: 10,
   },
   hotelRowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  hotelRowLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  hotelRowLabel: { color: p.textMuted, fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
   addHotelBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, marginBottom: 6 },
-  addHotelText: { color: colors.teal, fontWeight: '700', fontSize: 12.5 },
+  addHotelText: { color: p.accentText, fontWeight: '700', fontSize: 12.5 },
   submitBtn: {
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: radii.button,
     height: 54,
     alignItems: 'center',
@@ -426,9 +438,9 @@ const styles = StyleSheet.create({
     marginTop: 26,
   },
   submitBtnDisabled: { opacity: 0.5 },
-  submitText: { color: '#06322f', fontWeight: '900', fontSize: 15, letterSpacing: 0.5 },
-  iosPickerOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.5)' },
+  submitText: { color: p.onAccent, fontWeight: '900', fontSize: 15, letterSpacing: 0.5 },
+  iosPickerOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: p.overlay },
   iosPickerSheet: { backgroundColor: '#fff', borderTopLeftRadius: 18, borderTopRightRadius: 18, paddingBottom: 20 },
   iosPickerDone: { alignItems: 'flex-end', paddingHorizontal: 18, paddingVertical: 12 },
-  iosPickerDoneText: { color: colors.teal, fontWeight: '800', fontSize: 15 },
+  iosPickerDoneText: { color: p.accentText, fontWeight: '800', fontSize: 15 },
 });

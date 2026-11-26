@@ -16,7 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { deletePax, deleteRoom, ExistingPaxDTO, getHotelsForOrder, getOrderPax, HotelDTO, PaxType, updatePax } from '../api/client';
 import VoucherPhotoSection from '../components/VoucherPhotoSection';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -29,6 +31,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'EditPax'>;
  * Mismos campos que AddPaxScreen, precargados con lo que ya tenia guardado.
  */
 export default function EditPaxScreen({ route, navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay, typeAirline, pax } = route.params;
 
   const showOcupation = typeAirline === 'ep' || (typeAirline === 'all' && idAirport === 14);
@@ -178,12 +182,12 @@ export default function EditPaxScreen({ route, navigation }: Props) {
   };
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>Editar Pasajero</Text>
@@ -193,10 +197,10 @@ export default function EditPaxScreen({ route, navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 40 }} />
+          <ActivityIndicator color={p.accentText} style={{ marginTop: 40 }} />
         ) : loadError ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.dangerText} />
             <Text style={styles.errorText}>{loadError}</Text>
             <Pressable style={styles.retryBtn} onPress={load}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -205,7 +209,7 @@ export default function EditPaxScreen({ route, navigation }: Props) {
         ) : (
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-              <View style={[styles.paxCard, shadow.card]}>
+              <View style={[styles.paxCard, p.shadowCard]}>
                 <FieldLabel text="Hotel" />
                 <ChipRow>
                   {hotels.map((h) => (
@@ -234,7 +238,7 @@ export default function EditPaxScreen({ route, navigation }: Props) {
                   value={name}
                   onChangeText={setName}
                   placeholder="Nombre completo del pasajero"
-                  placeholderTextColor={colors.placeholder}
+                  placeholderTextColor={p.placeholder}
                   style={styles.input}
                   autoCapitalize="words"
                 />
@@ -255,7 +259,7 @@ export default function EditPaxScreen({ route, navigation }: Props) {
                   value={voucher}
                   onChangeText={setVoucher}
                   placeholder="Número de voucher"
-                  placeholderTextColor={colors.placeholder}
+                  placeholderTextColor={p.placeholder}
                   style={styles.input}
                   autoCapitalize="characters"
                 />
@@ -274,7 +278,7 @@ export default function EditPaxScreen({ route, navigation }: Props) {
                       value={fSalida}
                       onChangeText={setFSalida}
                       placeholder="AAAA-MM-DD"
-                      placeholderTextColor={colors.placeholder}
+                      placeholderTextColor={p.placeholder}
                       style={styles.input}
                     />
                   </View>
@@ -284,7 +288,7 @@ export default function EditPaxScreen({ route, navigation }: Props) {
                       value={hora}
                       onChangeText={setHora}
                       placeholder="HH:MM"
-                      placeholderTextColor={colors.placeholder}
+                      placeholderTextColor={p.placeholder}
                       style={styles.input}
                     />
                   </View>
@@ -340,7 +344,7 @@ export default function EditPaxScreen({ route, navigation }: Props) {
                 onPress={handleDeletePax}
                 disabled={isDeleting || isSaving}
               >
-                <Ionicons name="trash-outline" size={16} color="#fff" />
+                <Ionicons name="trash-outline" size={16} color={p.onAccent} />
                 <Text style={styles.deleteBtnText}>{isDeleting ? 'Eliminando...' : 'Eliminar pasajero'}</Text>
               </Pressable>
 
@@ -350,7 +354,7 @@ export default function EditPaxScreen({ route, navigation }: Props) {
                   onPress={handleDeleteRoom}
                   disabled={isDeleting || isSaving}
                 >
-                  <Ionicons name="trash-bin-outline" size={16} color={colors.danger} />
+                  <Ionicons name="trash-bin-outline" size={16} color={p.dangerText} />
                   <Text style={styles.deleteRoomBtnText}>
                     Eliminar habitación completa ({roommates.length + 1} pasajeros)
                   </Text>
@@ -365,14 +369,20 @@ export default function EditPaxScreen({ route, navigation }: Props) {
 }
 
 function FieldLabel({ text }: { text: string }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return <Text style={styles.fieldLabel}>{text}</Text>;
 }
 
 function ChipRow({ children }: { children: React.ReactNode }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return <View style={styles.chipRow}>{children}</View>;
 }
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
@@ -381,23 +391,25 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 }
 
 function MealCounter({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.mealRow}>
       <Text style={styles.mealLabel}>{label}</Text>
       <View style={styles.mealCounter}>
         <Pressable style={styles.mealBtn} onPress={() => onChange(Math.max(0, value - 1))}>
-          <Ionicons name="remove" size={16} color="#fff" />
+          <Ionicons name="remove" size={16} color={p.onAccent} />
         </Pressable>
         <Text style={styles.mealValue}>{value}</Text>
         <Pressable style={styles.mealBtn} onPress={() => onChange(Math.min(6, value + 1))}>
-          <Ionicons name="add" size={16} color="#fff" />
+          <Ionicons name="add" size={16} color={p.onAccent} />
         </Pressable>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -408,22 +420,22 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   content: { padding: 16, paddingBottom: 40 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   paxCard: {
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 14,
   },
   fieldLabel: {
-    color: colors.textMuted,
+    color: p.textMuted,
     fontSize: 11.5,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -432,52 +444,52 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 14,
     height: 46,
-    color: colors.text,
+    color: p.text,
     fontSize: 14,
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: p.inputBg,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
-  chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
-  chipText: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
-  chipTextActive: { color: '#06322f' },
+  chipActive: { backgroundColor: p.accent, borderColor: p.accent },
+  chipText: { color: p.text, fontSize: 12.5, fontWeight: '700' },
+  chipTextActive: { color: p.onAccent },
   row2: { flexDirection: 'row', gap: 12 },
   row2Item: { flex: 1 },
   mealRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.navy2,
+    backgroundColor: p.isDark ? '#233163' : p.inputBg,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginBottom: 8,
   },
-  mealLabel: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  mealLabel: { color: p.text, fontSize: 13, fontWeight: '700' },
   mealCounter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   mealBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.navy3,
+    backgroundColor: p.isDark ? '#2b3f86' : p.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mealValue: { color: colors.white, fontWeight: '800', fontSize: 14, minWidth: 18, textAlign: 'center' },
+  mealValue: { color: p.text, fontWeight: '800', fontSize: 14, minWidth: 18, textAlign: 'center' },
   submitBtn: {
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: radii.button,
     height: 52,
     alignItems: 'center',
@@ -485,13 +497,13 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   submitBtnDisabled: { opacity: 0.5 },
-  submitText: { color: '#06322f', fontWeight: '800', fontSize: 15 },
+  submitText: { color: p.onAccent, fontWeight: '800', fontSize: 15 },
   deleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
-    backgroundColor: colors.danger,
+    backgroundColor: p.danger,
     borderRadius: radii.button,
     height: 48,
     marginTop: 12,
@@ -504,10 +516,10 @@ const styles = StyleSheet.create({
     gap: 7,
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: colors.danger,
+    borderColor: p.danger,
     borderRadius: radii.button,
     height: 48,
     marginTop: 10,
   },
-  deleteRoomBtnText: { color: colors.danger, fontWeight: '800', fontSize: 13 },
+  deleteRoomBtnText: { color: p.dangerText, fontWeight: '800', fontSize: 13 },
 });

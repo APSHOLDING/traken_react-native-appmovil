@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
+import { hexA } from '../theme/themes';
+import { radii } from '../theme/colors';
 import { scanSupportAI } from '../api/client';
 import { resizeForUpload } from '../utils/imageResize';
 
@@ -20,6 +23,8 @@ type Props = {
  * foto no coincide con el de la O.S.
  */
 export default function SupportScanButton({ idOrder, idAirport, onDetected }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [scanning, setScanning] = useState(false);
 
   const pick = async (source: 'camera' | 'library'): Promise<string | null> => {
@@ -72,7 +77,7 @@ export default function SupportScanButton({ idOrder, idAirport, onDetected }: Pr
   if (scanning) {
     return (
       <View style={styles.scanBox}>
-        <ActivityIndicator color={colors.teal} size="small" />
+        <ActivityIndicator color="#7c3aed" size="small" />
         <Text style={styles.scanText}>Leyendo PNR/voucher…</Text>
       </View>
     );
@@ -81,33 +86,33 @@ export default function SupportScanButton({ idOrder, idAirport, onDetected }: Pr
   return (
     <View style={styles.row}>
       <Pressable style={styles.btn} onPress={() => empezar('camera')}>
-        <Ionicons name="camera-outline" size={14} color="#fff" />
+        <Ionicons name="camera-outline" size={14} color={p.onAccent} />
         <Text style={styles.btnText}>Leer PNR/voucher (opcional)</Text>
       </Pressable>
       <Pressable style={[styles.btn, styles.btnGhost]} onPress={() => empezar('library')}>
-        <Ionicons name="images-outline" size={14} color="#0f172a" />
+        <Ionicons name="images-outline" size={14} color={p.text} />
         <Text style={styles.btnGhostText}>Galería</Text>
       </Pressable>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 4 },
   btn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#7c3aed', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12 },
-  btnGhost: { backgroundColor: '#f1f5f9' },
-  btnText: { color: '#fff', fontWeight: '700', fontSize: 11.5 },
-  btnGhostText: { color: '#0f172a', fontWeight: '700', fontSize: 11.5 },
+  btnGhost: { backgroundColor: p.cardStrong },
+  btnText: { color: p.onAccent, fontWeight: '700', fontSize: 11.5 },
+  btnGhostText: { color: p.text, fontWeight: '700', fontSize: 11.5 },
   scanBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#f5f3ff',
+    backgroundColor: p.isDark ? hexA('#7c3aed', 0.16) : '#f5f3ff',
     borderWidth: 1,
-    borderColor: '#ddd6fe',
+    borderColor: p.isDark ? hexA('#7c3aed', 0.4) : '#ddd6fe',
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
-  scanText: { color: '#5b21b6', fontSize: 12.5 },
+  scanText: { color: p.isDark ? '#c4b5fd' : '#5b21b6', fontSize: 12.5 },
 });

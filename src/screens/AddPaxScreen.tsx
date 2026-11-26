@@ -16,7 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { getHotelsForOrder, getPreregListForOs, HotelDTO, PaxType, PreregListItem } from '../api/client';
 import { addPax } from '../api/queuedWrites';
 import VoucherScanButton from '../components/VoucherScanButton';
@@ -69,6 +71,8 @@ function makePassenger(fSalida: string, hora: string): PassengerForm {
  * completo por cada persona cuando comparten habitacion.
  */
 export default function AddPaxScreen({ route, navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay, iata, typeAirline, prefill, otraOsPrefill } = route.params;
 
   const showOcupation = typeAirline === 'ep' || (typeAirline === 'all' && idAirport === 14);
@@ -280,12 +284,12 @@ export default function AddPaxScreen({ route, navigation }: Props) {
   };
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>Agregar Habitación</Text>
@@ -295,10 +299,10 @@ export default function AddPaxScreen({ route, navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 40 }} />
+          <ActivityIndicator color={p.accentText} style={{ marginTop: 40 }} />
         ) : loadError ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.dangerText} />
             <Text style={styles.errorText}>{loadError}</Text>
             <Pressable style={styles.retryBtn} onPress={load}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -309,7 +313,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
               {offlineSince && (
                 <View style={styles.offlineBanner}>
-                  <Ionicons name="cloud-offline-outline" size={16} color="#fde68a" />
+                  <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
                   <Text style={styles.offlineBannerText}>
                     Sin conexión: mostrando la disponibilidad guardada el {formatSavedAt(offlineSince)}.
                   </Text>
@@ -318,7 +322,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
 
               {prefillActive && appliedPrefill && (
                 <View style={styles.prefillBanner}>
-                  <Ionicons name="qr-code-outline" size={16} color="#67e8f9" />
+                  <Ionicons name="qr-code-outline" size={16} color={p.accentText} />
                   <Text style={styles.prefillBannerText}>
                     Datos precargados desde el pre-registro por QR ({1 + appliedPrefill.comps.length}{' '}
                     {1 + appliedPrefill.comps.length === 1 ? 'persona' : 'personas'}).
@@ -332,7 +336,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
 
               {otraOsActive && otraOsPrefill && (
                 <View style={styles.otraOsBanner}>
-                  <Ionicons name="swap-horizontal-outline" size={16} color="#93c5fd" />
+                  <Ionicons name="swap-horizontal-outline" size={16} color={p.isDark ? '#93c5fd' : '#1d4ed8'} />
                   <Text style={styles.otraOsBannerText}>
                     Pasajero autorizado de otra O.S. Revisa y guarda para completar el movimiento.
                   </Text>
@@ -342,12 +346,12 @@ export default function AddPaxScreen({ route, navigation }: Props) {
               {!prefillActive && preregPending > 0 && (
                 <View style={styles.passiveBannerWrap}>
                   <Pressable style={styles.passiveBanner} onPress={() => setShowPreregList((v) => !v)}>
-                    <Ionicons name="qr-code-outline" size={16} color="#fcd34d" />
+                    <Ionicons name="qr-code-outline" size={16} color={p.warnText} />
                     <Text style={styles.passiveBannerText}>
                       {preregPending} {preregPending === 1 ? 'persona se' : 'personas se'} pre-registraron por QR para
                       esta O.S. · toca para usar sus datos
                     </Text>
-                    <Ionicons name={showPreregList ? 'chevron-up' : 'chevron-down'} size={16} color="#fcd34d" />
+                    <Ionicons name={showPreregList ? 'chevron-up' : 'chevron-down'} size={16} color={p.warnText} />
                   </Pressable>
                   {showPreregList && (
                     <View style={styles.passiveList}>
@@ -413,7 +417,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
               ))}
 
               <Pressable style={styles.addPassengerBtn} onPress={addPassenger}>
-                <Ionicons name="add-circle-outline" size={18} color={colors.teal} />
+                <Ionicons name="add-circle-outline" size={18} color={p.accentText} />
                 <Text style={styles.addPassengerText}>Agregar pasajero a este cuarto</Text>
               </Pressable>
 
@@ -451,13 +455,15 @@ function PassengerCard({
   idOrder: number;
   idAirport: number;
 }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
-    <View style={[styles.paxCard, shadow.card]}>
+    <View style={[styles.paxCard, p.shadowCard]}>
       <View style={styles.paxCardHead}>
         <Text style={styles.paxCardTitle}>Pasajero {index + 1}</Text>
         {canRemove && (
           <Pressable onPress={onRemove} hitSlop={8}>
-            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+            <Ionicons name="trash-outline" size={18} color={p.dangerText} />
           </Pressable>
         )}
       </View>
@@ -467,7 +473,7 @@ function PassengerCard({
         value={passenger.name}
         onChangeText={(t) => onChange({ name: t })}
         placeholder="Nombre completo del pasajero"
-        placeholderTextColor={colors.placeholder}
+        placeholderTextColor={p.placeholder}
         style={styles.input}
         autoCapitalize="words"
       />
@@ -485,7 +491,7 @@ function PassengerCard({
         value={passenger.voucher}
         onChangeText={(t) => onChange({ voucher: t })}
         placeholder="Número de voucher"
-        placeholderTextColor={colors.placeholder}
+        placeholderTextColor={p.placeholder}
         style={styles.input}
         autoCapitalize="characters"
       />
@@ -508,7 +514,7 @@ function PassengerCard({
             value={passenger.fSalida}
             onChangeText={(t) => onChange({ fSalida: t })}
             placeholder="AAAA-MM-DD"
-            placeholderTextColor={colors.placeholder}
+            placeholderTextColor={p.placeholder}
             style={styles.input}
           />
         </View>
@@ -518,7 +524,7 @@ function PassengerCard({
             value={passenger.hora}
             onChangeText={(t) => onChange({ hora: t })}
             placeholder="HH:MM"
-            placeholderTextColor={colors.placeholder}
+            placeholderTextColor={p.placeholder}
             style={styles.input}
           />
         </View>
@@ -564,14 +570,20 @@ function PassengerCard({
 }
 
 function FieldLabel({ text }: { text: string }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return <Text style={styles.fieldLabel}>{text}</Text>;
 }
 
 function ChipRow({ children }: { children: React.ReactNode }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return <View style={styles.chipRow}>{children}</View>;
 }
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
@@ -580,23 +592,25 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 }
 
 function MealCounter({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.mealRow}>
       <Text style={styles.mealLabel}>{label}</Text>
       <View style={styles.mealCounter}>
         <Pressable style={styles.mealBtn} onPress={() => onChange(Math.max(0, value - 1))}>
-          <Ionicons name="remove" size={16} color="#fff" />
+          <Ionicons name="remove" size={16} color={p.accentText} />
         </Pressable>
         <Text style={styles.mealValue}>{value}</Text>
         <Pressable style={styles.mealBtn} onPress={() => onChange(Math.min(6, value + 1))}>
-          <Ionicons name="add" size={16} color="#fff" />
+          <Ionicons name="add" size={16} color={p.accentText} />
         </Pressable>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -607,39 +621,39 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   content: { padding: 16, paddingBottom: 40 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(245,158,11,0.14)',
+    backgroundColor: p.warnSoft,
     borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.35)',
+    borderColor: p.warnBorder,
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 14,
   },
-  offlineBannerText: { color: '#fde68a', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  offlineBannerText: { color: p.warnText, fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
   prefillBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(103,232,249,0.14)',
+    backgroundColor: p.accentSoft,
     borderWidth: 1,
-    borderColor: 'rgba(103,232,249,0.35)',
+    borderColor: p.accentBorder,
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 14,
   },
-  prefillBannerText: { color: '#67e8f9', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  prefillBannerText: { color: p.accentText, fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
   otraOsBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -652,44 +666,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginBottom: 14,
   },
-  otraOsBannerText: { color: '#93c5fd', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
+  otraOsBannerText: { color: p.isDark ? '#93c5fd' : '#1d4ed8', fontSize: 11.5, flexShrink: 1, lineHeight: 16 },
   passiveBannerWrap: { marginBottom: 14 },
   passiveBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(245,158,11,0.14)',
+    backgroundColor: p.warnSoft,
     borderWidth: 1,
-    borderColor: 'rgba(245,158,11,0.35)',
+    borderColor: p.warnBorder,
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
-  passiveBannerText: { flex: 1, color: '#fcd34d', fontSize: 11.5, lineHeight: 16 },
+  passiveBannerText: { flex: 1, color: p.warnText, fontSize: 11.5, lineHeight: 16 },
   passiveList: {
     marginTop: 6,
     borderRadius: radii.input,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     overflow: 'hidden',
   },
   passiveItem: {
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
+    borderBottomColor: p.divider,
   },
-  passiveItemName: { color: colors.white, fontWeight: '700', fontSize: 13 },
-  passiveItemSub: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
-  noRooms: { color: colors.textMuted, fontSize: 13, marginBottom: 8 },
-  divider: { height: 1, backgroundColor: colors.cardBorder, marginTop: 20, marginBottom: 14 },
-  sectionTitle: { color: colors.white, fontWeight: '800', fontSize: 13.5, marginBottom: 10 },
+  passiveItemName: { color: p.text, fontWeight: '700', fontSize: 13 },
+  passiveItemSub: { color: p.textMuted, fontSize: 11, marginTop: 2 },
+  noRooms: { color: p.textMuted, fontSize: 13, marginBottom: 8 },
+  divider: { height: 1, backgroundColor: p.divider, marginTop: 20, marginBottom: 14 },
+  sectionTitle: { color: p.text, fontWeight: '800', fontSize: 13.5, marginBottom: 10 },
   paxCard: {
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 14,
     marginBottom: 14,
   },
@@ -699,22 +713,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 4,
   },
-  paxCardTitle: { color: colors.teal, fontWeight: '800', fontSize: 12.5, textTransform: 'uppercase', letterSpacing: 0.5 },
+  paxCardTitle: { color: p.accentText, fontWeight: '800', fontSize: 12.5, textTransform: 'uppercase', letterSpacing: 0.5 },
   addPassengerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: colors.teal,
+    borderColor: p.accentText,
     borderStyle: 'dashed',
     borderRadius: radii.input,
     paddingVertical: 12,
     marginBottom: 20,
   },
-  addPassengerText: { color: colors.teal, fontWeight: '800', fontSize: 13 },
+  addPassengerText: { color: p.accentText, fontWeight: '800', fontSize: 13 },
   fieldLabel: {
-    color: colors.textMuted,
+    color: p.textMuted,
     fontSize: 11.5,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -723,52 +737,54 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: p.isDark ? 'transparent' : p.inputBorder,
     height: 46,
-    color: colors.text,
+    color: p.text,
     fontSize: 14,
   },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 14,
   },
-  chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
-  chipText: { color: colors.text, fontSize: 12.5, fontWeight: '700' },
-  chipTextActive: { color: '#06322f' },
+  chipActive: { backgroundColor: p.accent, borderColor: p.accent },
+  chipText: { color: p.text, fontSize: 12.5, fontWeight: '700' },
+  chipTextActive: { color: p.onAccent },
   row2: { flexDirection: 'row', gap: 12 },
   row2Item: { flex: 1 },
   mealRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.navy2,
+    backgroundColor: p.inputBg,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: radii.input,
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginBottom: 8,
   },
-  mealLabel: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  mealLabel: { color: p.text, fontSize: 13, fontWeight: '700' },
   mealCounter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   mealBtn: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.navy3,
+    backgroundColor: p.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mealValue: { color: colors.white, fontWeight: '800', fontSize: 14, minWidth: 18, textAlign: 'center' },
+  mealValue: { color: p.text, fontWeight: '800', fontSize: 14, minWidth: 18, textAlign: 'center' },
   submitBtn: {
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: radii.button,
     height: 52,
     alignItems: 'center',
@@ -776,5 +792,5 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   submitBtnDisabled: { opacity: 0.5 },
-  submitText: { color: '#06322f', fontWeight: '800', fontSize: 15 },
+  submitText: { color: p.onAccent, fontWeight: '800', fontSize: 15 },
 });

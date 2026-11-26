@@ -5,7 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { getIncidenciasSc, IncidenciaScItem, IncidenciasScFilters, StationDTO, IncidenciaScEventOption } from '../api/client';
 import SelectField from '../components/SelectField';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -24,11 +26,11 @@ const STATUS_FILTERS: { key: IncidenciasScFilters['status'] | ''; label: string 
  * op/modulos/scIncidencias/inicio.php. Solo lectura/auditoria, acceso
  * restringido por permiso individual (ver HomeScreen y el backend).
  */
-function desfaseColor(dias: number): { bg: string; fg: string } {
-  if (dias <= 0) return { bg: 'rgba(22,163,74,0.2)', fg: '#4ade80' };
-  if (dias <= 7) return { bg: 'rgba(234,179,8,0.2)', fg: '#facc15' };
-  if (dias <= 30) return { bg: 'rgba(249,115,22,0.2)', fg: '#fb923c' };
-  return { bg: 'rgba(220,38,38,0.2)', fg: '#fca5a5' };
+function desfaseColor(dias: number, isDark: boolean): { bg: string; fg: string } {
+  if (dias <= 0) return isDark ? { bg: 'rgba(22,163,74,0.2)', fg: '#4ade80' } : { bg: 'rgba(22,163,74,0.14)', fg: '#15803d' };
+  if (dias <= 7) return isDark ? { bg: 'rgba(234,179,8,0.2)', fg: '#facc15' } : { bg: 'rgba(234,179,8,0.18)', fg: '#a16207' };
+  if (dias <= 30) return isDark ? { bg: 'rgba(249,115,22,0.2)', fg: '#fb923c' } : { bg: 'rgba(249,115,22,0.15)', fg: '#c2410c' };
+  return isDark ? { bg: 'rgba(220,38,38,0.2)', fg: '#fca5a5' } : { bg: 'rgba(220,38,38,0.12)', fg: '#b91c1c' };
 }
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -58,6 +60,8 @@ function statusLabel(status: string): string {
 }
 
 export default function IncidenciasScListScreen({ navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [items, setItems] = useState<IncidenciaScItem[]>([]);
   const [total, setTotal] = useState(0);
   const [avgDesfase, setAvgDesfase] = useState(0);
@@ -121,12 +125,12 @@ export default function IncidenciasScListScreen({ navigation }: Props) {
   );
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>Incidencias SC</Text>
@@ -159,14 +163,14 @@ export default function IncidenciasScListScreen({ navigation }: Props) {
         <View style={styles.filtersBox}>
           <View style={styles.mesRow}>
             <Pressable style={styles.mesBtn} onPress={() => setMes(shiftMes(mes || mesActual(), -1))} hitSlop={8}>
-              <Ionicons name="chevron-back" size={18} color={colors.white} />
+              <Ionicons name="chevron-back" size={18} color={p.text} />
             </Pressable>
             <Pressable style={styles.mesCenter} onPress={() => setMes(mes ? '' : mesActual())}>
-              <Ionicons name="calendar-outline" size={14} color={colors.teal} />
+              <Ionicons name="calendar-outline" size={14} color={p.accentText} />
               <Text style={styles.mesText}>{mes ? mesLabel(mes) : 'Todos los meses'}</Text>
             </Pressable>
             <Pressable style={styles.mesBtn} onPress={() => setMes(shiftMes(mes || mesActual(), 1))} hitSlop={8}>
-              <Ionicons name="chevron-forward" size={18} color={colors.white} />
+              <Ionicons name="chevron-forward" size={18} color={p.text} />
             </Pressable>
           </View>
           <SelectField
@@ -187,17 +191,17 @@ export default function IncidenciasScListScreen({ navigation }: Props) {
           />
           {hayFiltros && (
             <Pressable style={styles.clearBtn} onPress={limpiarFiltros}>
-              <Ionicons name="close-circle-outline" size={15} color={colors.teal} />
+              <Ionicons name="close-circle-outline" size={15} color={p.accentText} />
               <Text style={styles.clearText}>Limpiar filtros</Text>
             </Pressable>
           )}
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 30 }} />
+          <ActivityIndicator color={p.accentText} style={{ marginTop: 30 }} />
         ) : error ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.danger} />
             <Text style={styles.errorText}>{error}</Text>
             <Pressable style={styles.retryBtn} onPress={load}>
               <Text style={styles.retryText}>Reintentar</Text>
@@ -210,14 +214,14 @@ export default function IncidenciasScListScreen({ navigation }: Props) {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <View style={styles.emptyWrap}>
-                <Ionicons name="checkmark-circle-outline" size={28} color={colors.textMuted} />
+                <Ionicons name="checkmark-circle-outline" size={28} color={p.textMuted} />
                 <Text style={styles.emptyText}>No hay incidencias con estos filtros.</Text>
               </View>
             }
             renderItem={({ item }) => {
-              const dColor = desfaseColor(item.desfase_dias);
+              const dColor = desfaseColor(item.desfase_dias, p.isDark);
               return (
-                <View style={[styles.card, shadow.card]}>
+                <View style={[styles.card, p.shadowCard]}>
                   <View style={styles.cardTop}>
                     <Text style={styles.cardFolio}>
                       O.S. {item.folio_display} · {item.airport_iata}
@@ -253,7 +257,7 @@ export default function IncidenciasScListScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -264,71 +268,71 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   summaryRow: { flexDirection: 'row', gap: 8, marginHorizontal: 16, marginBottom: 10 },
   summaryCard: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: radii.card,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  summaryValue: { color: colors.white, fontSize: 20, fontWeight: '800' },
-  summaryLabel: { color: colors.textMuted, fontSize: 10, marginTop: 2, textTransform: 'uppercase' },
+  summaryValue: { color: p.text, fontSize: 20, fontWeight: '800' },
+  summaryLabel: { color: p.textMuted, fontSize: 10, marginTop: 2, textTransform: 'uppercase' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginHorizontal: 16, marginBottom: 10 },
   chip: {
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: 20,
     paddingVertical: 7,
     paddingHorizontal: 13,
   },
-  chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
-  chipText: { color: colors.text, fontSize: 12, fontWeight: '700' },
-  chipTextActive: { color: '#06322f' },
+  chipActive: { backgroundColor: p.accent, borderColor: p.accent },
+  chipText: { color: p.text, fontSize: 12, fontWeight: '700' },
+  chipTextActive: { color: p.onAccent },
   filtersBox: { marginHorizontal: 16, marginBottom: 10, gap: 8 },
   mesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: radii.card,
   },
   mesBtn: { width: 42, height: 40, alignItems: 'center', justifyContent: 'center' },
   mesCenter: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' },
-  mesText: { color: colors.white, fontSize: 13, fontWeight: '700' },
+  mesText: { color: p.text, fontSize: 13, fontWeight: '700' },
   clearBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', alignSelf: 'flex-end', paddingVertical: 2 },
-  clearText: { color: colors.teal, fontSize: 12, fontWeight: '700' },
+  clearText: { color: p.accentText, fontSize: 12, fontWeight: '700' },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
-  retryText: { color: '#06322f', fontWeight: '800', fontSize: 13 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  retryBtn: { backgroundColor: p.accent, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
+  retryText: { color: p.onAccent, fontWeight: '800', fontSize: 13 },
   listContent: { paddingHorizontal: 16, paddingBottom: 30 },
   emptyWrap: { alignItems: 'center', paddingVertical: 60, gap: 8 },
-  emptyText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
+  emptyText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
   card: {
     borderRadius: radii.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     padding: 14,
     marginBottom: 10,
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardFolio: { color: colors.white, fontWeight: '800', fontSize: 13.5 },
+  cardFolio: { color: p.text, fontWeight: '800', fontSize: 13.5 },
   desfasePill: { borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
   desfasePillText: { fontSize: 11, fontWeight: '800' },
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  eventBadge: { backgroundColor: 'rgba(245,158,11,0.2)', borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
-  eventBadgeText: { color: '#fbbf24', fontSize: 10.5, fontWeight: '800' },
-  statusText: { color: colors.textMuted, fontSize: 11.5 },
-  cardSub: { color: colors.textMuted, fontSize: 12, marginTop: 6 },
+  eventBadge: { backgroundColor: p.isDark ? 'rgba(245,158,11,0.2)' : p.warnSoft, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
+  eventBadgeText: { color: p.isDark ? '#fbbf24' : p.warnText, fontSize: 10.5, fontWeight: '800' },
+  statusText: { color: p.textMuted, fontSize: 11.5 },
+  cardSub: { color: p.textMuted, fontSize: 12, marginTop: 6 },
   datesRow: { flexDirection: 'row', gap: 14, marginTop: 6 },
-  dateText: { color: colors.textMuted, fontSize: 11 },
-  userText: { color: colors.teal, fontSize: 11, fontWeight: '700', marginTop: 6 },
+  dateText: { color: p.textMuted, fontSize: 11 },
+  userText: { color: p.accentText, fontSize: 11, fontWeight: '700', marginTop: 6 },
 });

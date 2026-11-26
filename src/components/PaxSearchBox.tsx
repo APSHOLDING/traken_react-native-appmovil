@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { PaxSearchItem, searchPaxByName } from '../api/client';
 
 function statusLabel(status: string): { label: string; color: string; bg: string } {
@@ -22,6 +24,8 @@ type Props = {
  * sobre Órdenes Abiertas y Reportes (op/modulos/open/buscarPax.php).
  */
 export default function PaxSearchBox({ estado, onPick }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [query, setQuery] = useState('');
   const [items, setItems] = useState<PaxSearchItem[]>([]);
   const [mas, setMas] = useState(false);
@@ -68,24 +72,24 @@ export default function PaxSearchBox({ estado, onPick }: Props) {
   const q = query.trim();
 
   return (
-    <View style={[styles.box, shadow.card]}>
+    <View style={[styles.box, p.shadowCard]}>
       <Text style={styles.title}>🔎 Buscar pasajero por nombre</Text>
       <View style={styles.row}>
         <TextInput
           value={query}
           onChangeText={setQuery}
           placeholder="Nombre o apellido del pasajero…"
-          placeholderTextColor={colors.placeholder}
+          placeholderTextColor={p.placeholder}
           style={styles.input}
           autoCapitalize="characters"
           autoCorrect={false}
         />
         {query ? (
           <Pressable style={styles.clearBtn} onPress={() => setQuery('')} hitSlop={8}>
-            <Ionicons name="close" size={16} color={colors.textMuted} />
+            <Ionicons name="close" size={16} color={p.textMuted} />
           </Pressable>
         ) : null}
-        {isSearching ? <ActivityIndicator color={colors.teal} size="small" /> : null}
+        {isSearching ? <ActivityIndicator color={p.accentText} size="small" /> : null}
       </View>
       <Text style={styles.hint}>
         {estado === 'open' ? 'Busca en las O.S. abiertas de tus estaciones.' : 'Busca en todas las O.S. de tus estaciones.'}{' '}
@@ -145,45 +149,47 @@ export default function PaxSearchBox({ estado, onPick }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   box: {
-    backgroundColor: colors.card,
+    backgroundColor: p.card,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: radii.card,
     padding: 13,
     marginHorizontal: 16,
     marginBottom: 10,
   },
-  title: { color: colors.white, fontWeight: '800', fontSize: 13.5, marginBottom: 8 },
+  title: { color: p.text, fontWeight: '800', fontSize: 13.5, marginBottom: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   input: {
     flex: 1,
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
     borderRadius: radii.input,
     paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: p.isDark ? 'transparent' : p.inputBorder,
     height: 42,
-    color: colors.text,
+    color: p.text,
     fontSize: 13.5,
   },
   clearBtn: { padding: 4 },
-  hint: { color: colors.textMuted, fontSize: 11, marginTop: 7, lineHeight: 15 },
-  msg: { color: colors.textMuted, fontSize: 12, marginTop: 10 },
+  hint: { color: p.textMuted, fontSize: 11, marginTop: 7, lineHeight: 15 },
+  msg: { color: p.textMuted, fontSize: 12, marginTop: 10 },
   results: { marginTop: 4 },
   resultsScroll: { maxHeight: 320 },
   item: {
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: p.cardBorder,
     borderRadius: radii.card,
     padding: 11,
     marginTop: 8,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: p.isDark ? 'rgba(255,255,255,0.03)' : '#f8fafc',
   },
-  itemName: { color: colors.white, fontWeight: '800', fontSize: 13 },
+  itemName: { color: p.text, fontWeight: '800', fontSize: 13 },
   itemLine: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 5 },
-  osChip: { backgroundColor: colors.teal, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 2 },
-  osChipText: { color: '#06322f', fontWeight: '800', fontSize: 10.5 },
+  osChip: { backgroundColor: p.accent, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 2 },
+  osChipText: { color: p.onAccent, fontWeight: '800', fontSize: 10.5 },
   statusChip: { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
   statusChipText: { fontSize: 10, fontWeight: '800' },
-  itemSub: { color: colors.textMuted, fontSize: 11, marginTop: 4, flexShrink: 1 },
+  itemSub: { color: p.textMuted, fontSize: 11, marginTop: 4, flexShrink: 1 },
 });

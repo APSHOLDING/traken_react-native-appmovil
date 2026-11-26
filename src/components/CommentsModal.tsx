@@ -12,7 +12,8 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { CommentDTO, getComments } from '../api/client';
 import { addComment } from '../api/queuedWrites';
 import { getCache, saveCache } from '../utils/offlineCache';
@@ -32,6 +33,8 @@ type Props = {
  * op/api/orders/comments.php y commentAdd.php.
  */
 export default function CommentsModal({ visible, onClose, idOrder, idAirport, folioDisplay }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [items, setItems] = useState<CommentDTO[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [text, setText] = useState('');
@@ -115,21 +118,21 @@ export default function CommentsModal({ visible, onClose, idOrder, idAirport, fo
                 <Text style={styles.headSub}>OS #{folioDisplay}</Text>
               </View>
               <Pressable onPress={onClose} hitSlop={10}>
-                <Ionicons name="close" size={22} color={colors.ink2} />
+                <Ionicons name="close" size={22} color={p.textMuted} />
               </Pressable>
             </View>
 
             <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
               {offlineSince && !isLoading && (
                 <View style={styles.offlineBanner}>
-                  <Ionicons name="cloud-offline-outline" size={14} color="#92400e" />
+                  <Ionicons name="cloud-offline-outline" size={14} color={p.warnText} />
                   <Text style={styles.offlineBannerText}>
                     Sin conexión: mostrando lo guardado el {formatSavedAt(offlineSince)}.
                   </Text>
                 </View>
               )}
               {isLoading ? (
-                <ActivityIndicator color={colors.teal} style={{ marginVertical: 20 }} />
+                <ActivityIndicator color={p.accentText} style={{ marginVertical: 20 }} />
               ) : error ? (
                 <Text style={styles.emptyText}>{error}</Text>
               ) : items.length === 0 ? (
@@ -154,7 +157,7 @@ export default function CommentsModal({ visible, onClose, idOrder, idAirport, fo
                 value={text}
                 onChangeText={setText}
                 placeholder="Escribe un comentario..."
-                placeholderTextColor={colors.mut}
+                placeholderTextColor={p.placeholder}
                 style={styles.input}
                 multiline
                 maxLength={2000}
@@ -179,11 +182,13 @@ export default function CommentsModal({ visible, onClose, idOrder, idAirport, fo
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'center', padding: 16 },
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: p.overlay, justifyContent: 'center', padding: 16 },
   kav: { width: '100%' },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: p.modalBg,
+    borderWidth: 1,
+    borderColor: p.cardBorder,
     borderRadius: 18,
     maxHeight: '80%',
     overflow: 'hidden',
@@ -195,47 +200,48 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: p.divider,
   },
-  headTitle: { fontSize: 15.5, fontWeight: '800', color: colors.navy },
-  headSub: { fontSize: 12, color: colors.ink2, marginTop: 2 },
+  headTitle: { fontSize: 15.5, fontWeight: '800', color: p.text },
+  headSub: { fontSize: 12, color: p.textMuted, marginTop: 2 },
   list: { flexGrow: 0 },
   listContent: { padding: 18, gap: 10, minHeight: 100 },
-  emptyText: { fontSize: 13, color: '#94a3b8', textAlign: 'center', paddingVertical: 12 },
+  emptyText: { fontSize: 13, color: p.textMuted, textAlign: 'center', paddingVertical: 12 },
   offlineBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    backgroundColor: '#fffbeb',
+    backgroundColor: p.warnSoft,
     borderWidth: 1,
-    borderColor: '#fde68a',
+    borderColor: p.warnBorder,
     borderRadius: 10,
     padding: 9,
     marginBottom: 10,
   },
-  offlineBannerText: { color: '#92400e', fontSize: 11, flexShrink: 1, fontWeight: '600' },
-  item: { backgroundColor: '#f8fafc', borderRadius: 12, padding: 12, marginBottom: 10 },
+  offlineBannerText: { color: p.warnText, fontSize: 11, flexShrink: 1, fontWeight: '600' },
+  item: { backgroundColor: p.cardStrong, borderRadius: 12, padding: 12, marginBottom: 10 },
   itemMeta: { flexDirection: 'row', justifyContent: 'space-between', gap: 10, marginBottom: 4 },
-  itemAuthor: { color: '#0891b2', fontWeight: '700', fontSize: 11.5, flexShrink: 1 },
-  itemDate: { color: '#64748b', fontSize: 10.5, fontWeight: '700' },
-  itemText: { color: '#0f172a', fontSize: 13.5, lineHeight: 19 },
-  foot: { padding: 14, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#e2e8f0' },
+  itemAuthor: { color: p.accentText, fontWeight: '700', fontSize: 11.5, flexShrink: 1 },
+  itemDate: { color: p.textMuted, fontSize: 10.5, fontWeight: '700' },
+  itemText: { color: p.text, fontSize: 13.5, lineHeight: 19 },
+  foot: { padding: 14, paddingTop: 10, borderTopWidth: 1, borderTopColor: p.divider },
   input: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: p.inputBorder,
+    backgroundColor: p.inputBg,
     borderRadius: 10,
     padding: 10,
     fontSize: 13.5,
     minHeight: 56,
     maxHeight: 100,
-    color: colors.ink,
+    color: p.text,
     textAlignVertical: 'top',
   },
   acts: { flexDirection: 'row', gap: 8, marginTop: 8 },
   btn: { flex: 1, borderRadius: 9, paddingVertical: 11, alignItems: 'center' },
-  btnClose: { backgroundColor: '#e2e8f0' },
-  btnCloseText: { color: '#334155', fontWeight: '700', fontSize: 13.5 },
-  btnAdd: { backgroundColor: '#0891b2' },
-  btnAddText: { color: '#fff', fontWeight: '800', fontSize: 13.5 },
+  btnClose: { backgroundColor: p.cardStrong },
+  btnCloseText: { color: p.text, fontWeight: '700', fontSize: 13.5 },
+  btnAdd: { backgroundColor: p.accent },
+  btnAddText: { color: p.onAccent, fontWeight: '800', fontSize: 13.5 },
   btnDisabled: { opacity: 0.6 },
 });

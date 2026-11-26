@@ -21,7 +21,9 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, gradients, radii, shadow } from '../theme/colors';
+import { radii } from '../theme/colors';
+import { useTheme, useThemedStyles } from '../context/ThemeContext';
+import type { ThemeTokens } from '../theme/themes';
 import { addPax, getHotelsForOrder, getOrderDetail, getOrderPax, HotelDTO } from '../api/client';
 import SelectField from '../components/SelectField';
 import {
@@ -44,6 +46,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ImportarLista'>;
  * que la web llama insertDetailOrder.php una por una.
  */
 export default function ImportarListaScreen({ route, navigation }: Props) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { folio, idAirport, folioDisplay, typeAirline } = route.params;
   const draftKey = `import_draft_${folio}_${idAirport}`;
 
@@ -304,22 +308,22 @@ export default function ImportarListaScreen({ route, navigation }: Props) {
 
   if (isLoading) {
     return (
-      <LinearGradient colors={gradients.hero} style={styles.flex}>
-        <StatusBar style="light" />
+      <LinearGradient colors={p.bg} style={styles.flex}>
+        <StatusBar style={p.isDark ? 'light' : 'dark'} />
         <SafeAreaView style={styles.flex}>
-          <ActivityIndicator color={colors.teal} style={{ marginTop: 60 }} />
+          <ActivityIndicator color={p.accentText} style={{ marginTop: 60 }} />
         </SafeAreaView>
       </LinearGradient>
     );
   }
 
   return (
-    <LinearGradient colors={gradients.hero} style={styles.flex}>
-      <StatusBar style="light" />
+    <LinearGradient colors={p.bg} style={styles.flex}>
+      <StatusBar style={p.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
-            <Ionicons name="arrow-back" size={20} color={colors.white} />
+            <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
             <Text style={styles.topTitle}>Importar lista</Text>
@@ -330,7 +334,7 @@ export default function ImportarListaScreen({ route, navigation }: Props) {
 
         {loadError ? (
           <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <Ionicons name="alert-circle" size={18} color={p.dangerText} />
             <Text style={styles.errorText}>{loadError}</Text>
           </View>
         ) : (
@@ -345,7 +349,7 @@ export default function ImportarListaScreen({ route, navigation }: Props) {
                 value={text}
                 onChangeText={onChangeText}
                 placeholder={'Pega aquí las celdas de Excel\no elige tu archivo abajo'}
-                placeholderTextColor={colors.placeholder}
+                placeholderTextColor={p.placeholder}
                 style={styles.textarea}
                 multiline
                 textAlignVertical="top"
@@ -355,20 +359,20 @@ export default function ImportarListaScreen({ route, navigation }: Props) {
 
               <View style={styles.actionsRow}>
                 <Pressable style={styles.actionBtn} onPress={handlePaste}>
-                  <Ionicons name="clipboard-outline" size={14} color="#fff" />
+                  <Ionicons name="clipboard-outline" size={14} color={p.onAccent} />
                   <Text style={styles.actionBtnText}>Pegar</Text>
                 </Pressable>
                 <Pressable style={[styles.actionBtn, styles.actionBtnGhost]} onPress={handlePickFile}>
-                  <Ionicons name="document-outline" size={14} color="#0f172a" />
+                  <Ionicons name="document-outline" size={14} color={p.isDark ? '#0f172a' : p.text} />
                   <Text style={styles.actionBtnGhostText}>Elegir archivo</Text>
                 </Pressable>
                 <Pressable style={[styles.actionBtn, styles.actionBtnGhost]} onPress={handleTemplate}>
-                  <Ionicons name="download-outline" size={14} color="#0f172a" />
+                  <Ionicons name="download-outline" size={14} color={p.isDark ? '#0f172a' : p.text} />
                   <Text style={styles.actionBtnGhostText}>Plantilla</Text>
                 </Pressable>
                 {text.length > 0 && (
                   <Pressable style={[styles.actionBtn, styles.actionBtnGhost]} onPress={handleClear}>
-                    <Ionicons name="trash-outline" size={14} color="#0f172a" />
+                    <Ionicons name="trash-outline" size={14} color={p.isDark ? '#0f172a' : p.text} />
                     <Text style={styles.actionBtnGhostText}>Limpiar</Text>
                   </Pressable>
                 )}
@@ -405,7 +409,7 @@ export default function ImportarListaScreen({ route, navigation }: Props) {
                           <Ionicons
                             name={g.force ? 'checkbox' : 'square-outline'}
                             size={16}
-                            color={colors.teal}
+                            color={p.accentText}
                           />
                           <Text style={styles.forceText}>Cargar de todos modos</Text>
                         </Pressable>
@@ -454,7 +458,7 @@ export default function ImportarListaScreen({ route, navigation }: Props) {
 
                   <Pressable style={[styles.loadBtn, !canLoad && styles.loadBtnDisabled]} onPress={handleLoad} disabled={!canLoad}>
                     {isSaving ? (
-                      <ActivityIndicator color="#06322f" />
+                      <ActivityIndicator color={p.onAccent} />
                     ) : (
                       <Text style={styles.loadBtnText}>
                         {groups.some((g) => g.done) ? `Continuar con las ${active.length} que faltan` : `Cargar ${active.length} habitación(es)`}
@@ -472,7 +476,7 @@ export default function ImportarListaScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
@@ -483,18 +487,20 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.white, fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  topSub: { color: colors.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
+  topTitle: { color: p.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  topSub: { color: p.textMuted, fontSize: 11.5, textAlign: 'center', marginTop: 1 },
   content: { padding: 16, paddingBottom: 40 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
-  errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
-  hint: { color: colors.textMuted, fontSize: 12.5, lineHeight: 18, marginBottom: 12 },
+  errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
+  hint: { color: p.textMuted, fontSize: 12.5, lineHeight: 18, marginBottom: 12 },
   textarea: {
-    backgroundColor: colors.inputBg,
+    backgroundColor: p.inputBg,
+    borderWidth: p.isDark ? 0 : 1,
+    borderColor: p.inputBorder,
     borderRadius: radii.input,
     padding: 12,
     minHeight: 130,
-    color: colors.text,
+    color: p.text,
     fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
@@ -503,50 +509,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: 8,
     paddingVertical: 9,
     paddingHorizontal: 13,
   },
-  actionBtnGhost: { backgroundColor: '#f1f5f9' },
-  actionBtnText: { color: '#06322f', fontWeight: '800', fontSize: 12 },
-  actionBtnGhostText: { color: '#0f172a', fontWeight: '800', fontSize: 12 },
+  actionBtnGhost: { backgroundColor: p.isDark ? '#f1f5f9' : p.card, borderWidth: p.isDark ? 0 : 1, borderColor: p.cardBorder },
+  actionBtnText: { color: p.onAccent, fontWeight: '800', fontSize: 12 },
+  actionBtnGhostText: { color: p.isDark ? '#0f172a' : p.text, fontWeight: '800', fontSize: 12 },
   msgBox: { marginTop: 12 },
-  msgErrorText: { color: colors.danger, fontSize: 12.5, lineHeight: 18 },
+  msgErrorText: { color: p.dangerText, fontSize: 12.5, lineHeight: 18 },
   previewWrap: { marginTop: 16 },
-  summaryText: { color: colors.white, fontWeight: '800', fontSize: 13, marginBottom: 10 },
+  summaryText: { color: p.text, fontWeight: '800', fontSize: 13, marginBottom: 10 },
   roomCard: {
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: colors.card,
+    borderColor: p.cardBorder,
+    backgroundColor: p.card,
     borderRadius: radii.card,
     padding: 12,
     marginBottom: 10,
   },
-  roomCardError: { borderColor: 'rgba(220,38,38,0.5)' },
-  roomTitle: { color: colors.white, fontWeight: '800', fontSize: 13 },
-  roomPax: { color: colors.textMuted, fontSize: 12, marginTop: 5, lineHeight: 17 },
+  roomCardError: { borderColor: p.dangerBorder },
+  roomTitle: { color: p.text, fontWeight: '800', fontSize: 13 },
+  roomPax: { color: p.textMuted, fontSize: 12, marginTop: 5, lineHeight: 17 },
   forceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  forceText: { color: colors.teal, fontSize: 12, fontWeight: '700' },
+  forceText: { color: p.accentText, fontSize: 12, fontWeight: '700' },
   roomFieldsRow: { marginTop: 10 },
   roomFieldItem: { flex: 1 },
   occRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginTop: 8 },
   occChip: {
     borderWidth: 1,
-    borderColor: colors.cardBorder,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: p.cardBorder,
+    backgroundColor: p.inputBg,
     borderRadius: 20,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  occChipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
-  occChipText: { color: colors.text, fontSize: 11.5, fontWeight: '700' },
-  occChipTextActive: { color: '#06322f' },
-  autoNote: { color: colors.textMuted, fontSize: 10.5, fontStyle: 'italic' },
-  errorLine: { color: colors.danger, fontSize: 11.5, marginTop: 7, lineHeight: 16 },
-  warnLine: { color: colors.warn, fontSize: 11.5, marginTop: 5, lineHeight: 16 },
+  occChipActive: { backgroundColor: p.accent, borderColor: p.accent },
+  occChipText: { color: p.text, fontSize: 11.5, fontWeight: '700' },
+  occChipTextActive: { color: p.onAccent },
+  autoNote: { color: p.textMuted, fontSize: 10.5, fontStyle: 'italic' },
+  errorLine: { color: p.dangerText, fontSize: 11.5, marginTop: 7, lineHeight: 16 },
+  warnLine: { color: p.warnText, fontSize: 11.5, marginTop: 5, lineHeight: 16 },
   loadBtn: {
-    backgroundColor: colors.teal,
+    backgroundColor: p.accent,
     borderRadius: radii.button,
     height: 50,
     alignItems: 'center',
@@ -554,6 +560,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   loadBtnDisabled: { opacity: 0.5 },
-  loadBtnText: { color: '#06322f', fontWeight: '800', fontSize: 14 },
-  progressText: { color: colors.textMuted, fontSize: 12, marginTop: 10, lineHeight: 17 },
+  loadBtnText: { color: p.onAccent, fontWeight: '800', fontSize: 14 },
+  progressText: { color: p.textMuted, fontSize: 12, marginTop: 10, lineHeight: 17 },
 });
