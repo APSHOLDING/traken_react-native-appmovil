@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -92,10 +93,9 @@ export default function LoginScreen() {
             showsVerticalScrollIndicator={false}
           >
             <Animated.View style={[styles.brand, { opacity: logoFade }]}>
-              <View style={styles.logoBadge}>
-                <Ionicons name="airplane" size={28} color={colors.white} />
+              <View style={styles.logoCard}>
+                <Image source={require('../../assets/logo-traken.png')} style={styles.logoImage} resizeMode="contain" />
               </View>
-              <Text style={styles.brandTitle}>TRAKEN</Text>
               <Text style={styles.brandSubtitle}>Operaciones · Ground Control</Text>
             </Animated.View>
 
@@ -213,9 +213,7 @@ export default function LoginScreen() {
                 </Pressable>
               </View>
 
-              <Pressable style={styles.forgotWrap} hitSlop={8}>
-                <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
-              </Pressable>
+              <View style={styles.beforeButton} />
 
               <Pressable
                 onPressIn={handlePressIn}
@@ -263,22 +261,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 28,
   },
-  logoBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
+  // El logo es azul marino sobre blanco: va en una tarjeta blanca para que se
+  // lea bien sobre el fondo oscuro del login.
+  logoCard: {
+    width: 230,
+    height: 150,
+    borderRadius: 24,
+    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 18,
     marginBottom: 14,
   },
-  brandTitle: {
-    color: colors.white,
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: 4,
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   brandSubtitle: {
     color: colors.textMuted,
@@ -366,15 +363,8 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
   },
-  forgotWrap: {
-    alignSelf: 'flex-end',
-    marginBottom: 20,
-    marginTop: -4,
-  },
-  forgotText: {
-    color: colors.teal,
-    fontSize: 12.5,
-    fontWeight: '600',
+  beforeButton: {
+    height: 20,
   },
   button: {
     flexDirection: 'row',

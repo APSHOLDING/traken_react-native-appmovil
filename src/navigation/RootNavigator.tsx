@@ -5,6 +5,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ComponentProps } from 'react';
 import type { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import {
+  navigationRef,
+  setupNotificationTapHandler,
+  flushPendingNotification,
+} from '../utils/notificationNavigation';
 import LoginScreen from '../screens/LoginScreen';
 import HomeScreen from '../screens/HomeScreen';
 import OpenOrdersScreen from '../screens/OpenOrdersScreen';
@@ -122,6 +127,12 @@ const navTheme = {
 export default function RootNavigator() {
   const { token, isLoading } = useAuth();
 
+  // Tocar una notificacion push abre la O.S. (ver utils/notificationNavigation).
+  React.useEffect(() => setupNotificationTapHandler(), []);
+  React.useEffect(() => {
+    if (token) flushPendingNotification();
+  }, [token]);
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.navy }}>
@@ -131,7 +142,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={flushPendingNotification}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {token ? (
           <>

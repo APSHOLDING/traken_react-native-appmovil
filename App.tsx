@@ -12,6 +12,7 @@ import {
 import { AuthProvider } from './src/context/AuthContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import UpdateBanner from './src/components/UpdateBanner';
+import BiometricGate from './src/components/BiometricGate';
 import FranjaPruebas from './src/components/FranjaPruebas';
 import { colors } from './src/theme/colors';
 
@@ -55,8 +56,10 @@ export default function App() {
     <SafeAreaProvider>
       <FranjaPruebas>
         <AuthProvider>
-          <RootNavigator />
-          <UpdateBanner />
+          <BiometricGate>
+            <RootNavigator />
+            <UpdateBanner />
+          </BiometricGate>
         </AuthProvider>
       </FranjaPruebas>
     </SafeAreaProvider>

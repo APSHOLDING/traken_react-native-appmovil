@@ -7,6 +7,7 @@ import {
   meRequest,
   setApiEnvironment,
   setAuthToken,
+  setUnauthorizedHandler,
   StationDTO,
   UserDTO,
 } from '../api/client';
@@ -14,6 +15,7 @@ import { ApiEnvironment, FIXED_ENVIRONMENT, PRODUCTION_UNLOCKED } from '../confi
 import { getStoredEnvironment, saveStoredEnvironment } from '../utils/environmentStorage';
 import { getLastProfile, saveLastEmail, saveLastProfile } from '../utils/credentials';
 import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
+import { resetBiometric } from '../utils/biometric';
 
 const TOKEN_KEY = 'traken_token';
 
@@ -111,7 +113,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await deleteToken(TOKEN_KEY);
             setAuthToken(null);
           }
-        } catch (networkError) {
+        } catch (networkError: any) {
+          if (networkError?.response?.status === 401) {
+            // El servidor SI contesto: la sesion venció o fue revocada.
+            await deleteToken(TOKEN_KEY);
+            setAuthToken(null);
+            setError('Tu sesión venció. Inicia sesión de nuevo.');
+            return;
+          }
           const cached = await getLastProfile();
           setTokenState(storedToken);
           if (cached) {
@@ -152,7 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // credenciales incorrectas) y axios lo lanza como excepcion -- si
       // trae un cuerpo JSON con 'error', es un rechazo real del servidor,
       // no una falla de conexion, asi que se muestra ese mensaje tal cual.
-      const serverError = e?.response?.data?.error;
+      const serverError = e?.userMessage ?? e?.response?.data?.error;
       setError(serverError ?? 'No se pudo conectar con el servidor de Traken');
       return false;
     } finally {
@@ -162,6 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await logoutRequest();
+    await resetBiometric();
     await deleteToken(TOKEN_KEY);
     setAuthToken(null);
     setTokenState(null);
@@ -170,6 +180,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearError = () => setError(null);
+
+  // Cualquier endpoint que conteste 401 (sesion vencida/revocada) cierra la
+  // sesion local y manda al Login con un aviso, en vez de seguir con un token
+  // muerto donde todo falla con errores genericos.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      deleteToken(TOKEN_KEY).catch(() => {});
+      resetBiometric();
+      setAuthToken(null);
+      setTokenState(null);
+      setUser(null);
+      setStations([]);
+      setError('Tu sesión venció. Inicia sesión de nuevo.');
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   const value = useMemo(
     () => ({

@@ -6,7 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, gradients, radii, shadow } from '../theme/colors';
-import { getIncidenciasSc, IncidenciaScItem, IncidenciasScFilters } from '../api/client';
+import { getIncidenciasSc, IncidenciaScItem, IncidenciasScFilters, StationDTO, IncidenciaScEventOption } from '../api/client';
+import SelectField from '../components/SelectField';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'IncidenciasSc'>;
@@ -30,6 +31,25 @@ function desfaseColor(dias: number): { bg: string; fg: string } {
   return { bg: 'rgba(220,38,38,0.2)', fg: '#fca5a5' };
 }
 
+const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+/** 'YYYY-MM' desplazado n meses (n = -1 mes anterior, +1 siguiente). */
+function shiftMes(mes: string, n: number): string {
+  const [y, m] = mes.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function mesActual(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function mesLabel(mes: string): string {
+  const [y, m] = mes.split('-').map(Number);
+  return `${MESES[m - 1]} ${y}`;
+}
+
 function statusLabel(status: string): string {
   if (status === 'open') return 'Abierta';
   if (status === 'close') return 'Cerrada';
@@ -43,6 +63,11 @@ export default function IncidenciasScListScreen({ navigation }: Props) {
   const [avgDesfase, setAvgDesfase] = useState(0);
   const [maxDesfase, setMaxDesfase] = useState(0);
   const [status, setStatus] = useState<IncidenciasScFilters['status'] | ''>('');
+  const [mes, setMes] = useState<string>('');
+  const [evento, setEvento] = useState<number | null>(null);
+  const [airport, setAirport] = useState<number | null>(null);
+  const [airports, setAirports] = useState<StationDTO[]>([]);
+  const [events, setEvents] = useState<IncidenciaScEventOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,12 +75,20 @@ export default function IncidenciasScListScreen({ navigation }: Props) {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await getIncidenciasSc({ status: status || undefined });
+      const res = await getIncidenciasSc({
+        status: status || undefined,
+        mes: mes || undefined,
+        evento: evento ?? undefined,
+        airport: airport ?? undefined,
+      });
       if (res.ok) {
         setItems(res.items ?? []);
         setTotal(res.total ?? 0);
         setAvgDesfase(res.avg_desfase ?? 0);
         setMaxDesfase(res.max_desfase ?? 0);
+        // Los catálogos no dependen de los filtros: se guardan una vez.
+        if (res.airports?.length) setAirports(res.airports);
+        if (res.events?.length) setEvents(res.events);
       } else {
         setError(res.error ?? 'No se pudo cargar la información.');
       }
@@ -64,7 +97,15 @@ export default function IncidenciasScListScreen({ navigation }: Props) {
     } finally {
       setIsLoading(false);
     }
-  }, [status]);
+  }, [status, mes, evento, airport]);
+
+  const hayFiltros = !!status || !!mes || evento !== null || airport !== null;
+  const limpiarFiltros = () => {
+    setStatus('');
+    setMes('');
+    setEvento(null);
+    setAirport(null);
+  };
 
   useEffect(() => {
     load();
@@ -113,6 +154,43 @@ export default function IncidenciasScListScreen({ navigation }: Props) {
               <Text style={[styles.chipText, status === f.key && styles.chipTextActive]}>{f.label}</Text>
             </Pressable>
           ))}
+        </View>
+
+        <View style={styles.filtersBox}>
+          <View style={styles.mesRow}>
+            <Pressable style={styles.mesBtn} onPress={() => setMes(shiftMes(mes || mesActual(), -1))} hitSlop={8}>
+              <Ionicons name="chevron-back" size={18} color={colors.white} />
+            </Pressable>
+            <Pressable style={styles.mesCenter} onPress={() => setMes(mes ? '' : mesActual())}>
+              <Ionicons name="calendar-outline" size={14} color={colors.teal} />
+              <Text style={styles.mesText}>{mes ? mesLabel(mes) : 'Todos los meses'}</Text>
+            </Pressable>
+            <Pressable style={styles.mesBtn} onPress={() => setMes(shiftMes(mes || mesActual(), 1))} hitSlop={8}>
+              <Ionicons name="chevron-forward" size={18} color={colors.white} />
+            </Pressable>
+          </View>
+          <SelectField
+            label="Evento"
+            placeholder="Todos los eventos"
+            options={events.map((e) => ({ id: e.id_event, label: e.event_name }))}
+            selectedId={evento}
+            onSelect={(id) => setEvento(id)}
+            disabled={events.length === 0}
+          />
+          <SelectField
+            label="Aeropuerto"
+            placeholder="Todos los aeropuertos"
+            options={airports.map((a) => ({ id: a.id, label: `${a.iata} · ${a.name}` }))}
+            selectedId={airport}
+            onSelect={(id) => setAirport(id)}
+            disabled={airports.length === 0}
+          />
+          {hayFiltros && (
+            <Pressable style={styles.clearBtn} onPress={limpiarFiltros}>
+              <Ionicons name="close-circle-outline" size={15} color={colors.teal} />
+              <Text style={styles.clearText}>Limpiar filtros</Text>
+            </Pressable>
+          )}
         </View>
 
         {isLoading ? (
@@ -212,6 +290,20 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
   chipText: { color: colors.text, fontSize: 12, fontWeight: '700' },
   chipTextActive: { color: '#06322f' },
+  filtersBox: { marginHorizontal: 16, marginBottom: 10, gap: 8 },
+  mesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radii.card,
+  },
+  mesBtn: { width: 42, height: 40, alignItems: 'center', justifyContent: 'center' },
+  mesCenter: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' },
+  mesText: { color: colors.white, fontSize: 13, fontWeight: '700' },
+  clearBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', alignSelf: 'flex-end', paddingVertical: 2 },
+  clearText: { color: colors.teal, fontSize: 12, fontWeight: '700' },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
   errorText: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
   retryBtn: { backgroundColor: colors.teal, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
