@@ -1,4 +1,5 @@
 import React from 'react';
+import Loading from '../components/Loading';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -76,7 +77,7 @@ export default function ResumenOsScreen({ route, navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={p.accent} style={{ marginTop: 40 }} />
+          <Loading style={{ marginTop: 40 }} />
         ) : error || !data ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={18} color={p.dangerText} />

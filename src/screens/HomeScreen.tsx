@@ -13,6 +13,7 @@ import { colors, radii } from '../theme/colors';
 import { useTheme } from '../context/ThemeContext';
 import { hexA } from '../theme/themes';
 import ThemePickerModal from '../components/ThemePickerModal';
+import HomeCustomizeModal from '../components/HomeCustomizeModal';
 import { useAuth } from '../context/AuthContext';
 import { warmOfflineData } from '../utils/prefetch';
 import { getManualUrl, getNotifications, getOpenOrders, getPreregOrders, getSiteBaseUrl } from '../api/client';
@@ -335,6 +336,57 @@ export default function HomeScreen({ navigation }: Props) {
       : []),
   ], [navigation, openCount, preregPend, isDownloadingManual, handleOpenManual, user?.acceso_sc_incidencias, esAdminMaestro]);
 
+  // ---- Menu personalizable: orden y modulos ocultos, guardados por usuario en el telefono ----
+  const [layout, setLayout] = useState<{ order: string[]; hidden: string[] }>({ order: [], hidden: [] });
+  const [showCustomize, setShowCustomize] = useState(false);
+  const layoutKey = user?.id ? `home_layout_${user.id}` : null;
+
+  useEffect(() => {
+    if (!layoutKey) return;
+    getCache<{ order: string[]; hidden: string[] }>(layoutKey)
+      .then((c) => {
+        if (c && Array.isArray(c.data?.order) && Array.isArray(c.data?.hidden)) setLayout(c.data);
+      })
+      .catch(() => {});
+  }, [layoutKey]);
+
+  const saveLayout = useCallback(
+    (next: { order: string[]; hidden: string[] }) => {
+      setLayout(next);
+      if (layoutKey) saveCache(layoutKey, next).catch(() => {});
+    },
+    [layoutKey]
+  );
+
+  // Orden elegido primero; lo que no esta en la lista (modulos nuevos) va al final en su orden normal.
+  const orderedCards = useMemo(() => {
+    const byKey = new Map(cards.map((c) => [c.key, c]));
+    const first = layout.order.map((k) => byKey.get(k)).filter((c): c is ModuleCard => !!c);
+    const rest = cards.filter((c) => layout.order.indexOf(c.key) < 0);
+    return [...first, ...rest];
+  }, [cards, layout.order]);
+  const visibleCards = useMemo(
+    () => orderedCards.filter((c) => layout.hidden.indexOf(c.key) < 0),
+    [orderedCards, layout.hidden]
+  );
+
+  const moveCard = (key: string, dir: -1 | 1) => {
+    const keys = orderedCards.map((c) => c.key);
+    const i = keys.indexOf(key);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= keys.length) return;
+    [keys[i], keys[j]] = [keys[j], keys[i]];
+    saveLayout({ order: keys, hidden: layout.hidden });
+  };
+  const toggleCard = (key: string) => {
+    const isHidden = layout.hidden.indexOf(key) >= 0;
+    if (!isHidden && visibleCards.length <= 1) {
+      Alert.alert('Deja al menos uno', 'El menú necesita mostrar por lo menos un módulo.');
+      return;
+    }
+    saveLayout({ order: orderedCards.map((c) => c.key), hidden: isHidden ? layout.hidden.filter((k) => k !== key) : [...layout.hidden, key] });
+  };
+
   // Barra de marca: logo de Traken a la izquierda y los botones a la derecha. Queda fija arriba.
   // En el estilo claro va directo sobre el fondo; en los oscuros, el logo va sobre una insignia blanca para que se lea.
   const lightBar = t.headerAsCard;
@@ -416,10 +468,18 @@ export default function HomeScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={t.refreshTint} />}
         >
-          <Text style={[styles.sectionTitle, { color: t.sectionTitle }]}>ACCESOS</Text>
+          <View style={styles.sectionRow}>
+            <Text style={[styles.sectionTitle, styles.sectionTitleInRow, { color: t.sectionTitle }]}>ACCESOS</Text>
+            <Pressable style={styles.customizeBtn} onPress={() => setShowCustomize(true)} hitSlop={8}>
+              <Ionicons name="options-outline" size={14} color={t.sectionTitle} />
+              <Text style={[styles.customizeText, { color: t.sectionTitle }]}>
+                Personalizar{layout.hidden.length ? ` (${layout.hidden.length} oculto${layout.hidden.length === 1 ? '' : 's'})` : ''}
+              </Text>
+            </Pressable>
+          </View>
 
           <View style={styles.grid}>
-            {cards.map((c) => (
+            {visibleCards.map((c) => (
               <ModuleTile key={c.key} c={c} t={t} />
             ))}
           </View>
@@ -427,6 +487,15 @@ export default function HomeScreen({ navigation }: Props) {
       </SafeAreaView>
 
       <ThemePickerModal visible={showTheme} onClose={() => setShowTheme(false)} />
+      <HomeCustomizeModal
+        visible={showCustomize}
+        items={orderedCards.map((c) => ({ key: c.key, label: c.label, icon: c.icon, gradient: c.gradient }))}
+        hidden={layout.hidden}
+        onMove={moveCard}
+        onToggle={toggleCard}
+        onReset={() => saveLayout({ order: [], hidden: [] })}
+        onClose={() => setShowCustomize(false)}
+      />
     </LinearGradient>
   );
 }
@@ -487,6 +556,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   sectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, marginBottom: 10, marginLeft: 4 },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  sectionTitleInRow: { marginBottom: 0 },
+  customizeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: 6 },
+  customizeText: { fontSize: 11.5, fontWeight: '800' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   card: {
     width: '47.5%',

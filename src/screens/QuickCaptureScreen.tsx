@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Loading from '../components/Loading';
 import {
   ActivityIndicator,
   Alert,
@@ -287,7 +288,7 @@ export default function QuickCaptureScreen({ navigation }: Props) {
         {!order ? (
           // ---------- PASO 1: elegir O.S. ----------
           isLoading ? (
-            <ActivityIndicator color={p.accentText} style={{ marginTop: 40 }} />
+            <Loading style={{ marginTop: 40 }} />
           ) : error ? (
             <View style={styles.center}>
               <Text style={styles.muted}>{error}</Text>

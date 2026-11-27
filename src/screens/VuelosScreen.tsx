@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Loading from '../components/Loading';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -115,7 +116,7 @@ export default function VuelosScreen({ navigation }: Props) {
         )}
 
         {isLoading ? (
-          <ActivityIndicator color={p.accent} style={{ marginTop: 40 }} />
+          <Loading style={{ marginTop: 40 }} />
         ) : error ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={18} color={p.dangerText} />

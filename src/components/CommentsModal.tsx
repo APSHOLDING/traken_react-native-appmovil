@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import Loading from '../components/Loading';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -132,7 +133,7 @@ export default function CommentsModal({ visible, onClose, idOrder, idAirport, fo
                 </View>
               )}
               {isLoading ? (
-                <ActivityIndicator color={p.accentText} style={{ marginVertical: 20 }} />
+                <Loading style={{ marginVertical: 20 }} />
               ) : error ? (
                 <Text style={styles.emptyText}>{error}</Text>
               ) : items.length === 0 ? (

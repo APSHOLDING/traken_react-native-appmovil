@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Loading from '../components/Loading';
 import {
   ActivityIndicator,
   Alert,
@@ -312,7 +313,7 @@ export default function ImportarListaScreen({ route, navigation }: Props) {
       <LinearGradient colors={p.bg} style={styles.flex}>
         <StatusBar style={p.isDark ? 'light' : 'dark'} />
         <SafeAreaView style={styles.flex}>
-          <ActivityIndicator color={p.accentText} style={{ marginTop: 60 }} />
+          <Loading style={{ marginTop: 60 }} />
         </SafeAreaView>
       </LinearGradient>
     );

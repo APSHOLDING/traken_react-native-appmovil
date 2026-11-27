@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import Loading from '../components/Loading';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
@@ -407,7 +408,7 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={p.accentText} style={{ marginTop: 30 }} />
+          <Loading style={{ marginTop: 30 }} />
         ) : error ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={18} color={p.dangerText} />

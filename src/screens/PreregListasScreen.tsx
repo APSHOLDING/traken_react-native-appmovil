@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import Loading from '../components/Loading';
 import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -171,7 +172,7 @@ export default function PreregListasScreen({ route, navigation }: Props) {
         <Text style={styles.sectionTitle}>Listas del portal de aerolínea</Text>
 
         {isLoading ? (
-          <ActivityIndicator color={p.accentText} style={{ marginTop: 30 }} />
+          <Loading style={{ marginTop: 30 }} />
         ) : error ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={18} color={p.dangerText} />
