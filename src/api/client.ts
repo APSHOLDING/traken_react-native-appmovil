@@ -78,6 +78,7 @@ export function getSiteBaseUrl(): string {
 /** Se llama al iniciar sesion (o al restaurar una guardada) para que TODAS
  * las peticiones siguientes manden el token automaticamente. */
 export function setAuthToken(token: string | null) {
+  delayQsCache = null; // las firmas del aviso de retraso son de la sesion anterior
   if (token) {
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   } else {
@@ -633,12 +634,13 @@ export function getAuthHeader(): string | undefined {
 }
 
 /**
- * Delay Info (Aviso de Retraso) -- misma pareja de endpoints que usa el
- * modal "Delay" en op/modulos/open/inicio.php (descargar.php / enviar_correo.php).
- * Esos 2 archivos NUNCA validaron $_SESSION (ni siquiera en la web), asi que
- * el movil los llama directo con su URL completa, sin token: es exactamente
- * la misma llamada que ya hace el navegador, solo que desde la app. Cero
- * cambios en el backend para esta funcion.
+ * Delay Info (Aviso de Retraso) -- misma pareja de archivos que usa el modal
+ * "Delay" en op/modulos/open/inicio.php (descargar.php / enviar_correo.php).
+ * Antes no validaban sesion; ahora SI (authGuard.php) y sin sesion contestan
+ * 401 en texto, que la app veia como "No se pudo generar la imagen". El
+ * celular no tiene la cookie de la web, asi que pide al servidor una FIRMA
+ * temporal (12 h) ligada a su usuario (op/api/delay/links.php, igual que el
+ * Excel de Ordenes Abiertas) y la agrega al final de cada URL.
  */
 export interface DelayFormData {
   lang: string;
@@ -656,17 +658,42 @@ function delayBase(): string {
   return `${siteBase()}/op/modulos/delayInfo`;
 }
 
-export function getDelayImageUrl(d: DelayFormData): string {
+type DelayQs = { descargar: string; correo: string };
+let delayQsCache: { v: DelayQs; at: number; env: string } | null = null;
+const DELAY_QS_TTL_MS = 6 * 60 * 60 * 1000; // la firma vale 12 h; se renueva a las 6
+
+/** Firmas del aviso de retraso. Si el servidor aun no tiene el endpoint (o no hay señal) devuelve vacias: se intenta como antes. */
+async function getDelayQs(): Promise<DelayQs> {
+  const now = Date.now();
+  if (delayQsCache && delayQsCache.env === currentEnvironment && now - delayQsCache.at < DELAY_QS_TTL_MS) {
+    return delayQsCache.v;
+  }
+  try {
+    const { data } = await api.get<{ ok: boolean; descargar?: string; correo?: string }>('/delay/links.php');
+    if (data.ok && data.descargar && data.correo) {
+      const v = { descargar: data.descargar, correo: data.correo };
+      delayQsCache = { v, at: now, env: currentEnvironment };
+      return v;
+    }
+  } catch (e) {
+    // Sin señal o servidor sin actualizar: se sigue sin firma.
+  }
+  return { descargar: '', correo: '' };
+}
+
+export async function getDelayImageUrl(d: DelayFormData): Promise<string> {
   const qs = new URLSearchParams({ ...d, dl: '1' }).toString();
-  return `${delayBase()}/descargar.php?${qs}`;
+  const { descargar } = await getDelayQs();
+  return `${delayBase()}/descargar.php?${qs}${descargar}`;
 }
 
 /** Igual que getDelayImageUrl pero SIN forzar la descarga (inline) -- para
  * mostrar la imagen real (con el logo de la aerolinea y el QR de verdad,
  * generados por el servidor) directo en un <Image> como vista previa. */
-export function getDelayPreviewUrl(d: DelayFormData): string {
+export async function getDelayPreviewUrl(d: DelayFormData): Promise<string> {
   const qs = new URLSearchParams({ ...d }).toString();
-  return `${delayBase()}/descargar.php?${qs}`;
+  const { descargar } = await getDelayQs();
+  return `${delayBase()}/descargar.php?${qs}${descargar}`;
 }
 
 export interface SendDelayEmailResponse {
@@ -676,7 +703,8 @@ export interface SendDelayEmailResponse {
 
 export async function sendDelayEmail(to: string, d: DelayFormData): Promise<SendDelayEmailResponse> {
   const body = new URLSearchParams({ to, ...d }).toString();
-  const { data } = await axios.post<SendDelayEmailResponse>(`${delayBase()}/enviar_correo.php`, body, {
+  const { correo } = await getDelayQs();
+  const { data } = await axios.post<SendDelayEmailResponse>(`${delayBase()}/enviar_correo.php${correo ? '?' + correo.slice(1) : ''}`, body, {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     timeout: 20000,
   });

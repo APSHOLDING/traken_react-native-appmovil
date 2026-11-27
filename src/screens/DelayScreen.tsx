@@ -83,9 +83,15 @@ export default function DelayScreen({ route, navigation }: Props) {
     estacion: iata ?? '',
   };
 
-  const showPreview = () => {
+  const showPreview = async () => {
     setImageError(false);
-    setPreviewUrl(getDelayPreviewUrl(formData));
+    setIsImageLoading(true); // mientras se pide la firma al servidor
+    try {
+      setPreviewUrl(await getDelayPreviewUrl(formData));
+    } catch (e) {
+      setIsImageLoading(false);
+      setImageError(true);
+    }
   };
 
   const handleDownload = async () => {
@@ -95,7 +101,7 @@ export default function DelayScreen({ route, navigation }: Props) {
       const destination = new File(Paths.cache, fileName);
       if (destination.exists) destination.delete();
 
-      const task = File.createDownloadTask(getDelayImageUrl(formData), destination);
+      const task = File.createDownloadTask(await getDelayImageUrl(formData), destination);
       const downloaded = await task.downloadAsync();
 
       if (!downloaded || !downloaded.exists || downloaded.size === 0) {
