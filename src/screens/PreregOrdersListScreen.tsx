@@ -17,9 +17,17 @@ type Props = NativeStackScreenProps<RootStackParamList, 'PreregOrdersList'>;
  * Pre-registro de Pax -- equivalente movil de op/modulos/prereg/inicio.php
  * (lista). Toca una O.S. para ver sus pasajeros pre-registrados.
  */
+const PASOS = [
+  { t: 'Elige la O.S.', d: 'Toca abajo la O.S. de tu vuelo.' },
+  { t: 'Muéstrale el QR', d: 'Al pasajero (o cópialo y envíalo). Su familia usa el mismo QR.' },
+  { t: 'Él se registra', d: 'Desde su celular; tú no capturas nada y no se duplican.' },
+  { t: 'Tú asignas el hotel', d: 'En “Por asignar” le pones su hotel; él lo ve en su celular.' },
+];
+
 export default function PreregOrdersListScreen({ navigation }: Props) {
   const p = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const [showIntro, setShowIntro] = useState(true);
   const [orders, setOrders] = useState<PreregOrderListItem[]>([]);
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -73,10 +81,29 @@ export default function PreregOrdersListScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.introBox}>
-          <Text style={styles.introText}>
-            Comparte el QR de la O.S. con el pasajero para que se pre-registre desde su celular. Toca una O.S. para ver
-            quién se registró y asignarle hotel.
-          </Text>
+          <Pressable style={styles.introHead} onPress={() => setShowIntro((v) => !v)}>
+            <Ionicons name="help-circle" size={20} color={p.accentText} />
+            <Text style={styles.introTitle}>¿Cómo funciona? En 4 pasos</Text>
+            <Ionicons name={showIntro ? 'chevron-up' : 'chevron-down'} size={18} color={p.textMuted} />
+          </Pressable>
+          {showIntro && (
+            <>
+              {PASOS.map((x, i) => (
+                <View key={i} style={styles.introStep}>
+                  <View style={styles.introNum}>
+                    <Text style={styles.introNumText}>{i + 1}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.introStepTitle}>{x.t}</Text>
+                    <Text style={styles.introText}>{x.d}</Text>
+                  </View>
+                </View>
+              ))}
+              <Text style={styles.introMore}>
+                📱 Cuando el pasajero llegue: en O.S Abiertos toca “Escanear pasajero” para ver su hotel y mandarlo al registro.
+              </Text>
+            </>
+          )}
         </View>
 
         <View style={styles.searchWrap}>
@@ -182,6 +209,21 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
     padding: 13,
   },
   introText: { color: p.textMuted, fontSize: 12, lineHeight: 17 },
+  introHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  introTitle: { flex: 1, color: p.text, fontSize: 13.5, fontWeight: '800' },
+  introStep: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 10 },
+  introNum: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: p.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  introNumText: { color: p.onAccent, fontSize: 11.5, fontWeight: '900' },
+  introStepTitle: { color: p.text, fontSize: 12.5, fontWeight: '800' },
+  introMore: { color: p.textMuted, fontSize: 11.5, lineHeight: 16, marginTop: 12 },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
