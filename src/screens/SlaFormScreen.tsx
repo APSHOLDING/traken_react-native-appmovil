@@ -21,6 +21,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { radii } from '../theme/colors';
 import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import type { ThemeTokens } from '../theme/themes';
+import { getCache, saveCache } from '../utils/offlineCache';
 import { addSlaComentario, getSlaState, saveSlaPaso, setSlaModalidad, SlaPasoItem, SlaStateResponse } from '../api/client';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -95,6 +96,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
   const [modalidadNota, setModalidadNota] = useState('');
 
   const [comentarioText, setComentarioText] = useState('');
+  const [savedOffline, setSavedOffline] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -103,11 +105,19 @@ export default function SlaFormScreen({ route, navigation }: Props) {
       const res = await getSlaState(folio, idAirport);
       if (res.ok) {
         setState(res);
+        setSavedOffline(null);
+        saveCache(`sla_state_${folio}_${idAirport}`, res).catch(() => {});
       } else {
         setError(res.error ?? 'No se pudo cargar el SLA.');
       }
     } catch (e) {
-      setError('Sin conexión. Revisa tu internet e intenta de nuevo.');
+      const cached = await getCache<SlaStateResponse>(`sla_state_${folio}_${idAirport}`);
+      if (cached) {
+        setState(cached.data);
+        setSavedOffline(cached.savedAt);
+      } else {
+        setError('Sin conexión y sin datos guardados de este SLA todavía.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -134,7 +144,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
         Alert.alert('No se pudo guardar', res.error ?? 'Intenta de nuevo.');
       }
     } catch (e) {
-      Alert.alert('Sin conexión', 'No se pudo guardar. Intenta de nuevo.');
+      Alert.alert('Sin conexión', 'Para registrar tiempos del SLA se necesita internet: la hora oficial la pone el servidor. Lo que ves es lo último guardado; inténtalo cuando haya señal.');
     } finally {
       setIsSaving(false);
     }
@@ -171,7 +181,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
         Alert.alert('No se pudo guardar', res.error ?? 'Intenta de nuevo.');
       }
     } catch (e) {
-      Alert.alert('Sin conexión', 'No se pudo guardar. Intenta de nuevo.');
+      Alert.alert('Sin conexión', 'Para registrar tiempos del SLA se necesita internet: la hora oficial la pone el servidor. Lo que ves es lo último guardado; inténtalo cuando haya señal.');
     } finally {
       setIsSaving(false);
     }
@@ -207,7 +217,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
         Alert.alert('No se pudo guardar', res.error ?? 'Intenta de nuevo.');
       }
     } catch (e) {
-      Alert.alert('Sin conexión', 'No se pudo guardar. Intenta de nuevo.');
+      Alert.alert('Sin conexión', 'Para registrar tiempos del SLA se necesita internet: la hora oficial la pone el servidor. Lo que ves es lo último guardado; inténtalo cuando haya señal.');
     } finally {
       setIsSaving(false);
     }
@@ -225,7 +235,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
         Alert.alert('No se pudo guardar', res.error ?? 'Intenta de nuevo.');
       }
     } catch (e) {
-      Alert.alert('Sin conexión', 'No se pudo guardar. Intenta de nuevo.');
+      Alert.alert('Sin conexión', 'Para registrar tiempos del SLA se necesita internet: la hora oficial la pone el servidor. Lo que ves es lo último guardado; inténtalo cuando haya señal.');
     } finally {
       setIsSaving(false);
     }
@@ -264,6 +274,11 @@ export default function SlaFormScreen({ route, navigation }: Props) {
         ) : (
           <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+              {savedOffline ? (
+                <View style={styles.pruebaBanner}>
+                  <Text style={styles.pruebaBannerText}>📴 Sin conexión: se muestra lo guardado. Para registrar tiempos necesitas internet.</Text>
+                </View>
+              ) : null}
               {state?.prueba ? (
                 <View style={styles.pruebaBanner}>
                   <Text style={styles.pruebaBannerText}>🧪 Esta O.S. está marcada como PRUEBA: no cuenta en el SLA.</Text>

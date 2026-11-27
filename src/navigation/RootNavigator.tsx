@@ -17,6 +17,7 @@ import HomeScreen from '../screens/HomeScreen';
 import OpenOrdersScreen from '../screens/OpenOrdersScreen';
 import OrderMenuScreen from '../screens/OrderMenuScreen';
 import AddPaxScreen from '../screens/AddPaxScreen';
+import QuickCaptureScreen from '../screens/QuickCaptureScreen';
 import AddTransportScreen from '../screens/AddTransportScreen';
 import EditPaxListScreen from '../screens/EditPaxListScreen';
 import EditPaxScreen from '../screens/EditPaxScreen';
@@ -91,6 +92,7 @@ export type RootStackParamList = {
   OpenOrders: undefined;
   OrderMenu: OrderMenuParams;
   AddPax: AddPaxParams;
+  QuickCapture: undefined;
   AddTransport: AddTransportParams;
   EditPaxList: OrderMenuParams;
   EditPax: EditPaxParams;
@@ -160,6 +162,7 @@ export default function RootNavigator() {
             <Stack.Screen name="OpenOrders" component={OpenOrdersScreen} />
             <Stack.Screen name="OrderMenu" component={OrderMenuScreen} />
             <Stack.Screen name="AddPax" component={AddPaxScreen} />
+            <Stack.Screen name="QuickCapture" component={QuickCaptureScreen} />
             <Stack.Screen name="AddTransport" component={AddTransportScreen} />
             <Stack.Screen name="EditPaxList" component={EditPaxListScreen} />
             <Stack.Screen name="EditPax" component={EditPaxScreen} />

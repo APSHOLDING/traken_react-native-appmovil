@@ -9,6 +9,7 @@ import { colors, radii } from '../theme/colors';
 import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import type { ThemeTokens } from '../theme/themes';
 import { getSlaList, SlaEstado, SlaListItem } from '../api/client';
+import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 import BrandMark from '../components/BrandMark';
@@ -44,33 +45,18 @@ function semaforoColor(sem: SlaListItem['semaforo']): string | null {
 export default function SlaListScreen({ navigation }: Props) {
   const p = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const [items, setItems] = useState<SlaListItem[]>([]);
   const [query, setQuery] = useState('');
   const [estado, setEstado] = useState<SlaEstado | ''>('');
   const [dias, setDias] = useState(45);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await getSlaList(dias);
-      if (res.ok) {
-        setItems(res.items ?? []);
-      } else {
-        setError(res.error ?? 'No se pudo cargar la información.');
-      }
-    } catch (e) {
-      setError('Sin conexión. Revisa tu internet e intenta de nuevo.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [dias]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Sin internet se muestra lo ultimo guardado (la precarga de Inicio lo deja al dia).
+  const { data, isLoading, error, offlineSince, reload: load } = useOfflineLoad(
+    `sla_list_${dias}`,
+    () => getSlaList(dias),
+    (res) => (res.items ?? []) as SlaListItem[],
+    [dias]
+  );
+  const items: SlaListItem[] = data ?? [];
 
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
@@ -130,6 +116,13 @@ export default function SlaListScreen({ navigation }: Props) {
             </Pressable>
           ))}
         </View>
+
+        {offlineSince ? (
+          <View style={styles.offlineNote}>
+            <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
+            <Text style={styles.offlineNoteText}>Sin conexión: mostrando lo guardado el {formatSavedAt(offlineSince)}.</Text>
+          </View>
+        ) : null}
 
         {isLoading ? (
           <ActivityIndicator color={p.accentText} style={{ marginTop: 30 }} />
@@ -225,6 +218,20 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
     marginBottom: 10,
   },
   searchInput: { flex: 1, color: p.text, fontSize: 14 },
+  offlineNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: p.warnSoft,
+    borderWidth: 1,
+    borderColor: p.warnBorder,
+    borderRadius: radii.input,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginHorizontal: 16,
+    marginBottom: 10,
+  },
+  offlineNoteText: { color: p.warnText, fontSize: 11.5, flexShrink: 1 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginHorizontal: 16, marginBottom: 10 },
   chip: {
     backgroundColor: p.card,

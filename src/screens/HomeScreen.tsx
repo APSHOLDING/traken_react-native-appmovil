@@ -14,6 +14,7 @@ import { useTheme } from '../context/ThemeContext';
 import { hexA } from '../theme/themes';
 import ThemePickerModal from '../components/ThemePickerModal';
 import { useAuth } from '../context/AuthContext';
+import { warmOfflineData } from '../utils/prefetch';
 import { getManualUrl, getNotifications, getOpenOrders, getPreregOrders, getSiteBaseUrl } from '../api/client';
 import { getLastSeenNotifications } from '../utils/notificationsSeen';
 import type { RootStackParamList } from '../navigation/RootNavigator';
@@ -28,6 +29,8 @@ type ModuleCard = {
   gradient: readonly [string, string];
   onPress: () => void;
   badge?: number;
+  /** Etiqueta chica (ej. BETA) en lugar de la flecha. */
+  tag?: string;
   loading?: boolean;
 };
 
@@ -118,6 +121,8 @@ export default function HomeScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       loadHeader();
+      // Precarga ligera en segundo plano (max. cada 10 min, solo con internet).
+      warmOfflineData().catch(() => {});
     }, [loadHeader])
   );
 
@@ -145,6 +150,14 @@ export default function HomeScreen({ navigation }: Props) {
       gradient: ['#16a34a', '#0f7a37'],
       onPress: () => navigation.navigate('OpenOrders'),
       badge: openCount ?? undefined,
+    },
+    {
+      key: 'captura',
+      label: 'Captura rápida de Pax',
+      icon: 'flash',
+      gradient: ['#7c3aed', '#5b21b6'],
+      tag: 'BETA',
+      onPress: () => navigation.navigate('QuickCapture'),
     },
     {
       key: 'detalles',
@@ -348,6 +361,10 @@ export default function HomeScreen({ navigation }: Props) {
                     <View style={styles.badge}>
                       <Text style={styles.badgeText}>{c.badge}</Text>
                     </View>
+                  ) : c.tag ? (
+                    <View style={styles.tagPill}>
+                      <Text style={styles.tagText}>{c.tag}</Text>
+                    </View>
                   ) : (
                     <View style={[styles.arrow, { backgroundColor: hexA(c.gradient[0], 0.14) }]}>
                       <Ionicons name="arrow-forward" size={14} color={c.gradient[0]} />
@@ -465,5 +482,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
+  tagPill: { backgroundColor: '#f59e0b', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  tagText: { color: '#ffffff', fontSize: 9.5, fontWeight: '900', letterSpacing: 0.6 },
   badgeText: { color: colors.white, fontSize: 10.5, fontWeight: '800' },
 });
