@@ -344,8 +344,8 @@ export default function QuickCaptureScreen({ navigation }: Props) {
               <Text style={styles.sectionTitle}>2. Escribe o dicta los pasajeros</Text>
               <Text style={styles.hint}>
                 Una habitación por renglón. Puedes decir: nombres, tipo de habitación (sencilla/doble/triple/cuádruple), hotel,
-                «salida 28 nov» y hora («6am»). Para niño o infante agrega (niño) o (infante). Si lo dictas, di «otra habitación» entre
-                una y otra.
+                «salida 28 nov» y hora («6am»). Puedes decirlo natural: «Juan con su esposa María y su hijo Pedro de 5 años». La app toma solo los nombres y
+                marca niño o infante sola (no se mete «hijo» como nombre). Si lo dictas, di «otra habitación» entre una y otra.
               </Text>
               <View style={styles.actionsRow}>
                 <Pressable
