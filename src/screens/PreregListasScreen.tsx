@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text,
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -182,6 +182,10 @@ export default function PreregListasScreen({ route, navigation }: Props) {
           </View>
         ) : (
           <FlatList
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
             data={batches}
             keyExtractor={(b) => String(b.id)}
             contentContainerStyle={styles.listContent}

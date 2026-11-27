@@ -12,10 +12,11 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
+import ImageViewer from '../components/ImageViewer';
 import * as DocumentPicker from 'expo-document-picker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { radii } from '../theme/colors';
@@ -56,7 +57,9 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
   const [files, setFiles] = useState<OrderFileDTO[]>([]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  // Visor de fotos: indice de la foto abierta (null = cerrado). Se puede deslizar entre todas sin cerrar.
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const imageFiles = files.filter((f) => f.type === 'image');
 
   const loadFiles = useCallback(async () => {
     setIsLoadingFiles(true);
@@ -135,6 +138,13 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
     ]);
   };
 
+  const totalRooms = (data?.hotelesPax ?? []).reduce((a, h) => a + h.rooms.length, 0);
+  const totalPax = (data?.hotelesPax ?? []).reduce((a, h) => a + h.rooms.reduce((b, r) => b + r.pax.length, 0), 0);
+  const statusLabel = (st: string) => {
+    const x = String(st).toLowerCase();
+    return x === 'open' ? 'Abierta' : x === 'cancel' ? 'Cancelada' : 'Cerrada';
+  };
+
   return (
     <LinearGradient colors={p.bg} style={styles.flex}>
       <StatusBar style={p.isDark ? 'light' : 'dark'} />
@@ -168,6 +178,41 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
               </View>
             )}
 
+            <LinearGradient colors={[p.accent, p.accentDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+              <View style={styles.heroTop}>
+                <Text style={styles.heroFolio}>#{folioDisplay}</Text>
+                <View style={styles.heroStatus}>
+                  <Text style={styles.heroStatusText}>{statusLabel(data.order.status)}</Text>
+                </View>
+              </View>
+              <Text style={styles.heroSub} numberOfLines={1}>
+                {data.order.airline}
+                {data.order.flight ? ` · ${data.order.flight}` : ''}
+              </Text>
+              <Text style={styles.heroSub}>
+                {data.order.date_in ?? '—'}
+                {data.order.date_out ? `  →  ${data.order.date_out}` : ''}
+              </Text>
+              <View style={styles.heroChips}>
+                <View style={styles.heroChip}>
+                  <Ionicons name="business" size={12} color="#fff" />
+                  <Text style={styles.heroChipText}>{data.hotelesPax.length} hotel(es)</Text>
+                </View>
+                <View style={styles.heroChip}>
+                  <Ionicons name="bed" size={12} color="#fff" />
+                  <Text style={styles.heroChipText}>{totalRooms} hab.</Text>
+                </View>
+                <View style={styles.heroChip}>
+                  <Ionicons name="people" size={12} color="#fff" />
+                  <Text style={styles.heroChipText}>{totalPax} pax</Text>
+                </View>
+                <View style={styles.heroChip}>
+                  <Ionicons name="images" size={12} color="#fff" />
+                  <Text style={styles.heroChipText}>{files.length} archivo(s)</Text>
+                </View>
+              </View>
+            </LinearGradient>
+
             <View style={[styles.card, p.shadowCard]}>
               <InfoRow label="Aerolínea" value={data.order.airline} />
               <InfoRow label="Vuelo" value={data.order.flight ?? '—'} />
@@ -185,6 +230,9 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
               data.hotelesPax.map((h, hi) => (
                 <View key={hi} style={[styles.card, p.shadowCard]}>
                   <Text style={styles.hotelName}>{h.hotel_name}</Text>
+                  <Text style={styles.hotelCount}>
+                    {h.rooms.length} hab. · {h.rooms.reduce((a, r) => a + r.pax.length, 0)} pax
+                  </Text>
                   {h.rooms.map((r, ri) => (
                     <View key={ri} style={styles.roomBlock}>
                       <View style={styles.roomHead}>
@@ -218,6 +266,12 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
               </Pressable>
             </View>
 
+            {imageFiles.length > 0 ? (
+              <Text style={styles.filesHint}>
+                👆 Toca una foto para verla en grande. Pellizca para acercar, doble toque para zoom y desliza a los lados para ver las demás sin cerrar.
+              </Text>
+            ) : null}
+
             {isLoadingFiles ? (
               <ActivityIndicator color={p.accent} style={{ marginVertical: 16 }} />
             ) : files.length === 0 ? (
@@ -228,10 +282,15 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
                   <Pressable
                     key={f.name}
                     style={styles.fileThumb}
-                    onPress={() => (f.type === 'image' ? setPreviewImage(f.url) : Linking.openURL(f.url))}
+                    onPress={() => (f.type === 'image' ? setViewerIndex(Math.max(0, imageFiles.findIndex((x) => x.url === f.url))) : Linking.openURL(f.url))}
                   >
                     {f.type === 'image' ? (
-                      <Image source={{ uri: f.url }} style={styles.fileThumbImg} resizeMode="cover" />
+                      <>
+                        <Image source={{ uri: f.url }} style={styles.fileThumbImg} resizeMode="cover" />
+                        <View style={styles.zoomBadge}>
+                          <Ionicons name="expand" size={11} color="#fff" />
+                        </View>
+                      </>
                     ) : (
                       <View style={styles.filePdfBox}>
                         <Ionicons name="document-text-outline" size={26} color={p.accentText} />
@@ -245,16 +304,12 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
         )}
       </SafeAreaView>
 
-      <Modal visible={!!previewImage} transparent animationType="fade" onRequestClose={() => setPreviewImage(null)}>
-        <Pressable style={styles.previewOverlay} onPress={() => setPreviewImage(null)}>
-          {previewImage && (
-            <Image source={{ uri: previewImage }} style={styles.previewImage} resizeMode="contain" />
-          )}
-          <Pressable style={styles.previewClose} onPress={() => setPreviewImage(null)}>
-            <Ionicons name="close-circle" size={32} color="#fff" />
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <ImageViewer
+        visible={viewerIndex !== null}
+        images={imageFiles.map((f, i) => ({ url: f.url, title: f.name || `Foto ${i + 1}` }))}
+        startIndex={viewerIndex ?? 0}
+        onClose={() => setViewerIndex(null)}
+      />
     </LinearGradient>
   );
 }
@@ -328,6 +383,18 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   paxRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   paxName: { color: p.text, fontSize: 12, flex: 1 },
   paxType: { color: p.textMuted, fontSize: 10.5, textTransform: 'uppercase' },
+  hero: { borderRadius: radii.card, padding: 16, marginBottom: 14 },
+  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  heroFolio: { color: '#fff', fontSize: 20, fontWeight: '900' },
+  heroStatus: { backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 },
+  heroStatusText: { color: '#fff', fontSize: 11.5, fontWeight: '800' },
+  heroSub: { color: 'rgba(255,255,255,0.92)', fontSize: 13, marginTop: 4 },
+  heroChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
+  heroChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4 },
+  heroChipText: { color: '#fff', fontSize: 11.5, fontWeight: '700' },
+  hotelCount: { color: p.textMuted, fontSize: 11.5, marginBottom: 4 },
+  zoomBadge: { position: 'absolute', right: 4, bottom: 4, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8, padding: 3 },
+  filesHint: { color: p.textMuted, fontSize: 12, lineHeight: 17, marginBottom: 10 },
   filesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   addFileBtn: {
     flexDirection: 'row',

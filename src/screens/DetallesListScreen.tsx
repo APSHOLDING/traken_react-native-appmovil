@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -36,6 +36,7 @@ export default function DetallesListScreen({ navigation }: Props) {
   const [query, setQuery] = useState('');
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
+  const [estadoF, setEstadoF] = useState('');
 
   const {
     data: result,
@@ -63,12 +64,16 @@ export default function DetallesListScreen({ navigation }: Props) {
             .includes(q);
           if (!hay) return false;
         }
+        if (estadoF) {
+          const k = o.status.toLowerCase() === 'open' ? 'open' : o.status.toLowerCase() === 'cancel' ? 'cancel' : 'closed';
+          if (k !== estadoF) return false;
+        }
         const fecha = o.date_in ?? '';
         if (desde && (!fecha || fecha < desde)) return false;
         if (hasta && (!fecha || fecha > hasta)) return false;
         return true;
       }),
-    [orders, q, desde, hasta]
+    [orders, q, desde, hasta, estadoF]
   );
 
   return (
@@ -81,7 +86,7 @@ export default function DetallesListScreen({ navigation }: Props) {
           </Pressable>
           <View>
             <Text style={styles.topTitle}>Detalles de Órdenes</Text>
-            <Text style={styles.topSub}>{orders.length} orden(es) este año</Text>
+            <Text style={styles.topSub}>{filtered.length === orders.length ? `${orders.length} orden(es) este año` : `${filtered.length} de ${orders.length} orden(es)`}</Text>
           </View>
           <BrandMark />
         </View>
@@ -96,6 +101,14 @@ export default function DetallesListScreen({ navigation }: Props) {
             style={styles.searchInput}
             autoCapitalize="none"
           />
+        </View>
+
+        <View style={styles.chipRow}>
+          {[['', 'Todas'], ['open', 'Abiertas'], ['closed', 'Cerradas'], ['cancel', 'Canceladas']].map(([k, l]) => (
+            <Pressable key={k || 'todas'} style={[styles.chip, estadoF === k && styles.chipActive]} onPress={() => setEstadoF(k)}>
+              <Text style={[styles.chipText, estadoF === k && styles.chipTextActive]}>{l}</Text>
+            </Pressable>
+          ))}
         </View>
 
         <DateRangeFilter desde={desde} hasta={hasta} onChangeDesde={setDesde} onChangeHasta={setHasta} />
@@ -206,6 +219,11 @@ export default function DetallesListScreen({ navigation }: Props) {
 }
 
 const makeStyles = (p: ThemeTokens) => StyleSheet.create({
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginHorizontal: 16, marginBottom: 10 },
+  chip: { backgroundColor: p.card, borderWidth: 1, borderColor: p.cardBorder, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  chipActive: { backgroundColor: p.accent, borderColor: p.accent },
+  chipText: { color: p.text, fontSize: 12, fontWeight: '700' },
+  chipTextActive: { color: p.onAccent },
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
