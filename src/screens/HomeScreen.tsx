@@ -88,6 +88,24 @@ const ModuleTile = React.memo(function ModuleTile({ c, t }: { c: ModuleCard; t: 
   );
 });
 
+/** Dibujo propio de cada modulo en la vista de iconos: simbolo principal + insignia chica que dice de que trata. */
+const ICON_ART: Record<string, { main: IconName; sub: IconName }> = {
+  crear: { main: 'document-text', sub: 'add' },
+  abiertos: { main: 'folder-open', sub: 'checkmark' },
+  captura: { main: 'mic', sub: 'flash' },
+  detalles: { main: 'albums', sub: 'search' },
+  reportes: { main: 'bar-chart', sub: 'trending-up' },
+  editar: { main: 'document-text', sub: 'pencil' },
+  resumen: { main: 'stats-chart', sub: 'location' },
+  vuelos: { main: 'airplane', sub: 'pulse' },
+  qrHist: { main: 'qr-code', sub: 'time' },
+  sla: { main: 'timer', sub: 'checkmark' },
+  prereg: { main: 'person-add', sub: 'qr-code' },
+  manual: { main: 'book', sub: 'help' },
+  incidenciasSc: { main: 'warning', sub: 'chatbubble-ellipses' },
+  bitacora: { main: 'shield-checkmark', sub: 'list' },
+};
+
 /** Vista de iconos: icono redondeado con su nombre abajo, 4 por renglon. Tambien memorizada. */
 const IconTile = React.memo(function IconTile({ c, t }: { c: ModuleCard; t: ReturnType<typeof useTheme> }) {
   return (
@@ -99,9 +117,18 @@ const IconTile = React.memo(function IconTile({ c, t }: { c: ModuleCard; t: Retu
     >
       <View style={[styles.appIconShadow, { shadowColor: c.gradient[1] }]}>
         <LinearGradient colors={c.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.appIcon}>
-          {c.loading ? <ActivityIndicator color={colors.white} /> : <Ionicons name={c.icon} size={31} color={colors.white} />}
+          {c.loading ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <Ionicons name={(ICON_ART[c.key]?.main ?? c.icon) as IconName} size={33} color={colors.white} />
+          )}
           <LinearGradient colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0)']} style={styles.appGloss} pointerEvents="none" />
         </LinearGradient>
+        {ICON_ART[c.key] && !c.loading ? (
+          <View style={styles.appSub}>
+            <Ionicons name={ICON_ART[c.key].sub} size={13} color={c.gradient[0]} />
+          </View>
+        ) : null}
         {c.badge ? (
           <View style={styles.appBadge}>
             <Text style={styles.badgeText}>{c.badge}</Text>
@@ -602,7 +629,8 @@ const styles = StyleSheet.create({
   iconTile: { width: '25%', alignItems: 'center', paddingHorizontal: 2 },
   iconTilePressed: { transform: [{ scale: 0.92 }], opacity: 0.85 },
   appIconShadow: { shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
-  appIcon: { width: 64, height: 64, borderRadius: 16, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  appSub: { position: 'absolute', left: -5, bottom: -5, width: 25, height: 25, borderRadius: 13, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 3, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
+  appIcon: { width: 66, height: 66, borderRadius: 17, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   appGloss: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%' },
   appBadge: { position: 'absolute', top: -6, right: -8, minWidth: 21, height: 21, borderRadius: 11, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, borderWidth: 2, borderColor: '#ffffff' },
   appTag: { position: 'absolute', top: -5, right: -9, backgroundColor: '#f59e0b', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1.5, borderWidth: 1.5, borderColor: '#ffffff' },
