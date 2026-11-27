@@ -205,6 +205,12 @@ export function parseCapture(text: string, ctx: CaptureContext, now: Date = new 
         idHotel = lh.hotel.id;
         hotelName = lh.hotel.name.trim();
         take(work, new RegExp('\\b' + lh.word + '\\b'));
+        // Otras palabras del mismo hotel (ej. "city" de "City Express") tampoco son nombres de pasajero.
+        plain(lh.hotel.name)
+          .replace(/[^a-z0-9 ]/g, ' ')
+          .split(' ')
+          .filter((t) => t.length >= 3 && ['hotel', 'resort', 'suites', 'inn'].indexOf(t) < 0)
+          .forEach((t) => take(work, new RegExp('\\b' + t + '\\b')));
         notes.push('Hotel entendido por su nombre');
       }
     }
@@ -227,6 +233,11 @@ export function parseCapture(text: string, ctx: CaptureContext, now: Date = new 
     } else if ((mt = take(work, /\b(\d{1,2}):(\d{2})\s*(?:hrs|h)?\b/))) {
       hora = `${pad(parseInt(mt[1], 10))}:${mt[2]}`;
     } else if ((mt = take(work, /\ba las\s+(\d{1,2})(?::(\d{2}))?\s*(?:de la\s+)?(manana|tarde|noche)?\b/))) {
+      let h = parseInt(mt[1], 10);
+      const mm = mt[2] ? parseInt(mt[2], 10) : 0;
+      if ((mt[3] === 'tarde' || mt[3] === 'noche') && h < 12) h += 12;
+      hora = `${pad(h)}:${pad(mm)}`;
+    } else if ((mt = take(work, /\b(\d{1,2})(?::(\d{2}))?\s*(?:de la|en la|por la)\s*(manana|tarde|noche|madrugada)\b/))) {
       let h = parseInt(mt[1], 10);
       const mm = mt[2] ? parseInt(mt[2], 10) : 0;
       if ((mt[3] === 'tarde' || mt[3] === 'noche') && h < 12) h += 12;
