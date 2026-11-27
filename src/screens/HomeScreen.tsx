@@ -100,7 +100,7 @@ const IconTile = React.memo(function IconTile({ c, t }: { c: ModuleCard; t: Retu
       <View style={[styles.appIconShadow, { shadowColor: c.gradient[1] }]}>
         <LinearGradient colors={c.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.appIcon}>
           {c.loading ? <ActivityIndicator color={colors.white} /> : <Ionicons name={c.icon} size={31} color={colors.white} />}
-          <LinearGradient colors={['rgba(255,255,255,0.42)', 'rgba(255,255,255,0)']} style={styles.appGloss} pointerEvents="none" />
+          <LinearGradient colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0)']} style={styles.appGloss} pointerEvents="none" />
         </LinearGradient>
         {c.badge ? (
           <View style={styles.appBadge}>
