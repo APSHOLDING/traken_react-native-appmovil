@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useNetInfo } from '@react-native-community/netinfo';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { radii } from '../theme/colors';
@@ -96,6 +97,13 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
 
   const [activePicker, setActivePicker] = useState<'dateIn' | 'dateOut' | 'hour' | null>(null);
 
+  // Lo que se cargo del servidor, para saber que cambio la persona (y avisar antes de salir sin guardar).
+  const [initial, setInitial] = useState<string | null>(null);
+  const [removedRows, setRemovedRows] = useState<HotelRow[]>([]);
+  const savedRef = useRef(false);
+  const net = useNetInfo();
+  const offline = net.isConnected === false || net.isInternetReachable === false;
+
   useEffect(() => {
     (async () => {
       setIsLoading(true);
@@ -127,6 +135,16 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
             isNew: false,
           }))
         );
+        setInitial(
+          JSON.stringify({
+            flight: (infoRes.order.flight ?? '').trim(),
+            eventId: infoRes.order.id_event,
+            dateIn: (infoRes.order.date_in ?? '').slice(0, 10),
+            dateOut: (infoRes.order.date_out ?? '').slice(0, 10),
+            hour: (infoRes.order.hour ?? '00:00:00').slice(0, 5),
+            hotels: (infoRes.hotels ?? []).map((h) => [h.id_orders_hotels, String(h.rooms_dis)]),
+          })
+        );
         setEvents(optionsRes.ok ? optionsRes.events ?? [] : []);
         setHotelsCatalog(hotelsRes.ok ? hotelsRes.hotels ?? [] : []);
       } catch (e) {
@@ -155,20 +173,73 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
       setDeletedIds((ids) => [...ids, row.id_orders_hotels!]);
     }
     setHotelRows((rows) => rows.filter((r) => r.key !== row.key));
+    // Los que ya existian se pueden recuperar con "Deshacer" antes de guardar.
+    if (!row.isNew) setRemovedRows((rs) => [...rs, row]);
+  };
+
+  const undoRemove = (row: HotelRow) => {
+    setDeletedIds((ids) => ids.filter((x) => x !== row.id_orders_hotels));
+    setRemovedRows((rs) => rs.filter((r) => r.key !== row.key));
+    setHotelRows((rows) => [...rows, row]);
+  };
+
+  const bumpDispo = (key: string, delta: number) => {
+    setHotelRows((rows) =>
+      rows.map((r) => (r.key === key ? { ...r, dispo: String(Math.max(0, (parseInt(r.dispo, 10) || 0) + delta)) } : r))
+    );
+  };
+
+  const setSalidaPlus = (days: number) => {
+    const d = parseISODate(dateIn || toISODate(new Date()));
+    d.setDate(d.getDate() + days);
+    setDateOut(toISODate(d));
   };
 
   const updateHotelRow = (key: string, patch: Partial<HotelRow>) => {
     setHotelRows((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   };
 
-  const canSubmit =
-    flight.trim() !== '' &&
-    !!eventId &&
-    !!dateIn &&
-    !!dateOut &&
-    !!hour &&
-    hotelRows.every((r) => !!r.idHotel && parseInt(r.dispo, 10) >= 0) &&
-    !isSaving;
+  // Que cambio la persona (en lenguaje normal) y que falta para poder guardar.
+  const changes = useMemo(() => {
+    if (!initial) return [] as string[];
+    const o = JSON.parse(initial) as { flight: string; eventId: number | null; dateIn: string; dateOut: string; hour: string; hotels: [number, string][] };
+    const out: string[] = [];
+    if (flight.trim() !== o.flight) out.push('vuelo');
+    if (eventId !== o.eventId) out.push('evento');
+    if (dateIn !== o.dateIn) out.push('fecha de entrada');
+    if (dateOut !== o.dateOut) out.push('fecha de salida');
+    if (hour !== o.hour) out.push('hora');
+    const nuevos = hotelRows.filter((r) => r.isNew).length;
+    const quitados = deletedIds.length;
+    const editados = hotelRows.filter((r) => !r.isNew && o.hotels.some(([id, d]) => id === r.id_orders_hotels && d !== r.dispo)).length;
+    if (nuevos) out.push(nuevos === 1 ? 'un hotel nuevo' : `${nuevos} hoteles nuevos`);
+    if (quitados) out.push(quitados === 1 ? 'un hotel quitado' : `${quitados} hoteles quitados`);
+    if (editados) out.push('cuartos disponibles');
+    return out;
+  }, [initial, flight, eventId, dateIn, dateOut, hour, hotelRows, deletedIds]);
+  const dirty = changes.length > 0;
+
+  const missing: string[] = [];
+  if (!flight.trim()) missing.push('el número de vuelo');
+  if (!eventId) missing.push('el tipo de evento');
+  if (hotelRows.some((r) => !r.idHotel)) missing.push('elegir el hotel de la fila nueva');
+  if (hotelRows.some((r) => !(parseInt(r.dispo, 10) >= 0))) missing.push('los cuartos disponibles');
+  const salidaAntes = !!dateIn && !!dateOut && dateOut < dateIn;
+
+  const canSubmit = missing.length === 0 && !!dateIn && !!dateOut && !!hour && dirty && !isSaving;
+
+  // Si hay cambios sin guardar, pregunta antes de salir (boton atras o gesto).
+  useEffect(() => {
+    const unsub = navigation.addListener('beforeRemove', (e) => {
+      if (!dirty || savedRef.current) return;
+      e.preventDefault();
+      Alert.alert('¿Salir sin guardar?', `Tienes cambios sin guardar (${changes.join(', ')}).`, [
+        { text: 'Seguir editando', style: 'cancel' },
+        { text: 'Salir sin guardar', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+      ]);
+    });
+    return unsub;
+  }, [navigation, dirty, changes]);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -192,6 +263,7 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
         deleted_hotel_ids: deletedIds,
       });
       if (res.ok) {
+        savedRef.current = true;
         Alert.alert('O.S. actualizada', res.msg ?? '', [{ text: 'OK', onPress: () => navigation.goBack() }]);
       } else {
         Alert.alert('No se pudo guardar', res.error ?? 'Intenta de nuevo.');
@@ -225,14 +297,15 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
         ) : (
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-              <FieldLabel text="Aeropuerto" />
-              <View style={styles.readonlyField}>
-                <Text style={styles.readonlyText}>{iata}</Text>
-              </View>
-
-              <FieldLabel text="Aerolínea" />
-              <View style={styles.readonlyField}>
-                <Text style={styles.readonlyText}>{airline}</Text>
+              <View style={styles.summary}>
+                <View style={styles.summaryRow}>
+                  <Ionicons name="airplane" size={15} color={p.accentText} />
+                  <Text style={styles.summaryMain}>{airline}</Text>
+                  <View style={styles.summaryPill}>
+                    <Text style={styles.summaryPillText}>{iata}</Text>
+                  </View>
+                </View>
+                <Text style={styles.summaryNote}>🔒 La aerolínea y la estación no se pueden cambiar (igual que en la web). Edita lo demás y guarda.</Text>
               </View>
 
               <FieldLabel text="Número de Vuelo" />
@@ -278,14 +351,39 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
                       <Text style={styles.readonlyText}>{row.name}</Text>
                     </View>
                   )}
-                  <TextInput
-                    value={row.dispo}
-                    onChangeText={(v) => updateHotelRow(row.key, { dispo: v })}
-                    placeholder="Disponibilidad (# de cuartos)"
-                    placeholderTextColor={p.placeholder}
-                    keyboardType="number-pad"
-                    style={[styles.input, { marginTop: 8 }]}
-                  />
+                  <Text style={styles.stepLabel}>Cuartos disponibles</Text>
+                  <View style={styles.stepper}>
+                    <Pressable style={styles.stepBtn} onPress={() => bumpDispo(row.key, -1)} hitSlop={6}>
+                      <Ionicons name="remove" size={20} color={p.accentText} />
+                    </Pressable>
+                    <TextInput
+                      value={row.dispo}
+                      onChangeText={(v) => updateHotelRow(row.key, { dispo: v.replace(/[^0-9]/g, '') })}
+                      placeholder="0"
+                      placeholderTextColor={p.placeholder}
+                      keyboardType="number-pad"
+                      style={styles.stepInput}
+                    />
+                    <Pressable style={styles.stepBtn} onPress={() => bumpDispo(row.key, 1)} hitSlop={6}>
+                      <Ionicons name="add" size={20} color={p.accentText} />
+                    </Pressable>
+                    <Pressable style={styles.stepQuick} onPress={() => bumpDispo(row.key, 5)}>
+                      <Text style={styles.stepQuickText}>+5</Text>
+                    </Pressable>
+                    <Pressable style={styles.stepQuick} onPress={() => bumpDispo(row.key, 10)}>
+                      <Text style={styles.stepQuickText}>+10</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+              {removedRows.map((r) => (
+                <View key={r.key} style={styles.removedRow}>
+                  <Text style={styles.removedText} numberOfLines={1}>
+                    {r.name} se quitará al guardar
+                  </Text>
+                  <Pressable onPress={() => undoRemove(r)} hitSlop={8}>
+                    <Text style={styles.undoText}>Deshacer</Text>
+                  </Pressable>
                 </View>
               ))}
               <Pressable style={styles.addHotelBtn} onPress={addHotelRow}>
@@ -305,20 +403,44 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
                 <Text style={styles.pickerFieldText}>{formatDateDisplay(dateOut)}</Text>
               </Pressable>
 
+              <View style={styles.quickRow}>
+                {[['Mismo día', 0], ['+1 día', 1], ['+2 días', 2], ['+3 días', 3]].map(([l, d]) => (
+                  <Pressable key={String(l)} style={styles.quickChip} onPress={() => setSalidaPlus(Number(d))}>
+                    <Text style={styles.quickChipText}>{l}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {salidaAntes ? <Text style={styles.warnLine}>⚠ La fecha de salida es antes de la de entrada. Revísala.</Text> : null}
+
               <FieldLabel text="Hora Pick Up" />
               <Pressable style={styles.pickerField} onPress={() => setActivePicker('hour')}>
                 <Ionicons name="time-outline" size={16} color={p.accentText} />
                 <Text style={styles.pickerFieldText}>{hour} hrs.</Text>
               </Pressable>
 
-              <Pressable
-                style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
-                onPress={handleSubmit}
-                disabled={!canSubmit}
-              >
-                {isSaving ? <ActivityIndicator color={p.onAccent} /> : <Text style={styles.submitText}>ACTUALIZAR</Text>}
-              </Pressable>
             </ScrollView>
+            <View style={styles.footerBar}>
+              {offline ? (
+                <Text style={styles.footerWarn}>📴 Sin internet: puedes revisar, pero para guardar necesitas señal.</Text>
+              ) : missing.length > 0 ? (
+                <Text style={styles.footerWarn} numberOfLines={2}>Falta: {missing.join(' · ')}</Text>
+              ) : dirty ? (
+                <Text style={styles.footerOk} numberOfLines={2}>Cambiaste: {changes.join(', ')}</Text>
+              ) : (
+                <Text style={styles.footerMuted}>Sin cambios todavía. Toca lo que quieras corregir.</Text>
+              )}
+              <Pressable
+                style={[styles.submitBtn, (!canSubmit || offline) && styles.submitBtnDisabled]}
+                onPress={handleSubmit}
+                disabled={!canSubmit || offline}
+              >
+                {isSaving ? (
+                  <ActivityIndicator color={p.onAccent} />
+                ) : (
+                  <Text style={styles.submitText}>{dirty ? `GUARDAR ${changes.length} CAMBIO${changes.length === 1 ? '' : 'S'}` : 'GUARDAR'}</Text>
+                )}
+              </Pressable>
+            </View>
           </KeyboardAvoidingView>
         )}
       </SafeAreaView>
@@ -374,7 +496,30 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   },
   backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   topTitle: { color: p.text, fontSize: 15, fontWeight: '800' },
-  content: { padding: 16, paddingBottom: 50 },
+  content: { padding: 16, paddingBottom: 24 },
+  summary: { backgroundColor: p.card, borderWidth: 1, borderColor: p.cardBorder, borderRadius: radii.card, padding: 14, marginBottom: 4 },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  summaryMain: { color: p.text, fontSize: 15, fontWeight: '800', flex: 1 },
+  summaryPill: { backgroundColor: p.accent, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 2 },
+  summaryPillText: { color: p.onAccent, fontSize: 11.5, fontWeight: '800' },
+  summaryNote: { color: p.textMuted, fontSize: 11.5, lineHeight: 16, marginTop: 8 },
+  stepLabel: { color: p.textMuted, fontSize: 11, fontWeight: '700', marginTop: 10, marginBottom: 6 },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stepBtn: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: p.cardBorder, backgroundColor: p.card, alignItems: 'center', justifyContent: 'center' },
+  stepInput: { width: 64, height: 42, borderRadius: radii.input, borderWidth: 1, borderColor: p.cardBorder, backgroundColor: p.card, color: p.text, textAlign: 'center', fontSize: 16, fontWeight: '800' },
+  stepQuick: { height: 34, borderRadius: 17, paddingHorizontal: 12, backgroundColor: p.card, borderWidth: 1, borderColor: p.cardBorder, alignItems: 'center', justifyContent: 'center' },
+  stepQuickText: { color: p.accentText, fontSize: 12, fontWeight: '800' },
+  removedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, backgroundColor: p.warnSoft, borderWidth: 1, borderColor: p.warnBorder, borderRadius: radii.input, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 8 },
+  removedText: { color: p.warnText, fontSize: 12, flex: 1 },
+  undoText: { color: p.accentText, fontWeight: '800', fontSize: 12.5 },
+  quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  quickChip: { backgroundColor: p.card, borderWidth: 1, borderColor: p.cardBorder, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 6 },
+  quickChipText: { color: p.text, fontSize: 12, fontWeight: '700' },
+  warnLine: { color: p.warnText, fontSize: 12, fontWeight: '700', marginTop: 8 },
+  footerBar: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12, backgroundColor: p.isDark ? p.modalBg : '#ffffff', borderTopWidth: 1, borderTopColor: p.divider, gap: 4 },
+  footerWarn: { color: p.warnText, fontSize: 12, fontWeight: '700', lineHeight: 16 },
+  footerOk: { color: p.okText, fontSize: 12, fontWeight: '800', lineHeight: 16 },
+  footerMuted: { color: p.textMuted, fontSize: 12 },
   errorBox: { alignItems: 'center', gap: 10, padding: 30 },
   errorText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
   fieldLabel: {
@@ -436,7 +581,7 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
     height: 54,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 26,
+    marginTop: 6,
   },
   submitBtnDisabled: { opacity: 0.5 },
   submitText: { color: p.onAccent, fontWeight: '900', fontSize: 15, letterSpacing: 0.5 },

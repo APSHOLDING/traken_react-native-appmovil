@@ -171,7 +171,7 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer ref={navigationRef} theme={navTheme} onReady={flushPendingNotification} onStateChange={trackScreen}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false, freezeOnBlur: true }}>
         {token ? (
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
