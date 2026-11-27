@@ -10,6 +10,7 @@ import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import type { ThemeTokens } from '../theme/themes';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'ComingSoon'>;
 
 /**
@@ -31,7 +32,7 @@ export default function ComingSoonScreen({ route, navigation }: Props) {
             <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>{title}</Text>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
         <View style={styles.content}>
           <View style={[styles.card, p.shadowCard]}>

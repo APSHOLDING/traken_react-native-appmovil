@@ -12,6 +12,7 @@ import { getQrHistoryDetail, QrEventDTO, QrEventKind, QrGroupDTO } from '../api/
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'QrHistDetail'>;
 
 const EVENT_LABELS: Record<string, string> = {
@@ -54,7 +55,7 @@ export default function QrHistDetailScreen({ route, navigation }: Props) {
             <Text style={styles.topTitle}>O.S. {folioDisplay}</Text>
             <Text style={styles.topSub}>Historial de QR</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         {isLoading ? (

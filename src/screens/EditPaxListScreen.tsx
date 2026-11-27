@@ -21,6 +21,7 @@ import { getOrderPax } from '../api/client';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'EditPaxList'>;
 
 /**
@@ -73,7 +74,7 @@ export default function EditPaxListScreen({ route, navigation }: Props) {
             <Text style={styles.topTitle}>Editar Pasajero</Text>
             <Text style={styles.topSub}>#{folioDisplay}{iata ? ' · ' + iata : ''}</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <View style={styles.searchWrap}>

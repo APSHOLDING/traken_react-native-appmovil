@@ -21,6 +21,7 @@ import { getCache, saveCache } from '../utils/offlineCache';
 import { formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 const BITACORA_CACHE_KEY = 'bitacora_page1';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Bitacora'>;
@@ -143,7 +144,7 @@ export default function BitacoraScreen({ navigation }: Props) {
             <Text style={styles.topTitle}>Bitácora</Text>
             <Text style={styles.topSub}>{total} evento{total === 1 ? '' : 's'}</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <View style={styles.filtersWrap}>

@@ -13,6 +13,7 @@ import { getCache, saveCache } from '../utils/offlineCache';
 import { formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'Resumen'>;
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -103,7 +104,7 @@ export default function ResumenScreen({ navigation }: Props) {
             <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>Resumen por Estación</Text>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>

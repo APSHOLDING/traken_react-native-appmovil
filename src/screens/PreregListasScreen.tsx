@@ -14,6 +14,7 @@ import { getPreregBatches, importPreregBatch, PreregBatchItem, uploadPreregList 
 import { resizeForUpload } from '../utils/imageResize';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'PreregListas'>;
 
 /**
@@ -151,7 +152,7 @@ export default function PreregListasScreen({ route, navigation }: Props) {
             <Text style={styles.topTitle}>O.S. {folioDisplay}</Text>
             <Text style={styles.topSub}>Listas de aerolínea</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <View style={styles.introBox}>

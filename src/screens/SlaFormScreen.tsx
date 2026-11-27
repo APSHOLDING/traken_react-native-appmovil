@@ -24,6 +24,7 @@ import type { ThemeTokens } from '../theme/themes';
 import { addSlaComentario, getSlaState, saveSlaPaso, setSlaModalidad, SlaPasoItem, SlaStateResponse } from '../api/client';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'SlaForm'>;
 
 const MODALIDADES: { key: string; label: string }[] = [
@@ -242,7 +243,7 @@ export default function SlaFormScreen({ route, navigation }: Props) {
             <Text style={styles.topTitle}>O.S. {folioDisplay}</Text>
             <Text style={styles.topSub}>SLA de Operaciones</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         {isLoading ? (

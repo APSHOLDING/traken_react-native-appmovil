@@ -36,6 +36,7 @@ import {
 } from '../utils/importarLista';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'ImportarLista'>;
 
 /**
@@ -329,7 +330,7 @@ export default function ImportarListaScreen({ route, navigation }: Props) {
             <Text style={styles.topTitle}>Importar lista</Text>
             <Text style={styles.topSub}>#{folioDisplay}</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         {loadError ? (

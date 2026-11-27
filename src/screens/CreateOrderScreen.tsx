@@ -34,6 +34,7 @@ import SelectField from '../components/SelectField';
 import { getCache, saveCache } from '../utils/offlineCache';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateOrder'>;
 
 const SC_EVENT_ID = 12;
@@ -416,7 +417,7 @@ export default function CreateOrderScreen({ navigation }: Props) {
             <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>Crear O.S.</Text>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         {isLoadingOptions ? (

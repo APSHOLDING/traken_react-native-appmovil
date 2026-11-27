@@ -12,6 +12,7 @@ import { getQrHistory, QrHistoryItem } from '../api/client';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'QrHistList'>;
 
 /**
@@ -54,7 +55,7 @@ export default function QrHistListScreen({ navigation }: Props) {
             <Text style={styles.topTitle}>Historial de QR</Text>
             <Text style={styles.topSub}>{items.length} O.S. con actividad</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <View style={styles.introBox}>

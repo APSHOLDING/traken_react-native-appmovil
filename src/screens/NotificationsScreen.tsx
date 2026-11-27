@@ -12,6 +12,7 @@ import { getNotifications, NotificationItem } from '../api/client';
 import { markNotificationsSeen } from '../utils/notificationsSeen';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'Notifications'>;
 
 type EventInfo = { icon: keyof typeof Ionicons.glyphMap; color: string };
@@ -94,7 +95,7 @@ export default function NotificationsScreen({ navigation }: Props) {
             <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>Notificaciones</Text>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         {isLoading ? (

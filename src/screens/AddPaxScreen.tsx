@@ -27,6 +27,7 @@ import SelectField from '../components/SelectField';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { PreregPrefill, RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'AddPax'>;
 
 type PassengerForm = {
@@ -295,7 +296,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
             <Text style={styles.topTitle}>Agregar Habitación</Text>
             <Text style={styles.topSub}>#{folioDisplay}{iata ? ' · ' + iata : ''}</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         {isLoading ? (

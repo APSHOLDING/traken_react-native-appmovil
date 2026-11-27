@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
@@ -224,47 +224,51 @@ export default function HomeScreen({ navigation }: Props) {
       : []),
   ];
 
-  const header = (
-    <>
-      <View style={styles.topRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.hi, { color: t.headerText }]} numberOfLines={1}>
-            Hola, {user?.firstname}
-          </Text>
-          <Text style={[styles.role, { color: t.headerMuted }]} numberOfLines={1}>
-            {user?.role_name}
-          </Text>
-        </View>
-        <View style={styles.topActions}>
-          <Pressable
-            style={[styles.iconBtn, { backgroundColor: t.headerBtnBg, borderColor: t.headerBtnBorder }]}
-            onPress={() => navigation.navigate('Notifications')}
-            hitSlop={8}
-            android_ripple={{ color: 'rgba(255,255,255,0.2)', radius: 22, borderless: true }}
-          >
-            <Ionicons name="notifications-outline" size={20} color={t.headerBtnIcon} />
-            {hasUnreadNotifs && <View style={[styles.unreadDot, { borderColor: t.headerAsCard ? t.accentDark : colors.navy }]} />}
-          </Pressable>
-          <Pressable
-            style={[styles.iconBtn, { backgroundColor: t.headerBtnBg, borderColor: t.headerBtnBorder }]}
-            onPress={() => setShowTheme(true)}
-            hitSlop={8}
-            android_ripple={{ color: 'rgba(255,255,255,0.2)', radius: 22, borderless: true }}
-          >
-            <Ionicons name="color-palette-outline" size={20} color={t.headerBtnIcon} />
-          </Pressable>
-          <Pressable
-            style={[styles.iconBtn, { backgroundColor: t.headerBtnBg, borderColor: t.headerBtnBorder }]}
-            onPress={logout}
-            hitSlop={8}
-            android_ripple={{ color: 'rgba(255,255,255,0.2)', radius: 22, borderless: true }}
-          >
-            <Ionicons name="log-out-outline" size={20} color={t.headerBtnIcon} />
-          </Pressable>
-        </View>
-      </View>
+  // Barra de marca: logo de Traken a la izquierda y los botones a la derecha. Queda fija arriba.
+  // En el estilo claro va directo sobre el fondo; en los oscuros, el logo va sobre una insignia blanca para que se lea.
+  const lightBar = t.headerAsCard;
+  const btnStyle = {
+    backgroundColor: lightBar ? t.cardStrong : t.headerBtnBg,
+    borderColor: lightBar ? t.cardBorder : t.headerBtnBorder,
+  };
+  const btnIcon = lightBar ? t.text : t.headerBtnIcon;
+  const ripple = { color: lightBar ? 'rgba(15,23,42,0.12)' : 'rgba(255,255,255,0.2)', radius: 22, borderless: true };
 
-    </>
+  const brandBar = (
+    <View style={styles.brandBar}>
+      <View style={[styles.logoWrap, !lightBar && styles.logoPill]}>
+        <Image source={require('../../assets/logo-traken.png')} style={styles.brandLogo} resizeMode="contain" />
+      </View>
+      <View style={styles.topActions}>
+        <Pressable
+          style={[styles.iconBtn, btnStyle]}
+          onPress={() => navigation.navigate('Notifications')}
+          hitSlop={8}
+          android_ripple={ripple}
+        >
+          <Ionicons name="notifications-outline" size={20} color={btnIcon} />
+          {hasUnreadNotifs && <View style={[styles.unreadDot, { borderColor: lightBar ? t.cardStrong : colors.navy }]} />}
+        </Pressable>
+        <Pressable style={[styles.iconBtn, btnStyle]} onPress={() => setShowTheme(true)} hitSlop={8} android_ripple={ripple}>
+          <Ionicons name="color-palette-outline" size={20} color={btnIcon} />
+        </Pressable>
+        <Pressable style={[styles.iconBtn, btnStyle]} onPress={logout} hitSlop={8} android_ripple={ripple}>
+          <Ionicons name="log-out-outline" size={20} color={btnIcon} />
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  // Saludo (dentro de la tarjeta de color en el estilo claro, o suelto en los oscuros).
+  const greeting = (
+    <View>
+      <Text style={[styles.hi, { color: t.headerText }]} numberOfLines={1}>
+        Hola, {user?.firstname}
+      </Text>
+      <Text style={[styles.role, { color: t.headerMuted }]} numberOfLines={1}>
+        {user?.role_name}
+      </Text>
+    </View>
   );
 
   return (
@@ -273,6 +277,7 @@ export default function HomeScreen({ navigation }: Props) {
       <SafeAreaView style={styles.flex}>
         {/* Encabezado fijo: no se va al desplazar el menu */}
         <View style={styles.fixedHeader}>
+            {brandBar}
             {t.headerAsCard ? (
               <LinearGradient
                 colors={[t.accent, t.accentDark]}
@@ -280,10 +285,10 @@ export default function HomeScreen({ navigation }: Props) {
                 end={{ x: 1, y: 1 }}
                 style={[styles.headerCard, { shadowColor: t.accentDark }]}
               >
-                {header}
+                {greeting}
               </LinearGradient>
             ) : (
-              <View style={styles.headerPlain}>{header}</View>
+              <View style={styles.headerPlain}>{greeting}</View>
             )}
         </View>
 
@@ -355,14 +360,24 @@ export default function HomeScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  fixedHeader: { paddingHorizontal: 18, paddingTop: 18 },
+  fixedHeader: { paddingHorizontal: 18, paddingTop: 12 },
+  brandBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  logoWrap: { justifyContent: 'center' },
+  logoPill: { backgroundColor: '#ffffff', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
+  brandLogo: { width: 92, height: 44 },
   // El menu ocupa justo el espacio bajo el encabezado y se desplaza solo (minHeight 0 para que tambien encoja en web).
   menuScroll: { flex: 1, minHeight: 0 },
   content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 40 },
   headerCard: {
-    borderRadius: 26,
-    padding: 18,
-    marginBottom: 16,
+    borderRadius: 24,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginBottom: 14,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.28,
     shadowRadius: 18,

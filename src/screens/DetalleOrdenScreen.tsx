@@ -26,6 +26,7 @@ import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import { resizeForUpload } from '../utils/imageResize';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'DetalleOrden'>;
 
 /**
@@ -143,7 +144,7 @@ export default function DetalleOrdenScreen({ route, navigation }: Props) {
             <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>#{folioDisplay}</Text>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         {isLoading ? (

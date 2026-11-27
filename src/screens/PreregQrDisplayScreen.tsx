@@ -12,6 +12,7 @@ import type { ThemeTokens } from '../theme/themes';
 import { getSiteBaseUrl, logPreregOsQr } from '../api/client';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'PreregQrDisplay'>;
 
 /**
@@ -51,7 +52,7 @@ export default function PreregQrDisplayScreen({ route, navigation }: Props) {
             <Text style={styles.topTitle}>O.S. {folioDisplay}</Text>
             <Text style={styles.topSub}>QR de pre-registro</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <View style={styles.content}>
