@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '../components/Ionicons';
 import type { ComponentProps } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -19,6 +19,7 @@ import { warmOfflineData } from '../utils/prefetch';
 import { getManualUrl, getNotifications, getOpenOrders, getPreregOrders, getSiteBaseUrl } from '../api/client';
 import { getLastSeenNotifications } from '../utils/notificationsSeen';
 import { getCache, saveCache } from '../utils/offlineCache';
+import { setIconStyle } from '../utils/iconStyle';
 import { OutboxSummary, subscribeOutbox } from '../utils/outbox';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -404,7 +405,10 @@ export default function HomeScreen({ navigation }: Props) {
     if (!layoutKey) return;
     getCache<Layout>(layoutKey)
       .then((c) => {
-        if (c && Array.isArray(c.data?.order) && Array.isArray(c.data?.hidden)) setLayout(c.data);
+        if (c && Array.isArray(c.data?.order) && Array.isArray(c.data?.hidden)) {
+          setLayout(c.data);
+          setIconStyle(c.data.view === 'icons' ? 'filled' : 'classic', false);
+        }
       })
       .catch(() => {});
   }, [layoutKey]);
@@ -412,6 +416,8 @@ export default function HomeScreen({ navigation }: Props) {
   const saveLayout = useCallback(
     (next: Layout) => {
       setLayout(next);
+      // El estilo de iconos de TODA la app sigue a esta eleccion.
+      setIconStyle(next.view === 'icons' ? 'filled' : 'classic');
       if (layoutKey) saveCache(layoutKey, next).catch(() => {});
     },
     [layoutKey]

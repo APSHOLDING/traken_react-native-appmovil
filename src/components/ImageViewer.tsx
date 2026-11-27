@@ -13,7 +13,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '../components/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export type ViewerImage = { url: string; title?: string; /** grados guardados de la foto (0/90/180/270) */ rotation?: number };

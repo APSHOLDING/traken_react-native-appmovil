@@ -12,7 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '../components/Ionicons';
 import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import type { ThemeTokens } from '../theme/themes';
 import { CommentDTO, getComments } from '../api/client';
