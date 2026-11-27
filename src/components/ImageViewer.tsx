@@ -16,7 +16,7 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export type ViewerImage = { url: string; title?: string };
+export type ViewerImage = { url: string; title?: string; /** grados guardados de la foto (0/90/180/270) */ rotation?: number };
 
 type Props = {
   visible: boolean;
@@ -100,7 +100,7 @@ export default function ImageViewer({ visible, images, startIndex = 0, onClose }
             }
           }}
           renderItem={({ item, index: i }) => (
-            <ZoomableImage uri={item.url} width={width} height={height} active={i === index} onZoomChange={setZoomed} />
+            <ZoomableImage uri={item.url} rotation={item.rotation ?? 0} width={width} height={height} active={i === index} onZoomChange={setZoomed} />
           )}
         />
 
@@ -151,12 +151,14 @@ function dist(a: { pageX: number; pageY: number }, b: { pageX: number; pageY: nu
 
 function ZoomableImage({
   uri,
+  rotation,
   width,
   height,
   active,
   onZoomChange,
 }: {
   uri: string;
+  rotation: number;
   width: number;
   height: number;
   active: boolean;
@@ -267,7 +269,11 @@ function ZoomableImage({
     <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }} {...pan.panHandlers}>
       <Animated.Image
         source={{ uri }}
-        style={{ width, height, transform: [{ translateX: ax }, { translateY: ay }, { scale: sc }] }}
+        style={{
+          width: rotation % 180 === 0 ? width : height,
+          height: rotation % 180 === 0 ? height : width,
+          transform: [{ translateX: ax }, { translateY: ay }, { scale: sc }, { rotate: `${rotation}deg` }],
+        }}
         resizeMode="contain"
         onLoadStart={() => {
           setLoading(true);

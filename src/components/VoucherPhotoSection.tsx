@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import ImageViewer from './ImageViewer';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import type { ThemeTokens } from '../theme/themes';
@@ -41,6 +42,7 @@ export default function VoucherPhotoSection({
   const p = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [photoUrl, setPhotoUrl] = useState(initialUrl);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const [removed, setRemoved] = useState(initialRemoved);
   const [rotation, setRotation] = useState<0 | 90 | 180 | 270>(
     initialRotation === 90 || initialRotation === 180 || initialRotation === 270 ? initialRotation : 0
@@ -249,12 +251,20 @@ export default function VoucherPhotoSection({
       </View>
 
       {photoUrl && !scanning && !showGuess && (
-        <Image
-          source={{ uri: photoUrl }}
-          style={[styles.thumb, { transform: [{ rotate: `${rotation}deg` }] }]}
-          resizeMode="cover"
-        />
+        <Pressable onPress={() => setViewerOpen(true)}>
+          <Image
+            source={{ uri: photoUrl }}
+            style={[styles.thumb, { transform: [{ rotate: `${rotation}deg` }] }]}
+            resizeMode="cover"
+          />
+          <Text style={{ color: p.textMuted, fontSize: 11.5, marginTop: 4 }}>🔍 Toca la foto para verla en grande</Text>
+        </Pressable>
       )}
+      <ImageViewer
+        visible={viewerOpen}
+        images={photoUrl ? [{ url: photoUrl, title: 'Soporte / voucher', rotation }] : []}
+        onClose={() => setViewerOpen(false)}
+      />
 
       {!scanning && !showGuess && (
         <View style={styles.actionsRow}>
