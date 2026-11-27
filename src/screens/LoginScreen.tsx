@@ -164,6 +164,7 @@ export default function LoginScreen() {
       <SafeAreaView style={styles.flex}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <View style={styles.col}>
             <Animated.View style={[styles.brand, { opacity: logoFade }]}>
               <Image source={require('../../assets/logo-traken.png')} style={styles.logoImage} resizeMode="contain" />
               <View style={styles.tagline}>
@@ -315,6 +316,7 @@ export default function LoginScreen() {
             </Pressable>
 
             <Text style={styles.footer}>APS · Above All We Care{version ? `  ·  v${version}` : ''}</Text>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -328,7 +330,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   halo1: { position: 'absolute', top: -90, right: -70, width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(32,185,177,0.13)' },
   halo2: { position: 'absolute', bottom: -110, left: -90, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(22,33,77,0.07)' },
-  content: { flexGrow: 1, paddingHorizontal: 22, paddingVertical: 20, justifyContent: 'center' },
+  content: { flexGrow: 1, paddingHorizontal: 22, paddingVertical: 20, justifyContent: 'center', alignItems: 'center' },
+  col: { width: '100%', maxWidth: 440 },
   brand: { alignItems: 'center', marginBottom: 18 },
   logoImage: { width: 250, height: 128 },
   tagline: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },

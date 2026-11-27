@@ -16,6 +16,8 @@ type Props = {
   /** 'open' busca solo en O.S. abiertas (picker de Órdenes Abiertas); 'all' busca en todas (Reportes, Detalles). */
   estado: 'open' | 'all';
   onPick: (item: PaxSearchItem) => void;
+  /** Version de una sola linea (para dejarlo FIJO arriba sin comerse la pantalla). */
+  compact?: boolean;
 };
 
 /**
@@ -23,7 +25,7 @@ type Props = {
  * equivalente movil de la cajita que js/buscar_pax.js inyecta en la web
  * sobre Órdenes Abiertas y Reportes (op/modulos/open/buscarPax.php).
  */
-export default function PaxSearchBox({ estado, onPick }: Props) {
+export default function PaxSearchBox({ estado, onPick, compact }: Props) {
   const p = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [query, setQuery] = useState('');
@@ -72,13 +74,13 @@ export default function PaxSearchBox({ estado, onPick }: Props) {
   const q = query.trim();
 
   return (
-    <View style={[styles.box, p.shadowCard]}>
-      <Text style={styles.title}>🔎 Buscar pasajero por nombre</Text>
+    <View style={[styles.box, p.shadowCard, compact && { padding: 8, marginBottom: 8 }]}>
+      {compact ? null : <Text style={styles.title}>🔎 Buscar pasajero por nombre</Text>}
       <View style={styles.row}>
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Nombre o apellido del pasajero…"
+          placeholder={compact ? '🔎 Buscar pasajero por nombre (mín. 3 letras)' : 'Nombre o apellido del pasajero…'}
           placeholderTextColor={p.placeholder}
           style={styles.input}
           autoCapitalize="characters"
@@ -91,10 +93,12 @@ export default function PaxSearchBox({ estado, onPick }: Props) {
         ) : null}
         {isSearching ? <ActivityIndicator color={p.accentText} size="small" /> : null}
       </View>
+      {compact ? null : (
       <Text style={styles.hint}>
         {estado === 'open' ? 'Busca en las O.S. abiertas de tus estaciones.' : 'Busca en todas las O.S. de tus estaciones.'}{' '}
         Escribe al menos 3 letras.
       </Text>
+      )}
 
       {q.length >= 3 && !isSearching ? (
         searchError ? (

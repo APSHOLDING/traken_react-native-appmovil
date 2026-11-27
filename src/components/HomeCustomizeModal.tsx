@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '../components/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,11 +30,13 @@ type Props = {
  */
 export default function HomeCustomizeModal({ visible, items, hidden, view, onViewChange, onMove, onToggle, onReset, onClose }: Props) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const wide = width > 600; // en pantallas anchas: tarjeta centrada de ancho de celular
   const shown = items.length - hidden.length;
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 14 }]} onPress={() => {}}>
+      <Pressable style={[styles.overlay, wide && styles.overlayWide]} onPress={onClose}>
+        <Pressable style={[styles.sheet, wide && styles.sheetWide, { paddingBottom: insets.bottom + 14 }]} onPress={() => {}}>
           <View style={styles.grab} />
           <View style={styles.head}>
             <Text style={styles.title}>Personalizar menú</Text>
@@ -103,6 +105,8 @@ export default function HomeCustomizeModal({ visible, items, hidden, view, onVie
 }
 
 const styles = StyleSheet.create({
+  overlayWide: { justifyContent: 'center', alignItems: 'center' },
+  sheetWide: { width: '100%', maxWidth: 480, borderBottomLeftRadius: 26, borderBottomRightRadius: 26 },
   overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: '#ffffff', borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: 18, paddingTop: 10, maxHeight: '86%' },
   grab: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1', marginBottom: 12 },
