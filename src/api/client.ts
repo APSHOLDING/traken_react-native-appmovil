@@ -347,6 +347,32 @@ export async function getHotelsForOrder(idOrder: number, idAirport: number): Pro
   return data;
 }
 
+export interface HotelSuggestion {
+  id: number;
+  name: string;
+  rooms_dis: number;
+  score: number;
+  uso: number;
+  contrato: 0 | 1;
+  reasons: string[];
+}
+
+export interface HotelSuggestResponse {
+  ok: boolean;
+  suggestions?: HotelSuggestion[];
+  ranking?: HotelSuggestion[];
+  con_contrato?: 0 | 1;
+  error?: string;
+}
+
+/** Hoteles ordenados por uso real con la aerolinea, acuerdo comercial vigente y disponibilidad. */
+export async function getHotelSuggestions(idOrder: number, idAirport: number): Promise<HotelSuggestResponse> {
+  const { data } = await api.get<HotelSuggestResponse>('/orders/hotelSuggest.php', {
+    params: { id_order: idOrder, id_airport: idAirport },
+  });
+  return data;
+}
+
 export type PaxType = 'adulto' | 'nino' | 'infante';
 
 export interface PaxEntry {

@@ -22,7 +22,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { radii } from '../theme/colors';
 import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import type { ThemeTokens } from '../theme/themes';
-import { getHotelsForOrder, getOpenOrders, OpenOrderDTO } from '../api/client';
+import { getHotelSuggestions, getHotelsForOrder, getOpenOrders, HotelSuggestion, OpenOrderDTO } from '../api/client';
 import { addPax } from '../api/queuedWrites';
 import { getCache, saveCache } from '../utils/offlineCache';
 import { useOfflineLoad } from '../utils/useOfflineLoad';
@@ -61,6 +61,7 @@ export default function QuickCaptureScreen({ navigation }: Props) {
   const [rooms, setRooms] = useState<CaptureRoom[] | null>(null);
   const [hotelInfo, setHotelInfo] = useState<HotelInfo | null>(null);
   const [loadingHotels, setLoadingHotels] = useState(false);
+  const [suggest, setSuggest] = useState<HotelSuggestion[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [micTip, setMicTip] = useState(false);
   const inputRef = React.useRef<React.ElementRef<typeof TextInput>>(null);
@@ -127,7 +128,22 @@ export default function QuickCaptureScreen({ navigation }: Props) {
   }, []);
 
   useEffect(() => {
-    if (order) loadHotels(order);
+    if (!order) return;
+    loadHotels(order);
+    // Sugerencias: lo ultimo guardado al instante y, con internet, actualizadas.
+    const key = `hotel_suggest_${order.folio}_${order.id_airport}`;
+    let cancelled = false;
+    getCache<HotelSuggestion[]>(key).then((c) => !cancelled && c && setSuggest(c.data)).catch(() => {});
+    getHotelSuggestions(order.folio, order.id_airport)
+      .then((r) => {
+        if (cancelled || !r.ok) return;
+        setSuggest(r.ranking ?? []);
+        saveCache(key, r.ranking ?? []).catch(() => {});
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [order, loadHotels]);
 
   const showOcupation = !!order && (order.type_airline === 'ep' || (order.type_airline === 'all' && order.id_airport === 14));
@@ -143,6 +159,17 @@ export default function QuickCaptureScreen({ navigation }: Props) {
     if (parsed.length === 0) {
       Alert.alert('No encontré pasajeros', 'Escribe al menos un nombre. Ejemplo:\n\n' + EXAMPLE);
       return;
+    }
+    // Si no mencionaron hotel, se propone el recomendado (se ve y se puede cambiar antes de confirmar).
+    const top = suggest.find((x) => hotelInfo.hotels.some((h) => h.id === x.id));
+    if (top) {
+      parsed.forEach((r) => {
+        if (r.idHotel === null) {
+          r.idHotel = top.id;
+          r.hotelName = top.name;
+          r.notes = [...r.notes, '💡 Hotel sugerido por uso con la aerolínea, acuerdo comercial y disponibilidad (cámbialo si quieres)'];
+        }
+      });
     }
     logEvent('captura_rapida', {
       text: `Interpretó ${parsed.length} habitación(es) del texto: ${text.replace(/\s+/g, ' ').slice(0, 600)}`,
@@ -441,9 +468,18 @@ export default function QuickCaptureScreen({ navigation }: Props) {
 
                     <Text style={styles.fieldLabel}>Hotel</Text>
                     <View style={styles.chipRow}>
-                      {(hotelInfo?.hotels ?? []).map((h) => (
+                      {[...(hotelInfo?.hotels ?? [])]
+                        .sort((a, b) => {
+                          const ia = suggest.findIndex((x) => x.id === a.id);
+                          const ib = suggest.findIndex((x) => x.id === b.id);
+                          return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+                        })
+                        .map((h) => (
                         <Pressable key={h.id} style={[styles.chip, r.idHotel === h.id && styles.chipOn]} onPress={() => setRoomHotel(r.id, h.id)}>
-                          <Text style={[styles.chipText, r.idHotel === h.id && styles.chipTextOn]}>{h.name.trim()}</Text>
+                          <Text style={[styles.chipText, r.idHotel === h.id && styles.chipTextOn]}>
+                            {suggest[0]?.id === h.id ? '⭐ ' : ''}
+                            {h.name.trim()}
+                          </Text>
                         </Pressable>
                       ))}
                     </View>
