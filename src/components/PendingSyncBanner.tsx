@@ -15,6 +15,8 @@ import {
   startOutboxMonitor,
   subscribeOutbox,
 } from '../utils/outbox';
+import { getReceipts, hhmmss, onOpenReceipts, onReceiptsChange, Receipt } from '../utils/receipts';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * Aviso global del estado de envio: sin internet, acciones pendientes de
@@ -41,13 +43,25 @@ export default function PendingSyncBanner() {
     }
   }, [summary.justSynced, summary.pending, summary.failed]);
 
+  // Comprobantes de lo que SI se subio (tambien se abre desde Inicio).
+  const { user } = useAuth();
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const loadReceipts = useCallback(() => {
+    getReceipts(user?.id ?? null).then(setReceipts).catch(() => {});
+  }, [user?.id]);
+  useEffect(() => {
+    loadReceipts();
+    return onReceiptsChange(loadReceipts);
+  }, [loadReceipts]);
+  useEffect(() => onOpenReceipts(() => setOpen(true)), []);
+
   const refreshItems = useCallback(async () => setItems(await getOutboxItems()), []);
   useEffect(() => {
     if (open) refreshItems();
   }, [open, summary, refreshItems]);
 
   const showSynced = summary.justSynced > 0 && summary.pending === 0 && summary.failed === 0;
-  if (!offline && summary.pending === 0 && summary.failed === 0 && !showSynced) return null;
+  const idle = !offline && summary.pending === 0 && summary.failed === 0 && !showSynced;
 
   let icon: keyof typeof Ionicons.glyphMap = 'cloud-offline-outline';
   let tint = '#fde68a';
@@ -68,10 +82,11 @@ export default function PendingSyncBanner() {
     text = `${summary.justSynced} acción${summary.justSynced === 1 ? '' : 'es'} enviada${summary.justSynced === 1 ? '' : 's'} ✓`;
   }
 
-  const hasQueue = summary.pending > 0 || summary.failed > 0;
+  const hasQueue = summary.pending > 0 || summary.failed > 0 || showSynced;
 
   return (
     <>
+      {!idle && (
       <View style={[styles.wrap, { top: insets.top + 6 }]} pointerEvents="box-none">
         <Pressable
           style={[styles.pill, shadow.card]}
@@ -83,12 +98,13 @@ export default function PendingSyncBanner() {
           {hasQueue && <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.6)" />}
         </Pressable>
       </View>
+      )}
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <View style={styles.overlay}>
           <View style={styles.sheet}>
             <View style={styles.sheetHead}>
-              <Text style={styles.sheetTitle}>Pendientes de enviar</Text>
+              <Text style={styles.sheetTitle}>Envíos</Text>
               <Pressable onPress={() => setOpen(false)} hitSlop={10}>
                 <Ionicons name="close" size={22} color={colors.navy} />
               </Pressable>
@@ -100,7 +116,7 @@ export default function PendingSyncBanner() {
 
             <ScrollView style={{ maxHeight: 380 }}>
               {items.length === 0 ? (
-                <Text style={styles.empty}>No hay nada pendiente.</Text>
+                <Text style={styles.empty}>No hay nada pendiente de enviar. ✓</Text>
               ) : (
                 items.map((it) => (
                   <View key={it.id} style={[styles.item, it.status === 'failed' && styles.itemFailed]}>
@@ -130,6 +146,26 @@ export default function PendingSyncBanner() {
                         </View>
                       </>
                     )}
+                  </View>
+                ))
+              )}
+            </ScrollView>
+
+            <Text style={[styles.sheetTitle, { fontSize: 14, marginTop: 14 }]}>✓ Enviados (comprobantes)</Text>
+            <Text style={styles.sheetSub}>Lo que el servidor sí recibió, con la hora en que lo capturaste y la hora en que se subió.</Text>
+            <ScrollView style={{ maxHeight: 240 }}>
+              {receipts.length === 0 ? (
+                <Text style={styles.empty}>Aquí aparecerán tus envíos confirmados.</Text>
+              ) : (
+                receipts.slice(0, 15).map((r) => (
+                  <View key={r.id} style={styles.item}>
+                    <Text style={styles.itemLabel}>✓ {r.label}</Text>
+                    <Text style={styles.itemMeta}>
+                      {r.viaQueue
+                        ? `Capturado ${new Date(r.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })} ${hhmmss(r.createdAt)} (sin internet) · Subido ${hhmmss(r.syncedAt)}`
+                        : `Subido al instante · ${new Date(r.syncedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })} ${hhmmss(r.syncedAt)}`}
+                    </Text>
+                    <Text style={styles.itemMeta}>Servidor: {r.msg}</Text>
                   </View>
                 ))
               )}

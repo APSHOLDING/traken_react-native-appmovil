@@ -57,7 +57,7 @@ export async function warmOfflineData(force = false): Promise<void> {
     await safe(async () => {
       const res = await getOpenOrders();
       if (res.ok) {
-        orders = (res.orders ?? []).map((o) => ({ folio: o.folio, id_airport: o.id_airport }));
+        orders = (res.orders ?? []).filter((o) => !o.es_prueba).map((o) => ({ folio: o.folio, id_airport: o.id_airport }));
         await saveCache('open_orders', { orders: res.orders ?? [], totalAnteriores: res.total_anteriores ?? 0 });
       }
     });
@@ -65,7 +65,7 @@ export async function warmOfflineData(force = false): Promise<void> {
     // 2) Lista de SLA (ventana por defecto, 45 dias).
     await safe(async () => {
       const res = await getSlaList(45);
-      if (res.ok) await saveCache('sla_list_45', res.items ?? []);
+      if (res.ok) await saveCache('sla_list_45_n', { items: res.items ?? [], pruebas: res.pruebas ?? 0 });
     });
 
     // 3) Historial de QR y detalle de los mas recientes.

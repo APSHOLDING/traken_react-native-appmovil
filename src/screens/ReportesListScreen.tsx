@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PruebaBadge, PruebaToggle } from '../components/PruebaBits';
 import { useTrackSearch, track } from '../utils/useTrack';
 import Loading from '../components/Loading';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -31,6 +32,7 @@ export default function ReportesListScreen({ navigation }: Props) {
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
   const [estadoF, setEstadoF] = useState('');
+  const [verPruebas, setVerPruebas] = useState(false); // por defecto las O.S. de PRUEBA no se muestran
 
   const {
     data: result,
@@ -49,6 +51,7 @@ export default function ReportesListScreen({ navigation }: Props) {
 
   const q = query.trim().toLowerCase();
   const filtered = orders.filter((o) => {
+    if (o.es_prueba && !verPruebas) return false;
     if (q) {
       const hay = `${o.folio_display} ${o.airline} ${o.flight ?? ''} ${o.iata}`.toLowerCase().includes(q);
       if (!hay) return false;
@@ -108,6 +111,8 @@ export default function ReportesListScreen({ navigation }: Props) {
           }
         />
 
+        <PruebaToggle hidden={orders.filter((o) => o.es_prueba).length} show={verPruebas} onToggle={() => setVerPruebas((v) => !v)} />
+
         {isLoading ? (
           <Loading style={{ marginTop: 30 }} />
         ) : error ? (
@@ -157,7 +162,10 @@ export default function ReportesListScreen({ navigation }: Props) {
                 }
               >
                 <View style={styles.cardTop}>
-                  <Text style={styles.folioText}>#{item.folio_display}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                    <Text style={styles.folioText}>#{item.folio_display}</Text>
+                    {item.es_prueba ? <PruebaBadge /> : null}
+                  </View>
                   <Ionicons name="chevron-forward" size={16} color={p.textMuted} />
                 </View>
                 <View style={styles.rows}>

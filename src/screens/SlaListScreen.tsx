@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PruebaBadge, PruebaToggle } from '../components/PruebaBits';
 import { useTrackSearch, track } from '../utils/useTrack';
 import Loading from '../components/Loading';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -51,15 +52,17 @@ export default function SlaListScreen({ navigation }: Props) {
   useTrackSearch('SlaList', query);
   const [estado, setEstado] = useState<SlaEstado | ''>('');
   const [dias, setDias] = useState(45);
+  const [verPruebas, setVerPruebas] = useState(false); // por defecto las O.S. de PRUEBA no se muestran
 
   // Sin internet se muestra lo ultimo guardado (la precarga de Inicio lo deja al dia).
   const { data, isLoading, error, offlineSince, reload: load } = useOfflineLoad(
-    `sla_list_${dias}`,
-    () => getSlaList(dias),
-    (res) => (res.items ?? []) as SlaListItem[],
-    [dias]
+    `sla_list_${dias}_${verPruebas ? 'p' : 'n'}`,
+    () => getSlaList(dias, verPruebas),
+    (res) => ({ items: (res.items ?? []) as SlaListItem[], pruebas: res.pruebas ?? 0 }),
+    [dias, verPruebas]
   );
-  const items: SlaListItem[] = data ?? [];
+  const items: SlaListItem[] = data && !Array.isArray(data) ? (data as any).items : (data as any) ?? [];
+  const nPruebas: number = data && !Array.isArray(data) ? (data as any).pruebas ?? 0 : 0;
 
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
@@ -120,6 +123,8 @@ export default function SlaListScreen({ navigation }: Props) {
           ))}
         </View>
 
+        <PruebaToggle hidden={nPruebas} show={verPruebas} onToggle={() => setVerPruebas((v) => !v)} />
+
         {offlineSince ? (
           <View style={styles.offlineNote}>
             <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
@@ -171,9 +176,12 @@ export default function SlaListScreen({ navigation }: Props) {
                   <View style={[styles.sideBar, { backgroundColor: semColor ?? p.isDark ? 'rgba(255,255,255,0.18)' : p.cardBorder }]} />
                   <View style={styles.cardBody}>
                     <View style={styles.cardTop}>
-                      <Text style={styles.cardFolio}>
-                        O.S. {item.folio_display} · {item.iata}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                        <Text style={styles.cardFolio}>
+                          O.S. {item.folio_display} · {item.iata}
+                        </Text>
+                        {item.prueba ? <PruebaBadge /> : null}
+                      </View>
                       <Text style={[styles.estadoText, { color: e.color }]}>{e.text}</Text>
                     </View>
                     <Text style={styles.cardSub}>

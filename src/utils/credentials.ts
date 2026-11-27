@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { StationDTO, UserDTO } from '../api/client';
+import { deleteToken, getToken, setToken } from './tokenStorage';
 
 // El ultimo correo usado se guarda aparte del token de sesion (que SI se
 // borra al cerrar sesion): asi la proxima vez que se abra la app, el campo
@@ -47,5 +48,39 @@ export async function getLastProfile(): Promise<CachedProfile | null> {
     return raw ? (JSON.parse(raw) as CachedProfile) : null;
   } catch (e) {
     return null;
+  }
+}
+
+// "Recordar mi contraseña en este telefono" (opcional, lo elige la persona): se guarda en el almacen CIFRADO del
+// telefono (el mismo que protege el token de sesion: Keystore en Android, Llavero en iOS), nunca en texto plano ni en el
+// servidor. Al volver a la pantalla de entrada se usa con la huella (o se precarga si el telefono no tiene huella).
+const REMEMBER_KEY = 'traken_saved_login';
+
+export type SavedLogin = { email: string; password: string };
+
+export async function saveRememberedLogin(email: string, password: string) {
+  try {
+    await setToken(REMEMBER_KEY, JSON.stringify({ email, password }));
+  } catch (e) {
+    // No es critico: en el peor caso se vuelve a escribir.
+  }
+}
+
+export async function getRememberedLogin(): Promise<SavedLogin | null> {
+  try {
+    const raw = await getToken(REMEMBER_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    return v && typeof v.email === 'string' && typeof v.password === 'string' ? (v as SavedLogin) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function clearRememberedLogin() {
+  try {
+    await deleteToken(REMEMBER_KEY);
+  } catch (e) {
+    // No es critico.
   }
 }
