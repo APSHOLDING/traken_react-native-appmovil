@@ -16,6 +16,8 @@ type Props = {
   /** Todos los modulos en el orden actual (incluidos los ocultos). */
   items: CustomizeItem[];
   hidden: string[];
+  view: 'cards' | 'icons';
+  onViewChange: (v: 'cards' | 'icons') => void;
   onMove: (key: string, dir: -1 | 1) => void;
   onToggle: (key: string) => void;
   onReset: () => void;
@@ -26,7 +28,7 @@ type Props = {
  * "Personalizar menu": cada persona acomoda su inicio -- sube/baja lo que mas usa y oculta lo que no.
  * Se guarda en el telefono (por usuario). Sin librerias nuevas: flechas y un ojo, facil de usar con una mano.
  */
-export default function HomeCustomizeModal({ visible, items, hidden, onMove, onToggle, onReset, onClose }: Props) {
+export default function HomeCustomizeModal({ visible, items, hidden, view, onViewChange, onMove, onToggle, onReset, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const shown = items.length - hidden.length;
   return (
@@ -39,6 +41,14 @@ export default function HomeCustomizeModal({ visible, items, hidden, onMove, onT
             <Pressable onPress={onClose} hitSlop={10}>
               <Ionicons name="close" size={22} color="#16214d" />
             </Pressable>
+          </View>
+          <View style={styles.seg}>
+            {([['cards', 'Tarjetas', 'albums-outline'], ['icons', 'Iconos (tipo iPhone)', 'apps-outline']] as const).map(([k, l, ic]) => (
+              <Pressable key={k} style={[styles.segBtn, view === k && styles.segBtnOn]} onPress={() => onViewChange(k)}>
+                <Ionicons name={ic} size={15} color={view === k ? '#fff' : '#16214d'} />
+                <Text style={[styles.segText, view === k && styles.segTextOn]}>{l}</Text>
+              </Pressable>
+            ))}
           </View>
           <Text style={styles.hint}>
             Pon arriba lo que más usas con las flechas y oculta con el ojo lo que no necesites. Tu menú se guarda en este teléfono.
@@ -98,6 +108,11 @@ const styles = StyleSheet.create({
   grab: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1', marginBottom: 12 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { color: '#16214d', fontSize: 19, fontWeight: '800' },
+  seg: { flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 14, padding: 3, marginTop: 12 },
+  segBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 11 },
+  segBtnOn: { backgroundColor: '#0f766e' },
+  segText: { color: '#16214d', fontWeight: '800', fontSize: 12.5 },
+  segTextOn: { color: '#fff' },
   hint: { color: '#64748b', fontSize: 12.5, lineHeight: 18, marginTop: 6, marginBottom: 10 },
   list: { flexGrow: 0 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#eef2f7' },

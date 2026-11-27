@@ -88,6 +88,37 @@ const ModuleTile = React.memo(function ModuleTile({ c, t }: { c: ModuleCard; t: 
   );
 });
 
+/** Vista "tipo iPhone": icono redondeado con su nombre abajo, 4 por renglon. Tambien memorizada. */
+const IconTile = React.memo(function IconTile({ c, t }: { c: ModuleCard; t: ReturnType<typeof useTheme> }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.iconTile, pressed && styles.iconTilePressed]}
+      onPress={c.onPress}
+      disabled={c.loading}
+      accessibilityLabel={c.label}
+    >
+      <View style={[styles.appIconShadow, { shadowColor: c.gradient[1] }]}>
+        <LinearGradient colors={c.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.appIcon}>
+          {c.loading ? <ActivityIndicator color={colors.white} /> : <Ionicons name={c.icon} size={31} color={colors.white} />}
+          <LinearGradient colors={['rgba(255,255,255,0.42)', 'rgba(255,255,255,0)']} style={styles.appGloss} pointerEvents="none" />
+        </LinearGradient>
+        {c.badge ? (
+          <View style={styles.appBadge}>
+            <Text style={styles.badgeText}>{c.badge}</Text>
+          </View>
+        ) : c.tag ? (
+          <View style={styles.appTag}>
+            <Text style={styles.tagText}>{c.tag}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={[styles.appLabel, { color: t.text }]} numberOfLines={2}>
+        {c.label}
+      </Text>
+    </Pressable>
+  );
+});
+
 function saludo(): string {
   const h = new Date().getHours();
   return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
@@ -337,13 +368,14 @@ export default function HomeScreen({ navigation }: Props) {
   ], [navigation, openCount, preregPend, isDownloadingManual, handleOpenManual, user?.acceso_sc_incidencias, esAdminMaestro]);
 
   // ---- Menu personalizable: orden y modulos ocultos, guardados por usuario en el telefono ----
-  const [layout, setLayout] = useState<{ order: string[]; hidden: string[] }>({ order: [], hidden: [] });
+  type Layout = { order: string[]; hidden: string[]; view?: 'cards' | 'icons' };
+  const [layout, setLayout] = useState<Layout>({ order: [], hidden: [], view: 'cards' });
   const [showCustomize, setShowCustomize] = useState(false);
   const layoutKey = user?.id ? `home_layout_${user.id}` : null;
 
   useEffect(() => {
     if (!layoutKey) return;
-    getCache<{ order: string[]; hidden: string[] }>(layoutKey)
+    getCache<Layout>(layoutKey)
       .then((c) => {
         if (c && Array.isArray(c.data?.order) && Array.isArray(c.data?.hidden)) setLayout(c.data);
       })
@@ -351,7 +383,7 @@ export default function HomeScreen({ navigation }: Props) {
   }, [layoutKey]);
 
   const saveLayout = useCallback(
-    (next: { order: string[]; hidden: string[] }) => {
+    (next: Layout) => {
       setLayout(next);
       if (layoutKey) saveCache(layoutKey, next).catch(() => {});
     },
@@ -376,7 +408,7 @@ export default function HomeScreen({ navigation }: Props) {
     const j = i + dir;
     if (i < 0 || j < 0 || j >= keys.length) return;
     [keys[i], keys[j]] = [keys[j], keys[i]];
-    saveLayout({ order: keys, hidden: layout.hidden });
+    saveLayout({ order: keys, hidden: layout.hidden, view: layout.view });
   };
   const toggleCard = (key: string) => {
     const isHidden = layout.hidden.indexOf(key) >= 0;
@@ -384,7 +416,7 @@ export default function HomeScreen({ navigation }: Props) {
       Alert.alert('Deja al menos uno', 'El menú necesita mostrar por lo menos un módulo.');
       return;
     }
-    saveLayout({ order: orderedCards.map((c) => c.key), hidden: isHidden ? layout.hidden.filter((k) => k !== key) : [...layout.hidden, key] });
+    saveLayout({ order: orderedCards.map((c) => c.key), hidden: isHidden ? layout.hidden.filter((k) => k !== key) : [...layout.hidden, key], view: layout.view });
   };
 
   // Barra de marca: logo de Traken a la izquierda y los botones a la derecha. Queda fija arriba.
@@ -478,11 +510,19 @@ export default function HomeScreen({ navigation }: Props) {
             </Pressable>
           </View>
 
-          <View style={styles.grid}>
-            {visibleCards.map((c) => (
-              <ModuleTile key={c.key} c={c} t={t} />
-            ))}
-          </View>
+          {layout.view === 'icons' ? (
+            <View style={styles.iconGrid}>
+              {visibleCards.map((c) => (
+                <IconTile key={c.key} c={c} t={t} />
+              ))}
+            </View>
+          ) : (
+            <View style={styles.grid}>
+              {visibleCards.map((c) => (
+                <ModuleTile key={c.key} c={c} t={t} />
+              ))}
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
 
@@ -493,7 +533,9 @@ export default function HomeScreen({ navigation }: Props) {
         hidden={layout.hidden}
         onMove={moveCard}
         onToggle={toggleCard}
-        onReset={() => saveLayout({ order: [], hidden: [] })}
+        view={layout.view ?? 'cards'}
+        onViewChange={(v) => saveLayout({ order: orderedCards.map((c) => c.key), hidden: layout.hidden, view: v })}
+        onReset={() => saveLayout({ order: [], hidden: [], view: 'cards' })}
         onClose={() => setShowCustomize(false)}
       />
     </LinearGradient>
@@ -556,6 +598,15 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   sectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, marginBottom: 10, marginLeft: 4 },
+  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 20, paddingTop: 6 },
+  iconTile: { width: '25%', alignItems: 'center', paddingHorizontal: 2 },
+  iconTilePressed: { transform: [{ scale: 0.92 }], opacity: 0.85 },
+  appIconShadow: { shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5 },
+  appIcon: { width: 64, height: 64, borderRadius: 16, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  appGloss: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%' },
+  appBadge: { position: 'absolute', top: -6, right: -8, minWidth: 21, height: 21, borderRadius: 11, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, borderWidth: 2, borderColor: '#ffffff' },
+  appTag: { position: 'absolute', top: -5, right: -9, backgroundColor: '#f59e0b', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1.5, borderWidth: 1.5, borderColor: '#ffffff' },
+  appLabel: { fontSize: 11, fontWeight: '700', textAlign: 'center', marginTop: 8, lineHeight: 14 },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   sectionTitleInRow: { marginBottom: 0 },
   customizeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: 6 },
