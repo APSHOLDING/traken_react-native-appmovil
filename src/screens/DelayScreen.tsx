@@ -57,6 +57,7 @@ export default function DelayScreen({ route, navigation }: Props) {
 
   const [lang, setLang] = useState('es');
   const [airlineText, setAirlineText] = useState(airline ?? '');
+  const airlineLocked = !!(airline && airline.trim()); // viene de la O.S.: no se edita
   const [flightText, setFlightText] = useState(flight ?? '');
   const [dest, setDest] = useState('');
   const [pickup, setPickup] = useState('01:00');
@@ -65,6 +66,7 @@ export default function DelayScreen({ route, navigation }: Props) {
 
   const [showNotice, setShowNotice] = useState(false);
   const [logo, setLogo] = useState<NoticeLogo>(null);
+  const [logoState, setLogoState] = useState<'idle' | 'loading' | 'ok' | 'none'>('idle');
   const svgRef = useRef<Svg>(null);
   const { width: screenW } = useWindowDimensions();
   const [isDownloading, setIsDownloading] = useState(false);
@@ -93,13 +95,21 @@ export default function DelayScreen({ route, navigation }: Props) {
     const name = airlineText.trim();
     if (!name) {
       setLogo(null);
+      setLogoState('idle');
       return;
     }
+    setLogoState('loading');
     const timer = setTimeout(async () => {
       const cached = await getCachedLogo(name);
-      if (!cancelled) setLogo(cached);
+      if (!cancelled) {
+        setLogo(cached);
+        if (cached) setLogoState('ok');
+      }
       const fresh = await refreshLogo(name);
-      if (!cancelled) setLogo(fresh);
+      if (!cancelled) {
+        setLogo(fresh);
+        setLogoState(fresh ? 'ok' : 'none');
+      }
     }, 400);
     return () => {
       cancelled = true;
@@ -211,13 +221,26 @@ export default function DelayScreen({ route, navigation }: Props) {
             </View>
 
             <FieldLabel text="Aerolínea" />
-            <TextInput
-              value={airlineText}
-              onChangeText={setAirlineText}
-              placeholder="Ej: AEROMEXICO"
-              placeholderTextColor={p.placeholder}
-              style={styles.input}
-            />
+            <View style={styles.lockedWrap}>
+              <TextInput
+                value={airlineText}
+                onChangeText={setAirlineText}
+                editable={!airlineLocked}
+                placeholder="Ej: AEROMEXICO"
+                placeholderTextColor={p.placeholder}
+                style={[styles.input, airlineLocked && styles.inputLocked]}
+              />
+              {airlineLocked && <Ionicons name="lock-closed" size={15} color={p.textFaint} style={styles.lockIcon} />}
+            </View>
+            {logoState !== 'idle' && (
+              <Text style={[styles.logoNote, logoState === 'ok' && { color: p.okText }]}>
+                {logoState === 'loading'
+                  ? 'Buscando el logo de la aerolínea…'
+                  : logoState === 'ok'
+                    ? '✓ Logo de la aerolínea listo'
+                    : 'Sin logo guardado de esta aerolínea (se necesita internet la primera vez). El aviso sale igual, sin logo.'}
+              </Text>
+            )}
 
             <FieldLabel text="No. de Vuelo" />
             <TextInput
@@ -373,6 +396,10 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
     color: p.text,
     fontSize: 14,
   },
+  inputLocked: { opacity: 0.75, paddingRight: 38 },
+  lockedWrap: { justifyContent: 'center' },
+  lockIcon: { position: 'absolute', right: 14 },
+  logoNote: { color: p.textMuted, fontSize: 11.5, marginTop: 6, lineHeight: 16 },
   row2: { flexDirection: 'row', gap: 12 },
   row2Item: { flex: 1 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
