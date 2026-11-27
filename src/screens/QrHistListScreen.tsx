@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTrackSearch, track } from '../utils/useTrack';
 import Loading from '../components/Loading';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +27,7 @@ export default function QrHistListScreen({ navigation }: Props) {
   const p = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [query, setQuery] = useState('');
+  useTrackSearch('QrHistList', query);
 
   const { data, isLoading, error, offlineSince, reload } = useOfflineLoad(
     'qr_history_list',

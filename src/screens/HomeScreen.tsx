@@ -20,6 +20,7 @@ import { getManualUrl, getNotifications, getOpenOrders, getPreregOrders, getSite
 import { getLastSeenNotifications } from '../utils/notificationsSeen';
 import { getCache, saveCache } from '../utils/offlineCache';
 import { setIconStyle } from '../utils/iconStyle';
+import { track } from '../utils/useTrack';
 import { OutboxSummary, subscribeOutbox } from '../utils/outbox';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -418,6 +419,7 @@ export default function HomeScreen({ navigation }: Props) {
       setLayout(next);
       // El estilo de iconos de TODA la app sigue a esta eleccion.
       setIconStyle(next.view === 'icons' ? 'filled' : 'classic');
+      track('personalizo_menu', `Personalizó su menú: vista ${next.view === 'icons' ? 'Iconos' : 'Tarjetas'}, ${next.hidden.length} módulo(s) oculto(s)${next.hidden.length ? ' (' + next.hidden.join(', ') + ')' : ''}`, { screen: 'Home' });
       if (layoutKey) saveCache(layoutKey, next).catch(() => {});
     },
     [layoutKey]

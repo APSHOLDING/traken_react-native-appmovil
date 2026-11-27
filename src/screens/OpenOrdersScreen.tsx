@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTrackSearch, track } from '../utils/useTrack';
 import {
   ActivityIndicator,
   Alert,
@@ -46,6 +47,7 @@ export default function OpenOrdersScreen({ navigation }: Props) {
   const [orders, setOrders] = useState<OpenOrderDTO[]>([]);
   const [totalAnteriores, setTotalAnteriores] = useState(0);
   const [query, setQuery] = useState('');
+  useTrackSearch('OpenOrders', query);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);

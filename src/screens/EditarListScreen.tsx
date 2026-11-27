@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useTrackSearch, track } from '../utils/useTrack';
 import Loading from '../components/Loading';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -32,6 +33,7 @@ export default function EditarListScreen({ navigation }: Props) {
   const p = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [query, setQuery] = useState('');
+  useTrackSearch('EditarList', query);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const {

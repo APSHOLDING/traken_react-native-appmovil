@@ -7,6 +7,7 @@ import type { ComponentProps } from 'react';
 import type Ionicons from '../components/Ionicons';
 import { useAuth } from '../context/AuthContext';
 import { logEvent } from '../utils/activityLog';
+import { screenName } from '../utils/screenNames';
 import {
   navigationRef,
   setupNotificationTapHandler,
@@ -137,7 +138,8 @@ function trackScreen() {
     const key = r.name + '|' + (folio ?? '');
     if (key === lastScreenKey) return;
     lastScreenKey = key;
-    logEvent('pantalla', { screen: r.name, folio, id_airport: Number(prm.idAirport) || undefined });
+    const who = [prm.folioDisplay ? `O.S. ${String(prm.folioDisplay).replace(/^#/, '')}` : '', prm.iata ?? '', prm.airline ?? '', prm.flight ?? ''].filter(Boolean).join(' · ');
+    logEvent('pantalla', { screen: r.name, folio, id_airport: Number(prm.idAirport) || undefined, text: `Entró a «${screenName(r.name)}»${who ? ' — ' + who : ''}` });
   } catch {
     // La bitacora nunca debe romper la navegacion.
   }
