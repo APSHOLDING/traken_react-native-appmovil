@@ -204,8 +204,8 @@ export default function ResumenScreen({ navigation }: Props) {
                     ) : null}
                   </View>
                   <View style={styles.heroStats}>
-                    <HeroStat icon="document-text" label="Operaciones" value={totales.operaciones} />
-                    <HeroStat icon="bed" label="Habitaciones" value={totales.habitaciones} />
+                    <HeroStat icon="document-text" label="Operac." value={totales.operaciones} />
+                    <HeroStat icon="bed" label="Hab." value={totales.habitaciones} />
                     <HeroStat icon="person" label="Adultos" value={totales.adultos} />
                     <HeroStat icon="happy" label="Menores" value={totales.menores} />
                     <HeroStat icon="heart" label="Infantes" value={totales.infantes} />
