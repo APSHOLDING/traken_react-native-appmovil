@@ -269,13 +269,13 @@ export default function LoginScreen() {
                   <View style={[styles.checkBox, remember && styles.checkBoxOn]}>
                     {remember ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
                   </View>
-                  <Text style={styles.checkText}>Recordar mi contraseña</Text>
+                  <Text style={styles.checkText}>Recordarme</Text>
                 </Pressable>
                 <Pressable onPress={() => setShowForgot(true)} hitSlop={8}>
                   <Text style={styles.link}>¿Olvidaste tu contraseña?</Text>
                 </Pressable>
               </View>
-              {remember ? <Text style={styles.rememberNote}>🔒 Se guarda cifrada solo en este teléfono, nunca en el servidor.</Text> : null}
+              {remember ? <Text style={styles.rememberNote}>🔒 «Recordarme» guarda tu contraseña cifrada solo en este teléfono, nunca en el servidor.</Text> : null}
 
               <Pressable onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={handleSubmit} disabled={!canSubmit} style={{ marginTop: 14 }}>
                 <Animated.View style={{ transform: [{ scale: pressScale }] }}>
