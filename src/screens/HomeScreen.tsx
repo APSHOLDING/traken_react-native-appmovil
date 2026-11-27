@@ -288,6 +288,7 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
 
         <ScrollView
+          style={styles.menuScroll}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={t.refreshTint} />}
@@ -355,6 +356,8 @@ export default function HomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   fixedHeader: { paddingHorizontal: 18, paddingTop: 18 },
+  // El menu ocupa justo el espacio bajo el encabezado y se desplaza solo (minHeight 0 para que tambien encoja en web).
+  menuScroll: { flex: 1, minHeight: 0 },
   content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 40 },
   headerCard: {
     borderRadius: 26,
