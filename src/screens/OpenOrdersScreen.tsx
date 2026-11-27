@@ -249,7 +249,7 @@ export default function OpenOrdersScreen({ navigation }: Props) {
 
         {/* Buscadores FIJOS: se quedan arriba aunque se desplace la lista */}
         <View style={styles.fixedSearch}>
-        <PaxSearchBox estado="open" onPick={openFromPax} />
+        <PaxSearchBox compact estado="open" onPick={openFromPax} />
 
         <View style={styles.searchWrap}>
           <Ionicons name="search" size={16} color={p.textMuted} />

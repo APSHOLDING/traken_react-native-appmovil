@@ -126,6 +126,7 @@ export default function SlaListScreen({ navigation }: Props) {
 
         {/* Buscar pasajero por nombre y abrir el SLA de su O.S. (fijo arriba) */}
         <PaxSearchBox
+          compact
           estado="all"
           onPick={(item) => navigation.navigate('SlaForm', { folio: item.folio, idAirport: item.id_airport, folioDisplay: item.os })}
         />

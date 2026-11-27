@@ -124,6 +124,7 @@ export default function EditarListScreen({ navigation }: Props) {
 
         {/* Buscar pasajero por nombre y abrir su O.S. para editarla (fijo arriba) */}
         <PaxSearchBox
+          compact
           estado="all"
           onPick={(item) => navigation.navigate('EditarOrden', { folio: item.folio, idAirport: item.id_airport, folioDisplay: item.os })}
         />
