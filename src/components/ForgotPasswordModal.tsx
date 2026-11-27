@@ -15,6 +15,9 @@ import {
 import Ionicons from './Ionicons';
 import { forgotPassword } from '../api/client';
 
+// En Android la ventana se ajusta sola al teclado; el contenedor especial solo se usa en iPhone.
+const Wrap: any = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+
 type Props = { visible: boolean; initialEmail?: string; onClose: () => void };
 
 /**
@@ -82,7 +85,7 @@ export default function ForgotPasswordModal({ visible, initialEmail = '', onClos
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ justifyContent: 'flex-end' }}>
+        <Wrap {...(Platform.OS === 'ios' ? { behavior: 'padding' as const } : {})} style={{ width: '100%', justifyContent: 'flex-end' }}>
           <Pressable style={styles.sheet} onPress={() => {}}>
             <View style={styles.grab} />
             <View style={styles.head}>
@@ -170,15 +173,15 @@ export default function ForgotPasswordModal({ visible, initialEmail = '', onClos
               </ScrollView>
             )}
           </Pressable>
-        </KeyboardAvoidingView>
+        </Wrap>
       </Pressable>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28, maxHeight: '90%' },
+  overlay: { flex: 1, width: '100%', backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'flex-end', alignItems: 'stretch' },
+  sheet: { width: '100%', backgroundColor: '#fff', borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28, maxHeight: '90%' },
   grab: { alignSelf: 'center', width: 42, height: 4, borderRadius: 2, backgroundColor: '#cbd5e1', marginBottom: 12 },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   title: { color: '#16214d', fontSize: 20, fontWeight: '800' },
