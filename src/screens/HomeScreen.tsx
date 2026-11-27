@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -17,6 +17,8 @@ import { useAuth } from '../context/AuthContext';
 import { warmOfflineData } from '../utils/prefetch';
 import { getManualUrl, getNotifications, getOpenOrders, getPreregOrders, getSiteBaseUrl } from '../api/client';
 import { getLastSeenNotifications } from '../utils/notificationsSeen';
+import { getCache, saveCache } from '../utils/offlineCache';
+import { OutboxSummary, subscribeOutbox } from '../utils/outbox';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
@@ -33,6 +35,62 @@ type ModuleCard = {
   tag?: string;
   loading?: boolean;
 };
+
+/** Una tarjeta del menu. Memorizada: cambiar un contador o el punto de notificaciones ya no redibuja las demas. */
+const ModuleTile = React.memo(function ModuleTile({ c, t }: { c: ModuleCard; t: ReturnType<typeof useTheme> }) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.card,
+        t.cardShadow,
+        { backgroundColor: t.surface, borderColor: t.surfaceBorder },
+        pressed && styles.cardPressed,
+      ]}
+      onPress={c.onPress}
+      disabled={c.loading}
+      android_ripple={{ color: t.mode === 'oscuro' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)' }}
+    >
+      {/* marca de agua grande, del color del modulo */}
+      <Ionicons name={c.icon} size={104} color={c.gradient[0]} style={styles.watermark} />
+
+      <View style={styles.cardTop}>
+        <View style={[styles.iconShadow, { shadowColor: c.gradient[1] }]}>
+          <LinearGradient colors={c.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconBadge}>
+            {c.loading ? (
+              <ActivityIndicator color={colors.white} size="small" />
+            ) : (
+              <Ionicons name={c.icon} size={27} color={colors.white} />
+            )}
+            <LinearGradient colors={['rgba(255,255,255,0.38)', 'rgba(255,255,255,0)']} style={styles.gloss} pointerEvents="none" />
+          </LinearGradient>
+        </View>
+
+        {c.badge ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{c.badge}</Text>
+          </View>
+        ) : c.tag ? (
+          <View style={styles.tagPill}>
+            <Text style={styles.tagText}>{c.tag}</Text>
+          </View>
+        ) : (
+          <View style={[styles.arrow, { backgroundColor: hexA(c.gradient[0], 0.14) }]}>
+            <Ionicons name="arrow-forward" size={14} color={c.gradient[0]} />
+          </View>
+        )}
+      </View>
+
+      <Text style={[styles.cardLabel, { color: t.cardLabel }]} numberOfLines={2}>
+        {c.label}
+      </Text>
+    </Pressable>
+  );
+});
+
+function saludo(): string {
+  const h = new Date().getHours();
+  return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+}
 
 /**
  * Panel principal (equivalente al dashboard de op/index.php en la web): un
@@ -53,7 +111,7 @@ export default function HomeScreen({ navigation }: Props) {
   const esAdminMaestro = user?.email?.toLowerCase() === ADMIN_MAESTRO_EMAIL;
   const [isDownloadingManual, setIsDownloadingManual] = useState(false);
 
-  const handleOpenManual = async () => {
+  const handleOpenManual = useCallback(async () => {
     setIsDownloadingManual(true);
     try {
       const res = await getManualUrl();
@@ -79,26 +137,53 @@ export default function HomeScreen({ navigation }: Props) {
     } finally {
       setIsDownloadingManual(false);
     }
-  };
+  }, []);
+
+  // Los numeros del menu aparecen AL INSTANTE con lo ultimo guardado y se actualizan en cuanto contesta el servidor.
+  const hdr = useRef<{ open: number | null; prereg: number }>({ open: null, prereg: 0 });
+  const latestNotifTs = useRef(0);
+  const lastLoad = useRef(0);
+  const [outboxPending, setOutboxPending] = useState(0);
+
+  useEffect(() => {
+    getCache<{ open: number | null; prereg: number }>('home_header')
+      .then((c) => {
+        if (!c) return;
+        hdr.current = c.data;
+        setOpenCount((cur) => (cur === null ? c.data.open : cur));
+        setPreregPend((cur) => cur || c.data.prereg);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => subscribeOutbox((o: OutboxSummary) => setOutboxPending(o.pending + o.failed)), []);
+
+  const recomputeDot = useCallback(() => {
+    getLastSeenNotifications()
+      .then((seen) => setHasUnreadNotifs(latestNotifTs.current > seen))
+      .catch(() => {});
+  }, []);
 
   const loadHeader = useCallback(async () => {
-    // Las 2 cargas del header son independientes entre si (el contador de
-    // abiertas y el puntito de notificaciones) -- se disparan en paralelo en
-    // vez de una tras otra para que el header quede listo mas rapido.
+    lastLoad.current = Date.now();
+    // Las 3 cargas son independientes: van en paralelo.
     const openOrders = (async () => {
       try {
         const res = await getOpenOrders();
-        if (res.ok) setOpenCount(res.total ?? 0);
+        if (res.ok) {
+          hdr.current.open = res.total ?? 0;
+          setOpenCount(hdr.current.open);
+        }
       } catch (e) {
         // Silencioso: es solo el numero del badge, no bloquea el resto de Home.
       }
     })();
     const notifs = (async () => {
       try {
-        const [notifRes, lastSeen] = await Promise.all([getNotifications(1), getLastSeenNotifications()]);
+        const notifRes = await getNotifications(1);
         const latest = notifRes.ok ? notifRes.items?.[0]?.sent_at : null;
-        const latestTs = latest ? Date.parse(latest.replace(' ', 'T')) : 0;
-        setHasUnreadNotifs(latestTs > lastSeen);
+        latestNotifTs.current = latest ? Date.parse(latest.replace(' ', 'T')) : 0;
+        recomputeDot();
       } catch (e) {
         // Silencioso: el puntito de notificaciones es un extra, no critico.
       }
@@ -106,24 +191,26 @@ export default function HomeScreen({ navigation }: Props) {
     const prereg = (async () => {
       try {
         const res = await getPreregOrders();
-        const n = (res.orders ?? []).reduce((a, o) => a + (Number(o.pendientes) || 0), 0);
-        setPreregPend(n);
+        hdr.current.prereg = (res.orders ?? []).reduce((a, o) => a + (Number(o.pendientes) || 0), 0);
+        setPreregPend(hdr.current.prereg);
       } catch (e) {
         // Silencioso: sin internet se queda el ultimo valor.
       }
     })();
     await Promise.all([openOrders, notifs, prereg]);
-  }, []);
+    saveCache('home_header', hdr.current).catch(() => {});
+  }, [recomputeDot]);
 
-  // Se re-checa al volver a esta pantalla (ej. despues de abrir
-  // Notificaciones) para que el puntito rojo desaparezca sin tener que
-  // cerrar y reabrir la app.
+  // Al volver a esta pantalla: el puntito de notificaciones se recalcula SIN red (instantaneo) y los numeros
+  // solo se piden de nuevo si pasaron mas de 20 s (antes se pedian en cada regreso).
   useFocusEffect(
     useCallback(() => {
-      loadHeader();
-      // Precarga ligera en segundo plano (max. cada 10 min, solo con internet).
-      warmOfflineData().catch(() => {});
-    }, [loadHeader])
+      recomputeDot();
+      if (Date.now() - lastLoad.current > 20_000) loadHeader();
+      // La precarga para uso sin internet espera a que el menu ya este listo y quieto.
+      const timer = setTimeout(() => warmOfflineData().catch(() => {}), 3500);
+      return () => clearTimeout(timer);
+    }, [loadHeader, recomputeDot])
   );
 
   const handleRefresh = async () => {
@@ -135,7 +222,7 @@ export default function HomeScreen({ navigation }: Props) {
   const goComingSoon = (title: string, icon: IconName) => () =>
     navigation.navigate('ComingSoon', { title, icon });
 
-  const cards: ModuleCard[] = [
+  const cards: ModuleCard[] = useMemo(() => [
     {
       key: 'crear',
       label: 'Crear O.S',
@@ -246,7 +333,7 @@ export default function HomeScreen({ navigation }: Props) {
           },
         ]
       : []),
-  ];
+  ], [navigation, openCount, preregPend, isDownloadingManual, handleOpenManual, user?.acceso_sc_incidencias, esAdminMaestro]);
 
   // Barra de marca: logo de Traken a la izquierda y los botones a la derecha. Queda fija arriba.
   // En el estilo claro va directo sobre el fondo; en los oscuros, el logo va sobre una insignia blanca para que se lea.
@@ -287,11 +374,18 @@ export default function HomeScreen({ navigation }: Props) {
   const greeting = (
     <View>
       <Text style={[styles.hi, { color: t.headerText }]} numberOfLines={1}>
-        Hola, {user?.firstname}
+        {saludo()}, {user?.firstname}
       </Text>
       <Text style={[styles.role, { color: t.headerMuted }]} numberOfLines={1}>
         {user?.role_name}
       </Text>
+      {openCount !== null || outboxPending > 0 ? (
+        <Text style={[styles.today, { color: t.headerMuted }]} numberOfLines={1}>
+          {openCount !== null ? `${openCount} O.S. abiertas` : ''}
+          {preregPend > 0 ? ` · ${preregPend} pre-registros por atender` : ''}
+          {outboxPending > 0 ? ` · 📴 ${outboxPending} por enviar` : ''}
+        </Text>
+      ) : null}
     </View>
   );
 
@@ -326,56 +420,7 @@ export default function HomeScreen({ navigation }: Props) {
 
           <View style={styles.grid}>
             {cards.map((c) => (
-              <Pressable
-                key={c.key}
-                style={({ pressed }) => [
-                  styles.card,
-                  t.cardShadow,
-                  { backgroundColor: t.surface, borderColor: t.surfaceBorder },
-                  pressed && styles.cardPressed,
-                ]}
-                onPress={c.onPress}
-                disabled={c.loading}
-                android_ripple={{ color: t.mode === 'oscuro' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)' }}
-              >
-                {/* marca de agua grande, del color del modulo */}
-                <Ionicons name={c.icon} size={104} color={c.gradient[0]} style={styles.watermark} />
-
-                <View style={styles.cardTop}>
-                  <View style={[styles.iconShadow, { shadowColor: c.gradient[1] }]}>
-                    <LinearGradient colors={c.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconBadge}>
-                      {c.loading ? (
-                        <ActivityIndicator color={colors.white} size="small" />
-                      ) : (
-                        <Ionicons name={c.icon} size={27} color={colors.white} />
-                      )}
-                      <LinearGradient
-                        colors={['rgba(255,255,255,0.38)', 'rgba(255,255,255,0)']}
-                        style={styles.gloss}
-                        pointerEvents="none"
-                      />
-                    </LinearGradient>
-                  </View>
-
-                  {c.badge ? (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{c.badge}</Text>
-                    </View>
-                  ) : c.tag ? (
-                    <View style={styles.tagPill}>
-                      <Text style={styles.tagText}>{c.tag}</Text>
-                    </View>
-                  ) : (
-                    <View style={[styles.arrow, { backgroundColor: hexA(c.gradient[0], 0.14) }]}>
-                      <Ionicons name="arrow-forward" size={14} color={c.gradient[0]} />
-                    </View>
-                  )}
-                </View>
-
-                <Text style={[styles.cardLabel, { color: t.cardLabel }]} numberOfLines={2}>
-                  {c.label}
-                </Text>
-              </Pressable>
+              <ModuleTile key={c.key} c={c} t={t} />
             ))}
           </View>
         </ScrollView>
@@ -420,6 +465,7 @@ const styles = StyleSheet.create({
   },
   hi: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
   role: { fontSize: 12.5, marginTop: 2 },
+  today: { fontSize: 12, marginTop: 6, fontWeight: '700' },
   topActions: { flexDirection: 'row', gap: 8 },
   iconBtn: {
     width: 40,
