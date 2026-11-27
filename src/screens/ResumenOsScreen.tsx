@@ -12,6 +12,7 @@ import { getResumenOs, ResumenOsHotel } from '../api/client';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'ResumenOs'>;
 
 const TYPE_STYLE = {
@@ -71,7 +72,7 @@ export default function ResumenOsScreen({ route, navigation }: Props) {
             <Text style={styles.topTitle}>Resumen hab. y pax</Text>
             <Text style={styles.topSub}>O.S. {folioDisplay}</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         {isLoading ? (

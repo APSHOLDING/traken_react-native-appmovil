@@ -12,6 +12,7 @@ import { AnyOrderDTO, getAllOrders, toggleOrderStatus } from '../api/client';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'EditarList'>;
 
 function statusInfo(status: string): { label: string; color: string; bg: string } {
@@ -98,7 +99,7 @@ export default function EditarListScreen({ navigation }: Props) {
             <Text style={styles.topTitle}>Editar O.S.</Text>
             <Text style={styles.topSub}>{orders.length} orden(es) este año</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <View style={styles.searchWrap}>

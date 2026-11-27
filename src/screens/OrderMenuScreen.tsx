@@ -22,6 +22,7 @@ import {
 import { closeOrder } from '../api/queuedWrites';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderMenu'>;
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -337,7 +338,7 @@ export default function OrderMenuScreen({ route, navigation }: Props) {
             <Text style={styles.topTitle}>#{folioDisplay}</Text>
             <Text style={styles.topSub}>{iata ? iata + ' · ' : ''}Acciones de la O.S.</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>

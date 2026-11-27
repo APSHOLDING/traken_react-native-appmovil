@@ -23,6 +23,7 @@ import { deletePax, deleteRoom, ExistingPaxDTO, getHotelsForOrder, getOrderPax, 
 import VoucherPhotoSection from '../components/VoucherPhotoSection';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'EditPax'>;
 
 /**
@@ -193,7 +194,7 @@ export default function EditPaxScreen({ route, navigation }: Props) {
             <Text style={styles.topTitle}>Editar Pasajero</Text>
             <Text style={styles.topSub}>#{folioDisplay}</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         {isLoading ? (

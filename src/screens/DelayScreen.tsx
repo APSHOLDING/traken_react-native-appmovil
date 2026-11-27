@@ -29,6 +29,7 @@ import { buildNotice, NoticeLogo } from '../utils/delayNotice';
 import { getCachedLogo, refreshLogo } from '../utils/delayLogos';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'Delay'>;
 
 const LANGS: { code: string; label: string }[] = [
@@ -202,7 +203,7 @@ export default function DelayScreen({ route, navigation }: Props) {
             <Text style={styles.topTitle}>Aviso de Retraso</Text>
             <Text style={styles.topSub}>#{folioDisplay}{iata ? ' · ' + iata : ''}</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>

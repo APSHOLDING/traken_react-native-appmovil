@@ -11,6 +11,7 @@ import type { ThemeTokens } from '../theme/themes';
 import { getSlaList, SlaEstado, SlaListItem } from '../api/client';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'SlaList'>;
 
 const ESTADO_FILTERS: { key: SlaEstado | ''; label: string }[] = [
@@ -93,7 +94,7 @@ export default function SlaListScreen({ navigation }: Props) {
             <Text style={styles.topTitle}>SLA de Operaciones</Text>
             <Text style={styles.topSub}>Solo motivos CXLD / DLY</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <View style={styles.searchWrap}>

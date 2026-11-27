@@ -32,6 +32,7 @@ import {
 import SelectField from '../components/SelectField';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'EditarOrden'>;
 
 type HotelRow = {
@@ -211,7 +212,7 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
             <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <Text style={styles.topTitle}>#{folioDisplay}</Text>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         {isLoading ? (

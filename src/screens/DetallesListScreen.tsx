@@ -14,6 +14,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import PaxSearchBox from '../components/PaxSearchBox';
 import DateRangeFilter from '../components/DateRangeFilter';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'DetallesList'>;
 
 function statusInfo(status: string): { label: string; color: string; bg: string } {
@@ -82,7 +83,7 @@ export default function DetallesListScreen({ navigation }: Props) {
             <Text style={styles.topTitle}>Detalles de Órdenes</Text>
             <Text style={styles.topSub}>{orders.length} orden(es) este año</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <View style={styles.searchWrap}>

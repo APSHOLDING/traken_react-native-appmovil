@@ -11,6 +11,7 @@ import type { ThemeTokens } from '../theme/themes';
 import { confirmOtraOsCode, OtraOsItem, requestOtraOsCode, searchOtraOs } from '../api/client';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'OtraOs'>;
 
 /**
@@ -122,7 +123,7 @@ export default function OtraOsScreen({ route, navigation }: Props) {
             <Text style={styles.topTitle}>O.S. {folioDisplay}</Text>
             <Text style={styles.topSub}>Mover pasajero de otra O.S.</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <View style={styles.introBox}>

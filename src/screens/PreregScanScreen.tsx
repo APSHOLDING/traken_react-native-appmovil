@@ -12,6 +12,7 @@ import type { ThemeTokens } from '../theme/themes';
 import { lookupPreregByQr, PreregLookupResponse } from '../api/client';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'PreregScan'>;
 
 type BadgeTone = { text: string; color: string; bg: string };
@@ -120,7 +121,7 @@ export default function PreregScanScreen({ navigation }: Props) {
             <Text style={styles.topTitle}>Escanear pasajero</Text>
             <Text style={styles.topSub}>QR personal de pre-registro</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         {mode === 'result' && result ? (

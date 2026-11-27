@@ -12,6 +12,7 @@ import { getIncidenciasSc, IncidenciaScItem, IncidenciasScFilters, StationDTO, I
 import SelectField from '../components/SelectField';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
+import BrandMark from '../components/BrandMark';
 type Props = NativeStackScreenProps<RootStackParamList, 'IncidenciasSc'>;
 
 const STATUS_FILTERS: { key: IncidenciasScFilters['status'] | ''; label: string }[] = [
@@ -136,7 +137,7 @@ export default function IncidenciasScListScreen({ navigation }: Props) {
             <Text style={styles.topTitle}>Incidencias SC</Text>
             <Text style={styles.topSub}>O.S. registradas con desfase</Text>
           </View>
-          <View style={styles.backBtn} />
+          <BrandMark />
         </View>
 
         <View style={styles.summaryRow}>
