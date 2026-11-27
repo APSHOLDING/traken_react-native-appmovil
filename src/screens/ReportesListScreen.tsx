@@ -27,6 +27,7 @@ export default function ReportesListScreen({ navigation }: Props) {
   const [query, setQuery] = useState('');
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
+  const [estadoF, setEstadoF] = useState('');
 
   const {
     data: result,
@@ -49,6 +50,7 @@ export default function ReportesListScreen({ navigation }: Props) {
       const hay = `${o.folio_display} ${o.airline} ${o.flight ?? ''} ${o.iata}`.toLowerCase().includes(q);
       if (!hay) return false;
     }
+    if (estadoF && String(o.status ?? '').toLowerCase() !== estadoF) return false;
     const fecha = o.date_in ?? '';
     if (desde && (!fecha || fecha < desde)) return false;
     if (hasta && (!fecha || fecha > hasta)) return false;
@@ -80,6 +82,14 @@ export default function ReportesListScreen({ navigation }: Props) {
             style={styles.searchInput}
             autoCapitalize="none"
           />
+        </View>
+
+        <View style={styles.chipRow}>
+          {[['', 'Todas'], ['abierta', 'Abiertas'], ['cerrada', 'Cerradas'], ['cancelada', 'Canceladas']].map(([k, l]) => (
+            <Pressable key={k || 'todas'} style={[styles.chip, estadoF === k && styles.chipActive]} onPress={() => setEstadoF(k)}>
+              <Text style={[styles.chipText, estadoF === k && styles.chipTextActive]}>{l}</Text>
+            </Pressable>
+          ))}
         </View>
 
         <DateRangeFilter desde={desde} hasta={hasta} onChangeDesde={setDesde} onChangeHasta={setHasta} />
@@ -165,6 +175,18 @@ export default function ReportesListScreen({ navigation }: Props) {
 }
 
 const makeStyles = (p: ThemeTokens) => StyleSheet.create({
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginHorizontal: 16, marginBottom: 10 },
+  chip: {
+    backgroundColor: p.card,
+    borderWidth: 1,
+    borderColor: p.cardBorder,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chipActive: { backgroundColor: p.accent, borderColor: p.accent },
+  chipText: { color: p.text, fontSize: 12, fontWeight: '700' },
+  chipTextActive: { color: p.onAccent },
   flex: { flex: 1 },
   topBar: {
     flexDirection: 'row',
