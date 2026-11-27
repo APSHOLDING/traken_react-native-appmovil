@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import PaxSearchBox from '../components/PaxSearchBox';
 import { PruebaBadge, PruebaToggle } from '../components/PruebaBits';
 import { useTrackSearch, track } from '../utils/useTrack';
 import Loading from '../components/Loading';
@@ -120,6 +121,12 @@ export default function EditarListScreen({ navigation }: Props) {
             autoCapitalize="none"
           />
         </View>
+
+        {/* Buscar pasajero por nombre y abrir su O.S. para editarla (fijo arriba) */}
+        <PaxSearchBox
+          estado="all"
+          onPick={(item) => navigation.navigate('EditarOrden', { folio: item.folio, idAirport: item.id_airport, folioDisplay: item.os })}
+        />
 
         <PruebaToggle hidden={orders.filter((o) => o.es_prueba).length} show={verPruebas} onToggle={() => setVerPruebas((v) => !v)} />
 

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import PaxSearchBox from '../components/PaxSearchBox';
 import { PruebaBadge, PruebaToggle } from '../components/PruebaBits';
 import { useTrackSearch, track } from '../utils/useTrack';
 import Loading from '../components/Loading';
@@ -122,6 +123,12 @@ export default function SlaListScreen({ navigation }: Props) {
             </Pressable>
           ))}
         </View>
+
+        {/* Buscar pasajero por nombre y abrir el SLA de su O.S. (fijo arriba) */}
+        <PaxSearchBox
+          estado="all"
+          onPick={(item) => navigation.navigate('SlaForm', { folio: item.folio, idAirport: item.id_airport, folioDisplay: item.os })}
+        />
 
         <PruebaToggle hidden={nPruebas} show={verPruebas} onToggle={() => setVerPruebas((v) => !v)} />
 
