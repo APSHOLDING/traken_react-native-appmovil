@@ -271,24 +271,27 @@ export default function HomeScreen({ navigation }: Props) {
     <LinearGradient colors={t.bg} style={styles.flex}>
       <StatusBar style={t.isDark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.flex}>
+        {/* Encabezado fijo: no se va al desplazar el menu */}
+        <View style={styles.fixedHeader}>
+            {t.headerAsCard ? (
+              <LinearGradient
+                colors={[t.accent, t.accentDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.headerCard, { shadowColor: t.accentDark }]}
+              >
+                {header}
+              </LinearGradient>
+            ) : (
+              <View style={styles.headerPlain}>{header}</View>
+            )}
+        </View>
+
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={t.refreshTint} />}
         >
-          {t.headerAsCard ? (
-            <LinearGradient
-              colors={[t.accent, t.accentDark]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.headerCard, { shadowColor: t.accentDark }]}
-            >
-              {header}
-            </LinearGradient>
-          ) : (
-            <View style={styles.headerPlain}>{header}</View>
-          )}
-
           <Text style={[styles.sectionTitle, { color: t.sectionTitle }]}>ACCESOS</Text>
 
           <View style={styles.grid}>
@@ -351,17 +354,18 @@ export default function HomeScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  content: { padding: 18, paddingBottom: 40 },
+  fixedHeader: { paddingHorizontal: 18, paddingTop: 18 },
+  content: { paddingHorizontal: 18, paddingTop: 4, paddingBottom: 40 },
   headerCard: {
     borderRadius: 26,
     padding: 18,
-    marginBottom: 22,
+    marginBottom: 16,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.28,
     shadowRadius: 18,
     elevation: 8,
   },
-  headerPlain: { marginBottom: 18, paddingHorizontal: 2 },
+  headerPlain: { marginBottom: 14, paddingHorizontal: 2 },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',

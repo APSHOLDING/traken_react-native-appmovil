@@ -506,7 +506,9 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
     gap: 8,
     height: 46,
     borderRadius: 14,
-    backgroundColor: '#16214d',
+    backgroundColor: p.isDark ? p.cardStrong : '#16214d',
+    borderWidth: p.isDark ? 1 : 0,
+    borderColor: p.cardBorder,
   },
   exportBtnText: { color: '#ffffff', fontWeight: '800', fontSize: 13.5 },
   exportCount: {
