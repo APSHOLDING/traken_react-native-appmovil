@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '../components/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';

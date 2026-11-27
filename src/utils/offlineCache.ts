@@ -63,8 +63,33 @@ export async function getCache<T>(key: string): Promise<CacheEntry<T> | null> {
       [key]
     );
     if (!row) return null;
-    return { data: JSON.parse(row.data) as T, savedAt: row.saved_at };
+    try {
+      return { data: JSON.parse(row.data) as T, savedAt: row.saved_at };
+    } catch {
+      // Dato dañado: se borra solo para que no vuelva a estorbar (la pantalla simplemente lo pide de nuevo).
+      await db.runAsync('DELETE FROM cache WHERE key = ?;', [key]).catch(() => {});
+      return null;
+    }
   } catch (e) {
     return null;
+  }
+}
+
+/** Quita lo guardado hace mas de maxAgeMs, SIN tocar las preferencias de la persona. Devuelve cuantos registros borro. */
+export async function purgeOldCache(maxAgeMs: number): Promise<number> {
+  if (Platform.OS === 'web') return 0;
+  const KEEP = ['home_layout_', 'icon_style', 'home_header', 'quick_capture_draft', 'warm_last_run'];
+  try {
+    const db = await getDb();
+    const rows = await db.getAllAsync<{ key: string }>('SELECT key FROM cache WHERE saved_at < ?;', [Date.now() - maxAgeMs]);
+    let n = 0;
+    for (const r of rows) {
+      if (KEEP.some((k) => r.key.startsWith(k))) continue;
+      await db.runAsync('DELETE FROM cache WHERE key = ?;', [r.key]);
+      n++;
+    }
+    return n;
+  } catch {
+    return 0;
   }
 }

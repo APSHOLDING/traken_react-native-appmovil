@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '../components/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type CustomizeItem = {

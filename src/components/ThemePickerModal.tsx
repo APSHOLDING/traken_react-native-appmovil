@@ -3,7 +3,7 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'rea
 import * as Updates from 'expo-updates';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '../components/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { ACCENT_IDS, ACCENTS, buildTheme, MODE_IDS, MODE_LABELS } from '../theme/themes';

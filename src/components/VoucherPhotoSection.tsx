@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import ImageViewer from './ImageViewer';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '../components/Ionicons';
 import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import type { ThemeTokens } from '../theme/themes';
 import { radii } from '../theme/colors';

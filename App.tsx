@@ -15,6 +15,9 @@ import UpdateBanner from './src/components/UpdateBanner';
 import BiometricGate from './src/components/BiometricGate';
 import PendingSyncBanner from './src/components/PendingSyncBanner';
 import FranjaPruebas from './src/components/FranjaPruebas';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import GuardianBanner from './src/components/GuardianBanner';
+import { startGuardian } from './src/utils/guardian';
 import { colors } from './src/theme/colors';
 
 function registerPwa() {
@@ -36,6 +39,8 @@ export default function App() {
   React.useEffect(() => {
     registerPwa();
   }, []);
+  // Guardian: vigila errores, lentitud y señal baja, y deja todo en la bitacora.
+  React.useEffect(() => startGuardian(), []);
 
   const [fontsLoaded] = useFonts({
     Raleway_400Regular,
@@ -55,6 +60,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      <ErrorBoundary>
       <ThemeProvider>
       <FranjaPruebas>
         <AuthProvider>
@@ -62,10 +68,12 @@ export default function App() {
             <RootNavigator />
             <UpdateBanner />
             <PendingSyncBanner />
+            <GuardianBanner />
           </BiometricGate>
         </AuthProvider>
       </FranjaPruebas>
       </ThemeProvider>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

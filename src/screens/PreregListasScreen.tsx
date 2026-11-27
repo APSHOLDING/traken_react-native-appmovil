@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text,
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { LinearGradient } from 'expo-linear-gradient';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import Ionicons from '../components/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
