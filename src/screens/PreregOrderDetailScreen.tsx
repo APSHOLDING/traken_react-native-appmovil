@@ -24,6 +24,7 @@ import {
   getPreregDetail,
   joinManyPreregGroup,
   joinPreregGroup,
+  PreregOsListItem,
   PreregPaxItem,
   reopenPreregPax,
   unjoinPreregGroup,
@@ -66,6 +67,12 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
   const [pax, setPax] = useState<PreregPaxItem[]>([]);
   const [hotels, setHotels] = useState<{ id: number; name: string }[]>([]);
   const [token, setToken] = useState<string | null>(null);
+  const [detailType, setDetailType] = useState('all'); // tipo de aerolinea de la O.S. (all / ep)
+  const [osList, setOsList] = useState<PreregOsListItem[]>([]);
+  const [osFlight, setOsFlight] = useState('');
+  const [osPaxCount, setOsPaxCount] = useState(0);
+  const [showOsList, setShowOsList] = useState(false);
+  const [bulkRoom, setBulkRoom] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -89,6 +96,10 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
         setPax(res.pax ?? []);
         setHotels(res.hotels ?? []);
         setToken(res.token ?? null);
+        setDetailType(res.type ?? 'all');
+        setOsList(res.os_list ?? []);
+        setOsFlight(res.os_flight ?? '');
+        setOsPaxCount(res.os_pax ?? 0);
       } else {
         setError(res.error ?? 'No se pudo cargar la información.');
       }
@@ -220,8 +231,11 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
   const handleBulkAssign = async (idHotel: number) => {
     setBulkHotelFor(false);
     try {
-      const res = await assignPreregHotelMany(Array.from(selectedIds), idHotel);
+      const roomN = parseInt(bulkRoom, 10);
+      const room = roomN >= 1 && roomN <= 99 ? roomN : undefined; // habitacion opcional (1 a 99)
+      const res = await assignPreregHotelMany(Array.from(selectedIds), idHotel, room);
       if (res.ok) {
+        setBulkRoom('');
         exitSelection();
         await load();
       } else {
@@ -248,6 +262,28 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
     }
   };
 
+  const agregarALaOs = (item: PreregPaxItem) => {
+    navigation.navigate('AddPax', {
+      folio,
+      idAirport,
+      folioDisplay,
+      iata: '',
+      typeAirline: detailType || 'all',
+      prefill: {
+        preregId: item.id,
+        name: item.name,
+        voucher: item.voucher ?? '',
+        comps: item.comps.map((c) => ({ name: c.name, type: c.type, age: c.age })),
+        idHotel: item.id_hotel,
+        hotelName: item.hotel_name,
+      },
+    });
+  };
+
+  const nPend = pax.filter((x) => x.status === 'pendiente').length;
+  const nAsig = pax.length - nPend;
+  const osYaPre = osList.filter((x) => x.pre).length;
+
   const verQr = () => {
     if (!token) return;
     navigation.navigate('PreregQrDisplay', { folio, idAirport, folioDisplay, token });
@@ -256,6 +292,102 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
   const verListas = () => {
     navigation.navigate('PreregListas', { folio, idAirport, folioDisplay });
   };
+
+  // Encabezado que se desplaza con la lista: resumen, acciones, estado en la O.S., busqueda y filtros.
+  const header = (
+    <View style={styles.headerWrap}>
+      <LinearGradient colors={[p.accent, p.accentDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
+        <View style={styles.heroRow}>
+          <View style={styles.heroIcon}>
+            <Ionicons name="qr-code" size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroTitle}>Pre-registro de pasajeros</Text>
+            <Text style={styles.heroSub}>
+              El pasajero se registra solo con el QR; tú solo asignas hotel
+            </Text>
+          </View>
+        </View>
+        <View style={styles.heroChips}>
+          <View style={styles.heroChip}>
+            <Text style={styles.heroChipText}>{nPend} por asignar</Text>
+          </View>
+          <View style={styles.heroChip}>
+            <Text style={styles.heroChipText}>{nAsig} asignados</Text>
+          </View>
+        </View>
+      </LinearGradient>
+
+      <View style={styles.actionCards}>
+        {token ? (
+          <Pressable style={[styles.actionCard, styles.actionCardMain]} onPress={verQr}>
+            <Ionicons name="qr-code" size={22} color="#fff" />
+            <Text style={styles.actionCardMainTitle}>Mostrar QR</Text>
+            <Text style={styles.actionCardMainSub}>Para que el pasajero se registre</Text>
+          </Pressable>
+        ) : null}
+        <Pressable style={styles.actionCard} onPress={verListas}>
+          <Ionicons name="cloud-upload" size={22} color={p.accentText} />
+          <Text style={styles.actionCardTitle}>Subir lista</Text>
+          <Text style={styles.actionCardSub}>PDF o foto, con IA</Text>
+        </Pressable>
+      </View>
+
+      {osList.length > 0 || osPaxCount > 0 ? (
+        <View style={styles.osBox}>
+          <Pressable style={styles.osHead} onPress={() => setShowOsList((v) => !v)}>
+            <Ionicons name="checkmark-done-circle" size={20} color={p.accentText} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.osTitle}>Estado en Órdenes Abiertas</Text>
+              <Text style={styles.osSub}>
+                {osPaxCount} en la O.S.
+                {osFlight ? ` · vuelo ${osFlight}` : ''} · {osYaPre} ya pre-registrados
+              </Text>
+            </View>
+            <Ionicons name={showOsList ? 'chevron-up' : 'chevron-down'} size={18} color={p.textMuted} />
+          </Pressable>
+          {showOsList &&
+            osList.slice(0, 40).map((x, i) => (
+              <View key={i} style={styles.osRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.osName} numberOfLines={1}>
+                    {x.name}
+                  </Text>
+                  <Text style={styles.osHotel} numberOfLines={1}>
+                    {x.hotel ? `🏨 ${x.hotel}` : 'sin hotel'}
+                    {x.voucher ? ` · Voucher ${x.voucher}` : ''}
+                  </Text>
+                </View>
+                <View style={[styles.osPill, x.pre && styles.osPillOk]}>
+                  <Text style={[styles.osPillText, x.pre && { color: p.okText }]}>{x.pre ? '✓ pre-registrado' : 'sin pre-registro'}</Text>
+                </View>
+              </View>
+            ))}
+        </View>
+      ) : null}
+
+      <View style={styles.searchWrap}>
+        <Ionicons name="search" size={16} color={p.textMuted} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Buscar por nombre, código, voucher..."
+          placeholderTextColor={p.placeholder}
+          style={styles.searchInput}
+          autoCapitalize="none"
+        />
+      </View>
+
+      <View style={styles.chipRow}>
+        <Pressable style={[styles.chip, filter === 'pendiente' && styles.chipActive]} onPress={() => setFilter('pendiente')}>
+          <Text style={[styles.chipText, filter === 'pendiente' && styles.chipTextActive]}>Por asignar</Text>
+        </Pressable>
+        <Pressable style={[styles.chip, filter === 'todos' && styles.chipActive]} onPress={() => setFilter('todos')}>
+          <Text style={[styles.chipText, filter === 'todos' && styles.chipTextActive]}>Todos</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
 
   return (
     <LinearGradient colors={p.bg} style={styles.flex}>
@@ -286,52 +418,12 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
           </View>
         ) : (
           <>
-            {token ? (
-              <Pressable style={styles.tokenBox} onPress={verQr}>
-                <Ionicons name="qr-code-outline" size={18} color={p.accentText} />
-                <Text style={styles.tokenText} numberOfLines={1}>
-                  QR de pre-registro de esta O.S. · toca para mostrarlo
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color={p.textMuted} />
-              </Pressable>
-            ) : null}
-
-            <Pressable style={styles.tokenBox} onPress={verListas}>
-              <Ionicons name="document-text-outline" size={18} color={p.accentText} />
-              <Text style={styles.tokenText} numberOfLines={1}>
-                Listas de aerolínea / subir lista con IA
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color={p.textMuted} />
-            </Pressable>
-
-            <View style={styles.searchWrap}>
-              <Ionicons name="search" size={16} color={p.textMuted} />
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Buscar por nombre, código, voucher..."
-                placeholderTextColor={p.placeholder}
-                style={styles.searchInput}
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.chipRow}>
-              <Pressable
-                style={[styles.chip, filter === 'pendiente' && styles.chipActive]}
-                onPress={() => setFilter('pendiente')}
-              >
-                <Text style={[styles.chipText, filter === 'pendiente' && styles.chipTextActive]}>Por asignar</Text>
-              </Pressable>
-              <Pressable style={[styles.chip, filter === 'todos' && styles.chipActive]} onPress={() => setFilter('todos')}>
-                <Text style={[styles.chipText, filter === 'todos' && styles.chipTextActive]}>Todos</Text>
-              </Pressable>
-            </View>
-
             <FlatList
               data={filtered}
               keyExtractor={(p) => String(p.id)}
               contentContainerStyle={styles.listContent}
+              keyboardShouldPersistTaps="handled"
+              ListHeaderComponent={header}
               ListEmptyComponent={
                 <View style={styles.emptyWrap}>
                   <Ionicons name="person-add-outline" size={28} color={p.textMuted} />
@@ -366,9 +458,15 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
                     </View>
                     <Text style={styles.cardSub}>
                       {item.party_size > 1 ? `${item.party_size} personas · ` : ''}
-                      {item.phone ?? ''}
+                      {item.phone || item.whatsapp ? '' : 'sin teléfono (aún no se registra)'}
+                      {item.phone ? `📞 ${item.phone}` : ''}
+                      {item.whatsapp ? ` · WhatsApp ${item.whatsapp}` : ''}
+                      {item.email ? ` · ${item.email}` : ''}
+                      {item.flight ? ` · Vuelo ${item.flight}` : ''}
                       {item.voucher ? ` · Voucher ${item.voucher}` : ''}
                     </Text>
+                    {item.notes ? <Text style={styles.cardSub}>💬 {item.notes}</Text> : null}
+                    {item.room ? <Text style={styles.cardSub}>🛏 Habitación {item.room} (titular)</Text> : null}
 
                     <View style={styles.badgeRow}>
                       {fBadge ? (
@@ -407,6 +505,18 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
 
                     {!selectionMode && (
                       <>
+                        {item.status !== 'asignado' && item.check.in_os && item.check.in_os.id_hotel &&
+                          hotels.some((h) => h.id === item.check.in_os!.id_hotel) ? (
+                          <Pressable
+                            style={styles.quickBtn}
+                            onPress={() => handleAssign(item.id, item.check.in_os!.id_hotel)}
+                            disabled={isBusy}
+                          >
+                            <Text style={styles.quickBtnText} numberOfLines={1}>
+                              🏨 Asignar {item.check.in_os.hotel} (el de la O.S.)
+                            </Text>
+                          </Pressable>
+                        ) : null}
                         <View style={styles.hotelSection}>
                           {item.status === 'asignado' ? (
                             <View style={styles.hotelAsignadoRow}>
@@ -429,6 +539,13 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
                             />
                           )}
                         </View>
+
+                        {item.status !== 'asignado' ? (
+                          <Pressable style={styles.addToOsBtn} onPress={() => agregarALaOs(item)} disabled={isBusy}>
+                            <Ionicons name="add-circle" size={18} color="#fff" />
+                            <Text style={styles.addToOsText}>Agregar a la O.S.</Text>
+                          </Pressable>
+                        ) : null}
 
                         <View style={styles.actionsRow}>
                           <Pressable style={styles.actionLink} onPress={() => setJoinPickerFor(item.id)} disabled={isBusy}>
@@ -492,6 +609,18 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
                     selectedId={null}
                     onSelect={handleBulkAssign}
                   />
+                  <Text style={styles.bulkRoomLabel}>Habitación (opcional, del 1 al 99)</Text>
+                  <TextInput
+                    value={bulkRoom}
+                    onChangeText={(v) => setBulkRoom(v.replace(/[^0-9]/g, '').slice(0, 2))}
+                    placeholder="Ej: 12"
+                    placeholderTextColor={p.placeholder}
+                    keyboardType="number-pad"
+                    style={styles.bulkRoomInput}
+                  />
+                  <Text style={styles.bulkRoomHint}>
+                    Si la pones, todos los seleccionados quedan en esa habitación. Primero escribe el número y luego elige el hotel.
+                  </Text>
                   <Pressable onPress={() => setBulkHotelFor(false)} style={styles.joinCancel}>
                     <Text style={styles.joinCancelText}>Cancelar</Text>
                   </Pressable>
@@ -580,6 +709,115 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   chipText: { color: p.text, fontSize: 12, fontWeight: '700' },
   chipTextActive: { color: p.onAccent },
   listContent: { paddingHorizontal: 16, paddingBottom: 100 },
+  headerWrap: { marginHorizontal: -16 },
+  heroCard: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 22,
+    padding: 16,
+    shadowColor: p.accentDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: p.isDark ? 0.35 : 0.25,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heroIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTitle: { color: '#ffffff', fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
+  heroSub: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 2, lineHeight: 16 },
+  heroChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  heroChip: {
+    backgroundColor: 'rgba(255,255,255,0.20)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.30)',
+    borderRadius: 20,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+  },
+  heroChipText: { color: '#ffffff', fontSize: 11.5, fontWeight: '800' },
+  actionCards: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginBottom: 12 },
+  actionCard: {
+    flex: 1,
+    backgroundColor: p.card,
+    borderWidth: 1,
+    borderColor: p.cardBorder,
+    borderRadius: 18,
+    padding: 14,
+    gap: 3,
+    ...(p.isDark ? {} : p.shadowCard),
+  },
+  actionCardMain: { backgroundColor: p.accent, borderColor: p.accent },
+  actionCardMainTitle: { color: '#fff', fontSize: 14, fontWeight: '800', marginTop: 4 },
+  actionCardMainSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11.5, lineHeight: 15 },
+  actionCardTitle: { color: p.text, fontSize: 14, fontWeight: '800', marginTop: 4 },
+  actionCardSub: { color: p.textMuted, fontSize: 11.5, lineHeight: 15 },
+  osBox: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    backgroundColor: p.card,
+    borderWidth: 1,
+    borderColor: p.cardBorder,
+    borderRadius: 18,
+    padding: 12,
+    ...(p.isDark ? {} : p.shadowCard),
+  },
+  osHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  osTitle: { color: p.text, fontSize: 13.5, fontWeight: '800' },
+  osSub: { color: p.textMuted, fontSize: 11.5, marginTop: 1 },
+  osRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 10,
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: p.divider,
+  },
+  osName: { color: p.text, fontSize: 12.5, fontWeight: '700' },
+  osHotel: { color: p.textMuted, fontSize: 11, marginTop: 1 },
+  osPill: { backgroundColor: p.warnSoft, borderRadius: 20, paddingHorizontal: 9, paddingVertical: 3 },
+  osPillOk: { backgroundColor: p.okSoft },
+  osPillText: { color: p.warnText, fontSize: 10.5, fontWeight: '800' },
+  quickBtn: {
+    backgroundColor: p.okSoft,
+    borderWidth: 1,
+    borderColor: p.okBorder,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 10,
+  },
+  quickBtnText: { color: p.okText, fontSize: 12.5, fontWeight: '800', textAlign: 'center' },
+  addToOsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: p.accent,
+    borderRadius: 12,
+    paddingVertical: 11,
+    marginTop: 10,
+  },
+  addToOsText: { color: '#fff', fontSize: 13.5, fontWeight: '800' },
+  bulkRoomLabel: { color: p.textMuted, fontSize: 11.5, fontWeight: '700', marginTop: 12, marginBottom: 6 },
+  bulkRoomInput: {
+    backgroundColor: p.inputBg,
+    borderWidth: p.isDark ? 0 : 1,
+    borderColor: p.inputBorder,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 44,
+    color: p.text,
+    fontSize: 14,
+  },
+  bulkRoomHint: { color: p.textFaint, fontSize: 11, marginTop: 6, lineHeight: 15 },
   emptyWrap: { alignItems: 'center', paddingVertical: 60, gap: 8 },
   emptyText: { color: p.textMuted, fontSize: 13, textAlign: 'center' },
   card: {
