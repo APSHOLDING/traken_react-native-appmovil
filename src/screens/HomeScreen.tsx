@@ -88,7 +88,7 @@ const ModuleTile = React.memo(function ModuleTile({ c, t }: { c: ModuleCard; t: 
   );
 });
 
-/** Vista "tipo iPhone": icono redondeado con su nombre abajo, 4 por renglon. Tambien memorizada. */
+/** Vista de iconos: icono redondeado con su nombre abajo, 4 por renglon. Tambien memorizada. */
 const IconTile = React.memo(function IconTile({ c, t }: { c: ModuleCard; t: ReturnType<typeof useTheme> }) {
   return (
     <Pressable

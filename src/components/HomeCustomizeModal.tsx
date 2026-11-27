@@ -43,7 +43,7 @@ export default function HomeCustomizeModal({ visible, items, hidden, view, onVie
             </Pressable>
           </View>
           <View style={styles.seg}>
-            {([['cards', 'Tarjetas', 'albums-outline'], ['icons', 'Iconos (tipo iPhone)', 'apps-outline']] as const).map(([k, l, ic]) => (
+            {([['cards', 'Tarjetas', 'albums-outline'], ['icons', 'Iconos', 'apps-outline']] as const).map(([k, l, ic]) => (
               <Pressable key={k} style={[styles.segBtn, view === k && styles.segBtnOn]} onPress={() => onViewChange(k)}>
                 <Ionicons name={ic} size={15} color={view === k ? '#fff' : '#16214d'} />
                 <Text style={[styles.segText, view === k && styles.segTextOn]}>{l}</Text>
