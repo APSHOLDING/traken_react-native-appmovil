@@ -378,6 +378,25 @@ export async function getHotelsForOrder(idOrder: number, idAirport: number): Pro
   return data;
 }
 
+export interface ForgotPasswordResponse {
+  ok: boolean;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Recuperar contraseña. modo "reset": la nueva contraseña se genera y le llega SOLO al area de IT (cuenta maestra).
+ * modo "solicitud": quien no tiene cuenta manda sus datos para que IT se la cree.
+ */
+export async function forgotPassword(
+  payload:
+    | { modo: 'reset'; email: string }
+    | { modo: 'solicitud'; nombre: string; acceso: string; estacion?: string; telefono?: string }
+): Promise<ForgotPasswordResponse> {
+  const { data } = await api.post<ForgotPasswordResponse>('/auth/forgot.php', payload);
+  return data;
+}
+
 export interface HotelSuggestion {
   id: number;
   name: string;
