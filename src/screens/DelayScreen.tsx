@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +10,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +22,11 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { radii } from '../theme/colors';
 import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import type { ThemeTokens } from '../theme/themes';
-import { DelayFormData, getDelayImageUrl, getDelayPreviewUrl, sendDelayEmail } from '../api/client';
+import { DelayFormData, getDelayImageUrl, sendDelayEmail } from '../api/client';
+import type Svg from 'react-native-svg';
+import DelayNoticeSvg, { noticeToBase64 } from '../components/DelayNoticeSvg';
+import { buildNotice, NoticeLogo } from '../utils/delayNotice';
+import { getCachedLogo, refreshLogo } from '../utils/delayLogos';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Delay'>;
@@ -40,12 +44,11 @@ const CYAN = '#0891b2';
 
 /**
  * Equivalente movil del modal "Delay" (Aviso de Retraso) de
- * op/modulos/open/inicio.php. La imagen de vista previa (y la que se
- * descarga o se manda por correo) es la MISMA que genera el servidor con el
- * PHP/GD que ya usa la web (op/modulos/delayInfo/descargar.php --  no exige
- * sesion, asi que el movil lo llama directo, sin tocar el backend): asi
- * sale identica a la web, con el logo real de la aerolinea y el QR de
- * encuesta de verdad, en vez de reconstruir el diseno a mano en RN.
+ * op/modulos/open/inicio.php. El aviso se DIBUJA EN EL TELEFONO (utils/delayNotice.ts
+ * es un calco del generador de la web, di_render.php): sale igual que en la web y
+ * funciona SIN INTERNET. El logo de la aerolinea se pide al servidor solo cuando
+ * hace falta y se guarda en el telefono (utils/delayLogos.ts). Solo el envio por
+ * correo necesita internet, porque lo manda el servidor.
  */
 export default function DelayScreen({ route, navigation }: Props) {
   const p = useTheme();
@@ -60,10 +63,10 @@ export default function DelayScreen({ route, navigation }: Props) {
   const [departure, setDeparture] = useState('04:30');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isImageLoading, setIsImageLoading] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [imageErrorDetail, setImageErrorDetail] = useState<string | null>(null);
+  const [showNotice, setShowNotice] = useState(false);
+  const [logo, setLogo] = useState<NoticeLogo>(null);
+  const svgRef = useRef<Svg>(null);
+  const { width: screenW } = useWindowDimensions();
   const [isDownloading, setIsDownloading] = useState(false);
   const [mail, setMail] = useState('');
   const [isSendingMail, setIsSendingMail] = useState(false);
@@ -84,36 +87,37 @@ export default function DelayScreen({ route, navigation }: Props) {
     estacion: iata ?? '',
   };
 
-  // Dice POR QUE falla, para no quedarse con el mensaje generico de "revisa tu conexion".
-  const explainStatus = (status: number): string => {
-    if (status === 401 || status === 403)
-      return 'El servidor no autorizó la imagen (' + status + '). Cierra sesión, vuelve a entrar y reintenta. Si sigue igual, actualiza la app.';
-    if (status === 404) return 'El servidor no encontró el generador de la imagen (404).';
-    if (status >= 500) return 'El servidor falló al generarla (' + status + '). Intenta en un momento.';
-    return 'El servidor respondió ' + status + '.';
-  };
-
-  const showPreview = async () => {
-    setImageError(false);
-    setImageErrorDetail(null);
-    setIsImageLoading(true); // mientras se pide la firma al servidor
-    try {
-      const url = await getDelayPreviewUrl(formData);
-      // Se revisa la respuesta antes de pintar: asi, si falla, se sabe el codigo exacto.
-      const probe = await fetch(url, { method: 'HEAD' });
-      if (!probe.ok) {
-        setIsImageLoading(false);
-        setImageErrorDetail(explainStatus(probe.status));
-        setImageError(true);
-        return;
-      }
-      setPreviewUrl(url);
-    } catch (e) {
-      setIsImageLoading(false);
-      setImageErrorDetail('No hubo respuesta del servidor. Revisa tu conexión a internet.');
-      setImageError(true);
+  // Logo de la aerolinea: primero lo que ya hay guardado (rapido, sin internet) y luego se revisa si cambio en el servidor.
+  useEffect(() => {
+    let cancelled = false;
+    const name = airlineText.trim();
+    if (!name) {
+      setLogo(null);
+      return;
     }
-  };
+    const timer = setTimeout(async () => {
+      const cached = await getCachedLogo(name);
+      if (!cancelled) setLogo(cached);
+      const fresh = await refreshLogo(name);
+      if (!cancelled) setLogo(fresh);
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [airlineText]);
+
+  // Diseno del aviso (se recalcula al cambiar cualquier dato o el logo).
+  const layout = useMemo(() => {
+    try {
+      return buildNotice(formData, logo);
+    } catch (e) {
+      return null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang, airlineText, flightText, dest, pickup, departure, date, folioDisplay, iata, logo]);
+
+  const showPreview = () => setShowNotice(true);
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -122,21 +126,37 @@ export default function DelayScreen({ route, navigation }: Props) {
       const destination = new File(Paths.cache, fileName);
       if (destination.exists) destination.delete();
 
-      const task = File.createDownloadTask(await getDelayImageUrl(formData), destination);
-      const downloaded = await task.downloadAsync();
-
-      if (!downloaded || !downloaded.exists || downloaded.size === 0) {
-        throw new Error('empty-download');
+      let fileUri = '';
+      // 1) En el celular: se exporta a PNG directo, sin internet.
+      if (Platform.OS !== 'web' && layout) {
+        try {
+          const b64 = await noticeToBase64(svgRef.current, layout);
+          destination.create();
+          destination.write(b64, { encoding: 'base64' });
+          if (destination.exists && destination.size > 0) fileUri = destination.uri;
+        } catch (e) {
+          fileUri = ''; // si falla, se intenta con el servidor
+        }
+      }
+      // 2) Respaldo: la imagen que genera el servidor (web, o si la exportacion local fallo).
+      if (!fileUri) {
+        if (destination.exists) destination.delete();
+        const task = File.createDownloadTask(await getDelayImageUrl(formData), destination);
+        const downloaded = await task.downloadAsync();
+        if (!downloaded || !downloaded.exists || downloaded.size === 0) {
+          throw new Error('empty-download');
+        }
+        fileUri = downloaded.uri;
       }
 
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
-        await Sharing.shareAsync(downloaded.uri, { mimeType: 'image/png', dialogTitle: 'Aviso de Retraso' });
+        await Sharing.shareAsync(fileUri, { mimeType: 'image/png', dialogTitle: 'Aviso de Retraso' });
       } else {
         Alert.alert('Descargado', 'La imagen se guardó, pero este dispositivo no puede compartirla/abrirla directo.');
       }
     } catch (e) {
-      Alert.alert('No se pudo descargar', 'Hubo un problema de conexión. Intenta de nuevo.');
+      Alert.alert('No se pudo guardar la imagen', 'Intenta de nuevo. Si el problema sigue, avísanos con una captura.');
     } finally {
       setIsDownloading(false);
     }
@@ -154,7 +174,7 @@ export default function DelayScreen({ route, navigation }: Props) {
       const res = await sendDelayEmail(to, formData);
       setMailMsg({ ok: !!res.ok, text: res.msg ?? (res.ok ? 'Enviado' : 'No se pudo enviar. Intenta de nuevo.') });
     } catch (e) {
-      setMailMsg({ ok: false, text: 'Error de conexión. Intenta de nuevo.' });
+      setMailMsg({ ok: false, text: 'Sin internet: el correo lo envía el servidor. Descarga la imagen y compártela por WhatsApp o correo desde tu teléfono.' });
     } finally {
       setIsSendingMail(false);
     }
@@ -255,33 +275,16 @@ export default function DelayScreen({ route, navigation }: Props) {
               <Text style={styles.previewBtnText}>Vista Previa</Text>
             </Pressable>
 
-            {!!previewUrl && (
+            {showNotice && (
               <>
                 <View style={styles.imageWrap}>
-                  {isImageLoading && (
-                    <ActivityIndicator color={CYAN} style={StyleSheet.absoluteFill} />
-                  )}
-                  {imageError ? (
+                  {layout ? (
+                    <DelayNoticeSvg ref={svgRef} layout={layout} width={Math.min(screenW - 32, 560)} />
+                  ) : (
                     <View style={styles.imageErrorBox}>
                       <Ionicons name="alert-circle-outline" size={22} color={p.dangerText} />
-                      <Text style={styles.imageErrorText}>No se pudo generar la imagen.</Text>
-                      {!!imageErrorDetail && <Text style={styles.imageErrorDetail}>{imageErrorDetail}</Text>}
-                      <Pressable style={styles.retryImageBtn} onPress={showPreview}>
-                        <Text style={styles.retryImageText}>Reintentar</Text>
-                      </Pressable>
+                      <Text style={styles.imageErrorText}>No se pudo armar el aviso. Revisa los datos.</Text>
                     </View>
-                  ) : (
-                    <Image
-                      source={{ uri: previewUrl }}
-                      style={styles.previewImage}
-                      resizeMode="contain"
-                      onLoadStart={() => setIsImageLoading(true)}
-                      onLoadEnd={() => setIsImageLoading(false)}
-                      onError={() => {
-                        setIsImageLoading(false);
-                        setImageError(true);
-                      }}
-                    />
                   )}
                 </View>
 
@@ -397,11 +400,9 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 14,
     marginTop: 20,
-    minHeight: 420,
-    justifyContent: 'center',
+    alignItems: 'center',
     overflow: 'hidden',
   },
-  previewImage: { width: '100%', height: 420 },
   imageErrorBox: { alignItems: 'center', gap: 10, padding: 30 },
   imageErrorText: { color: '#64748b', fontSize: 12.5, textAlign: 'center' },
   imageErrorDetail: { color: '#94a3b8', fontSize: 11.5, textAlign: 'center', lineHeight: 16 },

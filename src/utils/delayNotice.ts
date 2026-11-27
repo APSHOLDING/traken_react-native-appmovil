@@ -57,12 +57,14 @@ const PX = 4 / 3;
 /** Ancho en px de un texto en Arial al tamano dado (en puntos), con las medidas reales de la fuente. */
 function textWidth(sizePt: number, bold: boolean, text: string): number {
   const tbl = bold ? ARIAL_BOLD : ARIAL_REG;
-  let em = 0;
+  const px = sizePt * PX;
+  let w = 0;
   for (const ch of text) {
     const cp = ch.codePointAt(0) ?? 0;
-    em += tbl[cp] ?? 0.55;
+    // El servidor (GD/FreeType) redondea el avance de cada letra a pixeles enteros: se hace igual para que los renglones se partan en el mismo lugar.
+    w += Math.round((tbl[cp] ?? 0.55) * px);
   }
-  return em * sizePt * PX;
+  return w;
 }
 
 function wrap(sizePt: number, bold: boolean, text: string, maxW: number): string[] {
