@@ -80,7 +80,8 @@ export type OtraOsPrefill = {
   edad: string;
   voucher: string;
 };
-export type AddPaxParams = OrderMenuParams & { prefill?: PreregPrefill; otraOsPrefill?: OtraOsPrefill };
+export type AddPaxRoom = { idOrdersOpen: number; idHotel: number; hotelName: string; ocupation: string; people: number };
+export type AddPaxParams = OrderMenuParams & { prefill?: PreregPrefill; otraOsPrefill?: OtraOsPrefill; room?: AddPaxRoom };
 export type OtraOsParams = OrderMenuParams;
 
 export type RootStackParamList = {

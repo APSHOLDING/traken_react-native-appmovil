@@ -19,7 +19,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { radii } from '../theme/colors';
 import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import type { ThemeTokens } from '../theme/themes';
-import { getHotelsForOrder, getPreregListForOs, HotelDTO, PaxType, PreregListItem } from '../api/client';
+import { addPaxToRoom, getHotelsForOrder, getPreregListForOs, HotelDTO, PaxType, PreregListItem } from '../api/client';
 import { addPax } from '../api/queuedWrites';
 import VoucherScanButton from '../components/VoucherScanButton';
 import SupportScanButton from '../components/SupportScanButton';
@@ -82,14 +82,14 @@ function makePassenger(fSalida: string, hora: string): PassengerForm {
 export default function AddPaxScreen({ route, navigation }: Props) {
   const p = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const { folio, idAirport, folioDisplay, iata, typeAirline, prefill, otraOsPrefill } = route.params;
+  const { folio, idAirport, folioDisplay, iata, typeAirline, prefill, otraOsPrefill, room } = route.params;
 
-  const showOcupation = typeAirline === 'ep' || (typeAirline === 'all' && idAirport === 14);
+  const showOcupation = !room && (typeAirline === 'ep' || (typeAirline === 'all' && idAirport === 14));
   const showMeals = typeAirline === 'ep';
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const [idHotel, setIdHotel] = useState<number | null>(null);
+  const [idHotel, setIdHotel] = useState<number | null>(room ? room.idHotel : null);
   const [ocupation, setOcupation] = useState('');
   const [passengers, setPassengers] = useState<PassengerForm[]>([makePassenger('', '')]);
   const [prefillActive, setPrefillActive] = useState(!!prefill);
@@ -105,7 +105,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
   const [showPreregList, setShowPreregList] = useState(false);
 
   const loadPreregList = useCallback(async () => {
-    if (prefill || otraOsPrefill) return;
+    if (prefill || otraOsPrefill || room) return;
     try {
       const res = await getPreregListForOs(folio, idAirport);
       if (res.ok) {
@@ -185,7 +185,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     if (!hotelData) return;
-    if (hotelData.hotels.length === 1) setIdHotel(hotelData.hotels[0].id);
+    if (!room && hotelData.hotels.length === 1) setIdHotel(hotelData.hotels[0].id);
 
     if (prefill && !prefillAppliedRef.current) {
       prefillAppliedRef.current = true;
@@ -230,11 +230,14 @@ export default function AddPaxScreen({ route, navigation }: Props) {
   const peopleCount = passengers.filter((x) => x.name.trim().length > 0 && x.type !== 'infante').length;
   const ocCap = ocupation && OC[ocupation] ? OC[ocupation].cap : 0;
   const ocupationInvalid = showOcupation && !!ocupation && peopleCount > ocCap;
+  const roomCap = room && OC[room.ocupation] ? OC[room.ocupation].cap : 0;
+  const roomFull = !!room && roomCap > 0 && room.people + peopleCount > roomCap;
 
   // Lista de lo que falta, para decirselo a la persona en vez de dejar el boton apagado sin explicar.
   const missing: string[] = [];
   if (!idHotel) missing.push('elegir el hotel');
   if (showOcupation && !ocupation) missing.push('elegir el tipo de habitación');
+  if (roomFull) missing.push(`quitar personas (la habitación ${room!.ocupation} ya lleva ${room!.people} de ${roomCap})`);
   if (ocupationInvalid) missing.push(`cambiar la ocupación (caben ${ocCap} y llevas ${peopleCount})`);
   passengers.forEach((x, i) => {
     const who = passengers.length > 1 ? `pasajero ${i + 1}` : 'pasajero';
@@ -259,6 +262,34 @@ export default function AddPaxScreen({ route, navigation }: Props) {
     if (!canSubmit || !idHotel) return;
     setIsSaving(true);
     try {
+      if (room) {
+        const r = await addPaxToRoom({
+          id_order: folio,
+          id_airport: idAirport,
+          id_orders_open: room.idOrdersOpen,
+          passengers: passengers.map((p) => ({
+            name: p.name.trim(),
+            voucher: p.voucher.trim(),
+            f_salida: p.fSalida.trim(),
+            hora: p.hora.trim(),
+            type: p.type,
+            chek: p.chek,
+            age_c: p.type === 'nino' ? p.ageC : 0,
+            age_i: p.type === 'infante' ? p.ageI : 0,
+            breakfast: showMeals ? p.breakfast : 0,
+            lunch: showMeals ? p.lunch : 0,
+            dinner: showMeals ? p.dinner : 0,
+          })),
+        });
+        if (!r.ok) {
+          Alert.alert('No se pudo guardar', r.error ?? r.msg ?? 'Intenta de nuevo.');
+          return;
+        }
+        Alert.alert('Pasajero agregado', 'Ya quedó dentro de la habitación.', [
+          { text: 'Listo', onPress: () => navigation.goBack() },
+        ]);
+        return;
+      }
       const res = await addPax({
         id_order: folio,
         id_airport: idAirport,
@@ -324,7 +355,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
             <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
           <View>
-            <Text style={styles.topTitle}>Agregar Habitación</Text>
+            <Text style={styles.topTitle}>{room ? 'Agregar a habitación' : 'Agregar Habitación'}</Text>
             <Text style={styles.topSub}>#{folioDisplay}{iata ? ' · ' + iata : ''}</Text>
           </View>
           <BrandMark />
@@ -393,7 +424,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
                 </View>
               )}
 
-              {!prefillActive && preregPending > 0 && (
+              {!room && !prefillActive && preregPending > 0 && (
                 <View style={styles.passiveBannerWrap}>
                   <Pressable style={styles.passiveBanner} onPress={() => setShowPreregList((v) => !v)}>
                     <Ionicons name="qr-code-outline" size={16} color={p.warnText} />
@@ -423,7 +454,15 @@ export default function AddPaxScreen({ route, navigation }: Props) {
                 </View>
               )}
 
-              <StepCard n={1} icon="bed" title="Hotel" hint="Toca el hotel; ves cuántas habitaciones quedan">
+              {room && (
+                <View style={styles.noRooms}>
+                  <Text style={{ color: p.text, fontWeight: '800' }}>{room.hotelName.trim()}</Text>
+                  <Text style={{ color: p.textMuted }}>
+                    {room.ocupation ? `Habitación ${room.ocupation} · ` : ''}ya lleva {room.people} persona(s)
+                  </Text>
+                </View>
+              )}
+              {!room && <StepCard n={1} icon="bed" title="Hotel" hint="Toca el hotel; ves cuántas habitaciones quedan">
                 {hotels.length === 0 ? (
                   <Text style={styles.noRooms}>No hay hoteles con habitaciones disponibles.</Text>
                 ) : hotels.length <= 8 ? (
@@ -455,7 +494,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
                     onSelect={setIdHotel}
                   />
                 )}
-              </StepCard>
+              </StepCard>}
 
               {showOcupation && (
                 <StepCard n={2} icon="moon" title="Tipo de habitación" hint="Cuántas personas caben (los infantes no cuentan)">
@@ -548,7 +587,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
                 {isSaving ? (
                   <ActivityIndicator color={p.onAccent} />
                 ) : (
-                  <Text style={styles.submitText}>Guardar habitación</Text>
+                  <Text style={styles.submitText}>{room ? 'Agregar a la habitación' : 'Guardar habitación'}</Text>
                 )}
               </Pressable>
             </View>
