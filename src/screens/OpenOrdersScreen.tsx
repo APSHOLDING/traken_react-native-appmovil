@@ -173,7 +173,7 @@ export default function OpenOrdersScreen({ navigation }: Props) {
         '• "Exportar a Excel" baja la lista que estás viendo.'
     );
 
-  // Encabezado que se desplaza junto con la lista: banner, buscador por nombre, filtros y acciones.
+  // Encabezado que se desplaza junto con la lista: banner, filtros y acciones. Los buscadores van FIJOS arriba.
   const header = (
     <View style={styles.headerWrap}>
       <LinearGradient colors={[p.accent, p.accentDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroCard}>
@@ -199,21 +199,6 @@ export default function OpenOrdersScreen({ navigation }: Props) {
           </View>
         </View>
       </LinearGradient>
-
-      <PaxSearchBox estado="open" onPick={openFromPax} />
-
-      <View style={styles.searchWrap}>
-        <Ionicons name="search" size={16} color={p.textMuted} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Buscar folio, aerolínea o vuelo..."
-          placeholderTextColor={p.placeholder}
-          style={styles.searchInput}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
 
       <View style={styles.toolsCol}>
         <Pressable style={styles.scanBtn} onPress={() => navigation.navigate('PreregScan')}>
@@ -260,6 +245,24 @@ export default function OpenOrdersScreen({ navigation }: Props) {
           <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
             <Ionicons name="arrow-back" size={20} color={p.text} />
           </Pressable>
+        </View>
+
+        {/* Buscadores FIJOS: se quedan arriba aunque se desplace la lista */}
+        <View style={styles.fixedSearch}>
+        <PaxSearchBox estado="open" onPick={openFromPax} />
+
+        <View style={styles.searchWrap}>
+          <Ionicons name="search" size={16} color={p.textMuted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Buscar folio, aerolínea o vuelo..."
+            placeholderTextColor={p.placeholder}
+            style={styles.searchInput}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
         </View>
 
         <FlatList
@@ -452,6 +455,7 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   listContent: { paddingHorizontal: 16, paddingBottom: 30, gap: 10 },
   // El encabezado conserva los margenes de 16 que ya traen sus piezas: se cancela el relleno de la lista.
   headerWrap: { marginHorizontal: -16 },
+  fixedSearch: { paddingTop: 2, paddingBottom: 2 },
   heroCard: {
     marginHorizontal: 16,
     marginBottom: 12,
