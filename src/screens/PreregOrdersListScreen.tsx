@@ -131,6 +131,10 @@ export default function PreregOrdersListScreen({ navigation }: Props) {
           </View>
         ) : (
           <FlatList
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
             data={filtered}
             keyExtractor={(o) => `${o.folio}-${o.id_airport}`}
             contentContainerStyle={styles.listContent}

@@ -101,6 +101,10 @@ export default function EditPaxListScreen({ route, navigation }: Props) {
           </View>
         ) : (
           <FlatList
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
             ListHeaderComponent={
               offlineSince ? (
                 <View style={styles.offlineBanner}>

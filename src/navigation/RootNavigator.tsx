@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { ComponentProps } from 'react';
 import type { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { logEvent } from '../utils/activityLog';
 import {
   navigationRef,
   setupNotificationTapHandler,
@@ -126,6 +127,22 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 
+let lastScreenKey = '';
+function trackScreen() {
+  try {
+    const r = navigationRef.getCurrentRoute();
+    if (!r) return;
+    const prm: any = r.params ?? {};
+    const folio = Number(prm.folio) || undefined;
+    const key = r.name + '|' + (folio ?? '');
+    if (key === lastScreenKey) return;
+    lastScreenKey = key;
+    logEvent('pantalla', { screen: r.name, folio, id_airport: Number(prm.idAirport) || undefined });
+  } catch {
+    // La bitacora nunca debe romper la navegacion.
+  }
+}
+
 export default function RootNavigator() {
   const { token, isLoading } = useAuth();
   const theme = useTheme();
@@ -153,7 +170,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={flushPendingNotification}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={flushPendingNotification} onStateChange={trackScreen}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {token ? (
           <>

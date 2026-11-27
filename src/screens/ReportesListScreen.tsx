@@ -117,6 +117,10 @@ export default function ReportesListScreen({ navigation }: Props) {
           </View>
         ) : (
           <FlatList
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
             data={filtered}
             keyExtractor={(o) => String(o.id)}
             contentContainerStyle={styles.listContent}

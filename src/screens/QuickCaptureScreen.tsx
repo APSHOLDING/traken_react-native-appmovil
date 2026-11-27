@@ -12,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -58,6 +59,34 @@ export default function QuickCaptureScreen({ navigation }: Props) {
   const [hotelInfo, setHotelInfo] = useState<HotelInfo | null>(null);
   const [loadingHotels, setLoadingHotels] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // El texto escrito no se pierde si sales de la pantalla o se cierra la app.
+  useEffect(() => {
+    getCache<string>('quick_capture_draft')
+      .then((c) => {
+        if (c && typeof c.data === 'string') setText((cur) => (cur ? cur : c.data));
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      saveCache('quick_capture_draft', text).catch(() => {});
+    }, 600);
+    return () => clearTimeout(t);
+  }, [text]);
+
+  const pasteFromClipboard = async () => {
+    try {
+      const clip = await Clipboard.getStringAsync();
+      if (!clip || !clip.trim()) {
+        Alert.alert('Portapapeles vacío', 'Copia primero la lista (por ejemplo desde WhatsApp) y vuelve a tocar «Pegar».');
+        return;
+      }
+      setText((cur) => (cur.trim() ? cur.replace(/\s+$/, '') + '\n' + clip.trim() : clip.trim()));
+    } catch (e) {
+      Alert.alert('No se pudo pegar', 'Mantén presionado el cuadro de texto y elige «Pegar».');
+    }
+  };
 
   const { data: openData, isLoading, error, reload } = useOfflineLoad(
     'open_orders',
@@ -180,6 +209,7 @@ export default function QuickCaptureScreen({ navigation }: Props) {
         [{ text: 'Aceptar', onPress: () => navigation.goBack() }]
       );
       setText('');
+      saveCache('quick_capture_draft', '').catch(() => {});
     }
   };
 
@@ -284,9 +314,22 @@ export default function QuickCaptureScreen({ navigation }: Props) {
                 textAlignVertical="top"
                 autoCapitalize="sentences"
               />
-              <Pressable onPress={() => setText(EXAMPLE)} hitSlop={8}>
-                <Text style={styles.linkText}>Usar un ejemplo</Text>
-              </Pressable>
+              <View style={styles.linksRow}>
+                <Pressable onPress={pasteFromClipboard} hitSlop={8} style={styles.linkBtn}>
+                  <Ionicons name="clipboard-outline" size={14} color={p.accentText} />
+                  <Text style={styles.linkText}>Pegar</Text>
+                </Pressable>
+                <Pressable onPress={() => setText(EXAMPLE)} hitSlop={8} style={styles.linkBtn}>
+                  <Ionicons name="bulb-outline" size={14} color={p.accentText} />
+                  <Text style={styles.linkText}>Usar un ejemplo</Text>
+                </Pressable>
+                {text.length > 0 ? (
+                  <Pressable onPress={() => setText('')} hitSlop={8} style={styles.linkBtn}>
+                    <Ionicons name="close-circle-outline" size={14} color={p.textMuted} />
+                    <Text style={[styles.linkText, { color: p.textMuted }]}>Borrar</Text>
+                  </Pressable>
+                ) : null}
+              </View>
               {loadingHotels ? (
                 <Text style={[styles.hint, { marginTop: 10 }]}>Cargando hoteles de la O.S.…</Text>
               ) : hotelInfo && hotelInfo.hotels.length === 0 ? (
@@ -428,7 +471,9 @@ const makeStyles = (p: ThemeTokens) =>
       fontSize: 15,
       lineHeight: 21,
     },
-    linkText: { color: p.accentText, fontSize: 12.5, fontWeight: '700', marginTop: 8 },
+    linksRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 10 },
+    linkBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    linkText: { color: p.accentText, fontSize: 12.5, fontWeight: '700' },
     primaryBtn: {
       flexDirection: 'row',
       gap: 8,

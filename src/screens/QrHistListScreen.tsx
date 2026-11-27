@@ -90,6 +90,10 @@ export default function QrHistListScreen({ navigation }: Props) {
           </View>
         ) : (
           <FlatList
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
             data={filtered}
             keyExtractor={(it) => `${it.folio}-${it.id_airport}`}
             contentContainerStyle={styles.listContent}

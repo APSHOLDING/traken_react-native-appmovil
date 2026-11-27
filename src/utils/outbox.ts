@@ -2,6 +2,7 @@ import { AppState, Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 import NetInfo from '@react-native-community/netinfo';
 import { api, getApiEnvironment } from '../api/client';
+import { logEvent } from './activityLog';
 
 /**
  * COLA DE ENVIO ("outbox") para trabajar SIN INTERNET sin perder ni duplicar nada.
@@ -260,6 +261,10 @@ export async function sendOrQueue<T>(
   }
 
   await insertRow(id, spec);
+  {
+    const b: any = spec.body ?? {};
+    logEvent('accion_en_cola', { text: spec.label + ' (sin internet)', folio: Number(b.id_order ?? b.folio) || undefined, id_airport: Number(b.id_airport) || undefined });
+  }
   await emit();
   scheduleRetry(5_000);
   return queuedResult;
@@ -276,6 +281,7 @@ function scheduleRetry(ms: number) {
 async function markFailed(id: string, message: string) {
   const db = await getDb();
   await db.runAsync("UPDATE outbox SET status = 'failed', last_error = ? WHERE id = ?;", [message.slice(0, 300), id]);
+  logEvent('accion_rechazada', { text: message.slice(0, 300) });
 }
 
 /** Envia lo pendiente, en orden. Segura de llamar muchas veces: solo corre una a la vez. */
@@ -307,6 +313,11 @@ export async function processOutbox(): Promise<void> {
           continue;
         }
         await db.runAsync('DELETE FROM outbox WHERE id = ?;', [row.id]); // solo se borra si SI se guardo
+        {
+          let b: any = {};
+          try { b = JSON.parse(row.body) ?? {}; } catch {}
+          logEvent('accion_sincronizada', { text: row.label, folio: Number(b.id_order ?? b.folio) || undefined, id_airport: Number(b.id_airport) || undefined });
+        }
         justSynced += 1;
         failStreak = 0;
         await emit();

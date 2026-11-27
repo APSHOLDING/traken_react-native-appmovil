@@ -57,6 +57,67 @@ function take(work: { s: string }, re: RegExp): RegExpExecArray | null {
   return m;
 }
 
+/** Distancia de edicion (con letras cambiadas de lugar contando como 1). */
+function dist(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const d: number[][] = [];
+  for (let i = 0; i <= m; i++) {
+    d[i] = [i];
+  }
+  for (let j = 0; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return d[m][n];
+}
+
+/** Palabras clave que se entienden aunque vengan mal escritas ("dobel", "sensilla", "hotle", "noviembe"...). */
+const KEYWORDS = [
+  'sencilla', 'sencillo', 'doble', 'triple', 'cuadruple', 'cuadruplo', 'habitacion', 'hotel', 'salida', 'voucher',
+  'manana', 'infante', 'bebe', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre',
+  'octubre', 'noviembre', 'diciembre',
+];
+
+function fixTypos(seg: string): string {
+  return seg.replace(/[A-Za-zÁÉÍÓÚÑáéíóúñÜü]{4,}/g, (w) => {
+    const pw = plain(w);
+    if (KEYWORDS.indexOf(pw) >= 0) return w;
+    const thr = pw.length >= 8 ? 2 : 1; // palabras cortas: 1 error; largas: hasta 2 (cuida que un apellido no se confunda)
+    let best = '';
+    let bestD = 99;
+    for (const k of KEYWORDS) {
+      if (k[0] !== pw[0] || Math.abs(k.length - pw.length) > 2) continue;
+      const dd = dist(pw, k);
+      if (dd <= thr && dd < bestD) {
+        best = k;
+        bestD = dd;
+      }
+    }
+    return best || w;
+  });
+}
+
+/** Hotel mencionado sin la palabra "hotel": una palabra (o dos) del nombre del hotel, aunque tenga un error de letra. */
+function looseHotel(text: string, hotels: { id: number; name: string }[]): { hotel: { id: number; name: string }; word: string } | null {
+  const words = plain(text).match(/[a-z0-9]{5,}/g) || [];
+  const found: { hotel: { id: number; name: string }; word: string }[] = [];
+  for (const h of hotels) {
+    const toks = plain(h.name).replace(/[^a-z0-9 ]/g, ' ').split(' ').filter((t) => t.length >= 5 && ['hotel', 'resort', 'suites'].indexOf(t) < 0);
+    for (const t of toks) {
+      for (const w of words) {
+        if (w === t || (w[0] === t[0] && dist(w, t) <= 1)) found.push({ hotel: h, word: w });
+      }
+    }
+  }
+  const ids = Array.from(new Set(found.map((x) => x.hotel.id)));
+  return ids.length === 1 ? found[0] : null;
+}
+
 function pad(n: number): string {
   return n < 10 ? '0' + n : String(n);
 }
@@ -90,7 +151,8 @@ function bestHotel(phrase: string, hotels: { id: number; name: string }[]): { id
     .map((h) => {
       const hn = plain(h.name).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
       const toks = hn.split(' ').filter((t) => t.length >= 3 && !['hotel', 'the', 'del', 'los', 'las', 'resort', 'suites', 'inn'].includes(t));
-      const hits = toks.filter((t) => ph.includes(t)).length;
+      const phWords = ph.split(' ');
+      const hits = toks.filter((t) => ph.includes(t) || phWords.some((w) => w.length >= 5 && w[0] === t[0] && dist(w, t) <= 1)).length;
       const full = hn.includes(ph) || ph.includes(hn);
       return { h, score: (full ? 100 : 0) + hits };
     })
@@ -109,7 +171,7 @@ export function parseCapture(text: string, ctx: CaptureContext, now: Date = new 
 
   const rooms: CaptureRoom[] = [];
   segments.forEach((seg, idx) => {
-    const work = { s: seg };
+    const work = { s: fixTypos(seg) };
     const problems: string[] = [];
     const notes: string[] = [];
 
@@ -135,6 +197,15 @@ export function parseCapture(text: string, ctx: CaptureContext, now: Date = new 
       if (h) {
         idHotel = h.id;
         hotelName = h.name.trim();
+      }
+    }
+    if (idHotel === null && ctx.hotels.length > 1) {
+      const lh = looseHotel(work.s, ctx.hotels);
+      if (lh) {
+        idHotel = lh.hotel.id;
+        hotelName = lh.hotel.name.trim();
+        take(work, new RegExp('\\b' + lh.word + '\\b'));
+        notes.push('Hotel entendido por su nombre');
       }
     }
     if (idHotel === null && ctx.hotels.length === 1) {
@@ -210,12 +281,18 @@ export function parseCapture(text: string, ctx: CaptureContext, now: Date = new 
 
     // Lo que sobra son los nombres (y su tipo)
     const rest = work.s
+      .replace(/\(([^)]*)\)/g, (_m, inner: string) => {
+        const pi = plain(inner);
+        if (/infante|bebe/.test(pi)) return ' @INF ';
+        if (/nin[oa]|menor|hij[oa]/.test(pi)) return ' @NIN ';
+        return ' ' + inner + ' ';
+      })
       .replace(/\b(habitacion(?:es)?|hab|cuarto|pasajeros?|pax|hotel|salida|sale|salen|fecha|el dia|dia)\b/gi, ' ')
       .replace(/[()]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
     const chunks = rest
-      .split(/\s+y\s+|,|\+|&|\//i)
+      .split(/\s+y\s+|\s+con\s+|,|\+|&|\//i)
       .map((c) => c.trim())
       .filter((c) => c.length > 0);
 
@@ -223,10 +300,13 @@ export function parseCapture(text: string, ctx: CaptureContext, now: Date = new 
     chunks.forEach((c) => {
       let type: PaxType = 'adulto';
       const pc = plain(c);
-      if (/\b(infante|bebe)\b/.test(pc)) type = 'infante';
-      else if (/\b(nino|nina|menor|hijo|hija)\b/.test(pc)) type = 'nino';
+      // "Nina" tambien es un nombre: solo cuenta como niña si va entre parentesis o al final del nombre.
+      if (/@inf/.test(pc) || /^(infante|bebe)\s+\S/.test(pc) || /\S\s+(infante|bebe)$/.test(pc)) type = 'infante';
+      else if (/@nin/.test(pc) || /^(nino|menor)\s+\S/.test(pc) || /\S\s+(nino|nina|menor|hijo|hija)$/.test(pc)) type = 'nino';
       const clean = c
-        .replace(/\b(infante|bebe|niñ[oa]|nin[oa]|menor|hij[oa])\b/gi, ' ')
+        .replace(/@(inf|nin)/gi, ' ')
+        .replace(/^(infante|bebé|bebe|niño|nino|menor)\s+(?=\S)/i, ' ')
+        .replace(/\s+(infante|bebé|bebe|niño|niña|nino|nina|menor|hijo|hija)$/i, ' ')
         .replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñÜü' ]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();

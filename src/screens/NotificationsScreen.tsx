@@ -110,6 +110,10 @@ export default function NotificationsScreen({ navigation }: Props) {
           </View>
         ) : (
           <FlatList
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
             data={items}
             keyExtractor={(it) => String(it.id)}
             contentContainerStyle={styles.listContent}

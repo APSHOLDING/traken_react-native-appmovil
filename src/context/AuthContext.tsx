@@ -17,6 +17,7 @@ import { getLastProfile, saveLastEmail, saveLastProfile } from '../utils/credent
 import { registerForPushNotificationsAsync } from '../utils/pushNotifications';
 import { resetBiometric } from '../utils/biometric';
 import { setOutboxUser } from '../utils/outbox';
+import { flushEvents, logEvent, setActivityUser, startActivityMonitor } from '../utils/activityLog';
 
 const TOKEN_KEY = 'traken_token';
 
@@ -149,6 +150,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await saveLastEmail(email);
         await saveLastProfile(res.user, res.stations ?? []);
         setAuthToken(res.token);
+        setActivityUser(res.user.id);
+        logEvent('inicio_sesion', { text: `Entorno: ${getApiEnvironment()}` });
         setTokenState(res.token);
         setUser(res.user);
         setStations(res.stations ?? []);
@@ -171,6 +174,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    // Se anota y se intenta mandar la bitacora ANTES de perder la sesion (maximo 2.5 s; si no hay señal queda guardada).
+    logEvent('cierre_sesion');
+    await Promise.race([flushEvents(), new Promise((r) => setTimeout(r, 2500))]);
     await logoutRequest();
     await resetBiometric();
     await deleteToken(TOKEN_KEY);
@@ -186,7 +192,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const outboxUid = user?.id ?? null;
   useEffect(() => {
     setOutboxUser(token && outboxUid !== null ? outboxUid : null);
+    setActivityUser(token && outboxUid !== null ? outboxUid : null);
   }, [token, outboxUid]);
+  // Bitacora de actividad: reenvio al volver la señal / abrir la app.
+  useEffect(() => startActivityMonitor(), []);
 
   // Cualquier endpoint que conteste 401 (sesion vencida/revocada) cierra la
   // sesion local y manda al Login con un aviso, en vez de seguir con un token

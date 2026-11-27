@@ -182,6 +182,10 @@ export default function PreregListasScreen({ route, navigation }: Props) {
           </View>
         ) : (
           <FlatList
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
             data={batches}
             keyExtractor={(b) => String(b.id)}
             contentContainerStyle={styles.listContent}

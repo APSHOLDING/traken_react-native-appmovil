@@ -191,6 +191,10 @@ export default function BitacoraScreen({ navigation }: Props) {
           </View>
         ) : (
           <FlatList
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
             data={items}
             keyExtractor={(ev) => String(ev.id)}
             contentContainerStyle={styles.listContent}

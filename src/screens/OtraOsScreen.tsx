@@ -148,6 +148,10 @@ export default function OtraOsScreen({ route, navigation }: Props) {
         </View>
 
         <FlatList
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
           data={items}
           keyExtractor={(i) => String(i.id)}
           contentContainerStyle={styles.listContent}

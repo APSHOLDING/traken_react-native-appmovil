@@ -419,6 +419,10 @@ export default function PreregOrderDetailScreen({ route, navigation }: Props) {
         ) : (
           <>
             <FlatList
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
               data={filtered}
               keyExtractor={(p) => String(p.id)}
               contentContainerStyle={styles.listContent}
