@@ -14,7 +14,7 @@ import { useTheme } from '../context/ThemeContext';
 import { hexA } from '../theme/themes';
 import ThemePickerModal from '../components/ThemePickerModal';
 import { useAuth } from '../context/AuthContext';
-import { getManualUrl, getNotifications, getOpenOrders, getSiteBaseUrl } from '../api/client';
+import { getManualUrl, getNotifications, getOpenOrders, getPreregOrders, getSiteBaseUrl } from '../api/client';
 import { getLastSeenNotifications } from '../utils/notificationsSeen';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -44,6 +44,7 @@ export default function HomeScreen({ navigation }: Props) {
   const t = useTheme();
   const [showTheme, setShowTheme] = useState(false);
   const [openCount, setOpenCount] = useState<number | null>(null);
+  const [preregPend, setPreregPend] = useState(0);
   const [hasUnreadNotifs, setHasUnreadNotifs] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const esAdminMaestro = user?.email?.toLowerCase() === ADMIN_MAESTRO_EMAIL;
@@ -99,7 +100,16 @@ export default function HomeScreen({ navigation }: Props) {
         // Silencioso: el puntito de notificaciones es un extra, no critico.
       }
     })();
-    await Promise.all([openOrders, notifs]);
+    const prereg = (async () => {
+      try {
+        const res = await getPreregOrders();
+        const n = (res.orders ?? []).reduce((a, o) => a + (Number(o.pendientes) || 0), 0);
+        setPreregPend(n);
+      } catch (e) {
+        // Silencioso: sin internet se queda el ultimo valor.
+      }
+    })();
+    await Promise.all([openOrders, notifs, prereg]);
   }, []);
 
   // Se re-checa al volver a esta pantalla (ej. despues de abrir
@@ -190,6 +200,7 @@ export default function HomeScreen({ navigation }: Props) {
       label: 'Pre-registro de Pax',
       icon: 'person-add',
       gradient: ['#be185d', '#9d174d'],
+      badge: preregPend || undefined,
       onPress: () => navigation.navigate('PreregOrdersList'),
     },
     {

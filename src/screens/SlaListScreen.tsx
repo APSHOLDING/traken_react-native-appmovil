@@ -47,6 +47,7 @@ export default function SlaListScreen({ navigation }: Props) {
   const [items, setItems] = useState<SlaListItem[]>([]);
   const [query, setQuery] = useState('');
   const [estado, setEstado] = useState<SlaEstado | ''>('');
+  const [dias, setDias] = useState(45);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +55,7 @@ export default function SlaListScreen({ navigation }: Props) {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await getSlaList();
+      const res = await getSlaList(dias);
       if (res.ok) {
         setItems(res.items ?? []);
       } else {
@@ -65,7 +66,7 @@ export default function SlaListScreen({ navigation }: Props) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [dias]);
 
   useEffect(() => {
     load();
@@ -118,6 +119,14 @@ export default function SlaListScreen({ navigation }: Props) {
               onPress={() => setEstado(f.key)}
             >
               <Text style={[styles.chipText, estado === f.key && styles.chipTextActive]}>{f.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.chipRow}>
+          {[15, 30, 45, 90, 180].map((d) => (
+            <Pressable key={d} style={[styles.chip, dias === d && styles.chipActive]} onPress={() => setDias(d)}>
+              <Text style={[styles.chipText, dias === d && styles.chipTextActive]}>{d} días</Text>
             </Pressable>
           ))}
         </View>
