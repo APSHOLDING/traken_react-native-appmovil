@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import Ionicons from '../components/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { logEvent } from '../utils/activityLog';
 
 export type ViewerImage = { url: string; title?: string; /** grados guardados de la foto (0/90/180/270) */ rotation?: number };
 
@@ -53,6 +54,14 @@ export default function ImageViewer({ visible, images, startIndex = 0, onClose }
       return () => clearTimeout(t);
     }
   }, [visible, startIndex]);
+
+  // Bitacora: que foto esta viendo (una vez por foto).
+  useEffect(() => {
+    if (!visible) return;
+    const im = images[Math.min(index, images.length - 1)];
+    if (im) logEvent('ver_foto', { text: `Vio la foto ${Math.min(index, images.length - 1) + 1} de ${images.length}${im.title ? ' (' + im.title + ')' : ''}` });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, index]);
 
   // Precarga las fotos vecinas para que al deslizar ya esten listas.
   useEffect(() => {

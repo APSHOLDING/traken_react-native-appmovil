@@ -1,0 +1,40 @@
+/** Nombres claros de cada pantalla para la bitacora ("Detalle de la O.S." en vez de "DetalleOrden"). */
+export const SCREEN_NAMES: Record<string, string> = {
+  Home: 'Menú de inicio',
+  CreateOrder: 'Crear O.S.',
+  OpenOrders: 'O.S. abiertas',
+  OrderMenu: 'Menú de acciones de la O.S.',
+  AddPax: 'Agregar pasajero',
+  AddTransport: 'Agregar transporte',
+  EditPaxList: 'Editar pasajeros (lista)',
+  EditPax: 'Editar un pasajero',
+  Delay: 'Aviso de retraso',
+  Bitacora: 'Bitácora',
+  Resumen: 'Resumen por estación',
+  Vuelos: 'Vuelos en tiempo real',
+  DetallesList: 'Detalles O.S. (lista)',
+  DetalleOrden: 'Detalle de la O.S.',
+  ReportesList: 'Reportes (lista)',
+  ReportePicker: 'Reportes de la O.S.',
+  ResumenOs: 'Resumen de la O.S.',
+  EditarList: 'Editar O.S. (lista)',
+  EditarOrden: 'Editar la O.S.',
+  QrHistList: 'Historial de QR',
+  QrHistDetail: 'Detalle del historial de QR',
+  SlaList: 'SLA (lista)',
+  SlaForm: 'SLA de la O.S.',
+  PreregOrdersList: 'Pre-registro de pax (lista)',
+  PreregOrderDetail: 'Pre-registro de una O.S.',
+  PreregScan: 'Pre-registro: escanear',
+  PreregListas: 'Pre-registro: listas',
+  Notifications: 'Notificaciones',
+  QuickCapture: 'Captura rápida de pax',
+  IncidenciasSc: 'Incidencias SC',
+  ImportarLista: 'Importar lista de pasajeros',
+  OtraOs: 'Pasajero de otra O.S.',
+  ComingSoon: 'Próximamente',
+};
+
+export function screenName(route: string): string {
+  return SCREEN_NAMES[route] ?? route;
+}

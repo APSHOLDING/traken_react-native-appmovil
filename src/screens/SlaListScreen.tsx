@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTrackSearch, track } from '../utils/useTrack';
 import Loading from '../components/Loading';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -47,6 +48,7 @@ export default function SlaListScreen({ navigation }: Props) {
   const p = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [query, setQuery] = useState('');
+  useTrackSearch('SlaList', query);
   const [estado, setEstado] = useState<SlaEstado | ''>('');
   const [dias, setDias] = useState(45);
 
@@ -112,7 +114,7 @@ export default function SlaListScreen({ navigation }: Props) {
 
         <View style={styles.chipRow}>
           {[15, 30, 45, 90, 180].map((d) => (
-            <Pressable key={d} style={[styles.chip, dias === d && styles.chipActive]} onPress={() => setDias(d)}>
+            <Pressable key={d} style={[styles.chip, dias === d && styles.chipActive]} onPress={() => { setDias(d); track('filtro', `SLA: ventana de ${d} días`, { screen: 'SlaList' }); }}>
               <Text style={[styles.chipText, dias === d && styles.chipTextActive]}>{d} días</Text>
             </Pressable>
           ))}

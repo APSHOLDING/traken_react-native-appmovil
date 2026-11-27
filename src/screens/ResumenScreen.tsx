@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { track } from '../utils/useTrack';
 import Loading from '../components/Loading';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -161,7 +162,7 @@ export default function ResumenScreen({ navigation }: Props) {
           {/* Atajos de mes: un toque y listo */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.monthRow}>
             {monthChips.map((m) => (
-              <Pressable key={m} style={[styles.monthChip, periodo === m && styles.monthChipOn]} onPress={() => setPeriodo(m)}>
+              <Pressable key={m} style={[styles.monthChip, periodo === m && styles.monthChipOn]} onPress={() => { setPeriodo(m); track('filtro', `Resumen por estación: mes ${m}`, { screen: 'Resumen' }); }}>
                 <Text style={[styles.monthChipText, periodo === m && styles.monthChipTextOn]}>{monthShort(m)}</Text>
               </Pressable>
             ))}
@@ -222,7 +223,7 @@ export default function ResumenScreen({ navigation }: Props) {
               {/* Ordenar y buscar */}
               <View style={styles.sortRow}>
                 {([['pax', 'Pasajeros'], ['operaciones', 'Operaciones'], ['habitaciones', 'Habitaciones']] as const).map(([k, l]) => (
-                  <Pressable key={k} style={[styles.sortChip, sortBy === k && styles.sortChipOn]} onPress={() => setSortBy(k)}>
+                  <Pressable key={k} style={[styles.sortChip, sortBy === k && styles.sortChipOn]} onPress={() => { setSortBy(k); track('filtro', `Resumen por estación: ordenó por ${l}`, { screen: 'Resumen' }); }}>
                     <Text style={[styles.sortChipText, sortBy === k && styles.sortChipTextOn]}>{l}</Text>
                   </Pressable>
                 ))}

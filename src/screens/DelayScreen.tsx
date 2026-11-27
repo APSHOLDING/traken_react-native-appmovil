@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { logEvent } from '../utils/activityLog';
 import {
   ActivityIndicator,
   Alert,
@@ -131,6 +132,7 @@ export default function DelayScreen({ route, navigation }: Props) {
   const showPreview = () => setShowNotice(true);
 
   const handleDownload = async () => {
+    logEvent('aviso_retraso', { text: `Generó/descargó el aviso de retraso (${lang}) — ${airlineText} ${flightText}, destino ${dest}, salida ${departure}`.slice(0, 400), folio, id_airport: idAirport });
     setIsDownloading(true);
     try {
       const fileName = `DelayInfo_${(airlineText || 'delay').replace(/[^A-Za-z0-9]/g, '')}_${(flightText || '').replace(/[^A-Za-z0-9]/g, '')}.png`;
@@ -175,6 +177,7 @@ export default function DelayScreen({ route, navigation }: Props) {
 
   const handleSendMail = async () => {
     const to = mail.trim();
+    logEvent('aviso_retraso', { text: `Envió el aviso de retraso por correo a ${to}`, folio, id_airport: idAirport });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
       setMailMsg({ ok: false, text: 'Escribe un correo válido.' });
       return;

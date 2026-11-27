@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTrackSearch, track } from '../utils/useTrack';
 import Loading from '../components/Loading';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +27,7 @@ export default function ReportesListScreen({ navigation }: Props) {
   const p = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [query, setQuery] = useState('');
+  useTrackSearch('ReportesList', query);
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
   const [estadoF, setEstadoF] = useState('');
@@ -87,7 +89,7 @@ export default function ReportesListScreen({ navigation }: Props) {
 
         <View style={styles.chipRow}>
           {[['', 'Todas'], ['abierta', 'Abiertas'], ['cerrada', 'Cerradas'], ['cancelada', 'Canceladas']].map(([k, l]) => (
-            <Pressable key={k || 'todas'} style={[styles.chip, estadoF === k && styles.chipActive]} onPress={() => setEstadoF(k)}>
+            <Pressable key={k || 'todas'} style={[styles.chip, estadoF === k && styles.chipActive]} onPress={() => { setEstadoF(k); track('filtro', `Filtró Reportes por estado: ${l}`, { screen: 'ReportesList' }); }}>
               <Text style={[styles.chipText, estadoF === k && styles.chipTextActive]}>{l}</Text>
             </Pressable>
           ))}
