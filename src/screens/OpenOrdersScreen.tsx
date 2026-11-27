@@ -23,6 +23,7 @@ import type { ThemeTokens } from '../theme/themes';
 import { getOpenOrders, getOpenOrdersExportUrl, getSiteBaseUrl, OpenOrderDTO, PaxSearchItem } from '../api/client';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { getCache, saveCache } from '../utils/offlineCache';
+import { prefetchAirlineLogos } from '../utils/delayLogos';
 import CommentsModal from '../components/CommentsModal';
 import QrEncuestaModal from '../components/QrEncuestaModal';
 import PaxSearchBox from '../components/PaxSearchBox';
@@ -68,6 +69,8 @@ export default function OpenOrdersScreen({ navigation }: Props) {
         setTotalAnteriores(nextTotalAnteriores);
         setOfflineSince(null);
         await saveCache<CachedOrders>(CACHE_KEY, { orders: nextOrders, totalAnteriores: nextTotalAnteriores });
+        // Con internet: se bajan en segundo plano los logos de estas aerolineas, para que el aviso de retraso salga completo aunque despues no haya señal.
+        prefetchAirlineLogos(nextOrders.map((o) => o.airline)).catch(() => {});
       } else {
         setError(res.error ?? 'No se pudo cargar la información.');
       }

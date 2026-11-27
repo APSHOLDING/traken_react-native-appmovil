@@ -27,7 +27,7 @@ if ($nuevos -eq 0) { Fallo "No hay nada nuevo: master ya tiene todo lo de develo
 
 Write-Host ""
 Write-Host "Se van a subir $nuevos cambio(s) a PRODUCCION (master):" -ForegroundColor Cyan
-git log origin/master..origin/develop --oneline
+git --no-pager log origin/master..origin/develop --oneline
 Write-Host ""
 Write-Host "Recuerda antes de seguir:" -ForegroundColor Yellow
 Write-Host "  1) La WEB ya debe estar subida (cd C:\laragon\www\traken ; git push origin main)."
