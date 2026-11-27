@@ -44,6 +44,14 @@ type PassengerForm = {
   dinner: number;
 };
 
+/** Tipos de habitacion y cuantas personas caben (igual que la web: los infantes no cuentan). */
+const OC: Record<string, { name: string; cap: number }> = {
+  SGL: { name: 'Sencilla', cap: 1 },
+  DBL: { name: 'Doble', cap: 2 },
+  TPL: { name: 'Triple', cap: 3 },
+  CDPL: { name: 'Cuádruple', cap: 4 },
+};
+
 function makePassenger(fSalida: string, hora: string): PassengerForm {
   return {
     name: '',
@@ -218,11 +226,34 @@ export default function AddPaxScreen({ route, navigation }: Props) {
     setPassengers((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const canSubmit =
-    !!idHotel &&
-    passengers.length > 0 &&
-    passengers.every((p) => p.name.trim().length > 0 && p.fSalida.trim().length > 0 && p.hora.trim().length > 0) &&
-    !isSaving;
+  // Personas que cuentan para la ocupacion: con nombre y que no sean infantes (regla de la web).
+  const peopleCount = passengers.filter((x) => x.name.trim().length > 0 && x.type !== 'infante').length;
+  const ocCap = ocupation && OC[ocupation] ? OC[ocupation].cap : 0;
+  const ocupationInvalid = showOcupation && !!ocupation && peopleCount > ocCap;
+
+  // Lista de lo que falta, para decirselo a la persona en vez de dejar el boton apagado sin explicar.
+  const missing: string[] = [];
+  if (!idHotel) missing.push('elegir el hotel');
+  if (showOcupation && !ocupation) missing.push('elegir el tipo de habitación');
+  if (ocupationInvalid) missing.push(`cambiar la ocupación (caben ${ocCap} y llevas ${peopleCount})`);
+  passengers.forEach((x, i) => {
+    const who = passengers.length > 1 ? `pasajero ${i + 1}` : 'pasajero';
+    if (!x.name.trim()) missing.push(`nombre del ${who}`);
+    else if (!x.fSalida.trim()) missing.push(`fecha de salida del ${who}`);
+    else if (!x.hora.trim()) missing.push(`hora de salida del ${who}`);
+  });
+  const canSubmit = passengers.length > 0 && missing.length === 0 && !isSaving;
+
+  const pickOcupation = (code: string) => {
+    if (peopleCount > OC[code].cap) {
+      Alert.alert(
+        'Esta ocupación no corresponde',
+        `Caben ${OC[code].cap} persona(s) y llevas ${peopleCount} (los infantes no cuentan).\n\nQuita personas o elige una ocupación con más lugares.`
+      );
+      return;
+    }
+    setOcupation(code);
+  };
 
   const handleSubmit = async () => {
     if (!canSubmit || !idHotel) return;
@@ -312,6 +343,24 @@ export default function AddPaxScreen({ route, navigation }: Props) {
         ) : (
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+              <LinearGradient
+                colors={[p.accent, p.accentDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.heroCard}
+              >
+                <View style={styles.heroIcon}>
+                  <Ionicons name="person-add" size={24} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.heroTitle}>Agregar pasajero</Text>
+                  <Text style={styles.heroSub}>
+                    O.S. {folioDisplay}
+                    {iata ? ' · ' + iata : ''}
+                  </Text>
+                </View>
+              </LinearGradient>
+
               {offlineSince && (
                 <View style={styles.offlineBanner}>
                   <Ionicons name="cloud-offline-outline" size={16} color={p.warnText} />
@@ -374,66 +423,172 @@ export default function AddPaxScreen({ route, navigation }: Props) {
                 </View>
               )}
 
-              <FieldLabel text="Hotel" />
-              {hotels.length === 0 ? (
-                <Text style={styles.noRooms}>No hay hoteles con habitaciones disponibles.</Text>
-              ) : (
-                <SelectField
-                  label="Hotel"
-                  placeholder="Seleccionar hotel"
-                  options={hotels.map((h) => ({ id: h.id, label: `${h.name.trim()} (${h.rooms_dis} disp.)` }))}
-                  selectedId={idHotel}
-                  onSelect={setIdHotel}
-                />
-              )}
+              <StepCard n={1} icon="bed" title="Hotel" hint="Toca el hotel; ves cuántas habitaciones quedan">
+                {hotels.length === 0 ? (
+                  <Text style={styles.noRooms}>No hay hoteles con habitaciones disponibles.</Text>
+                ) : hotels.length <= 8 ? (
+                  <View style={styles.tileGrid}>
+                    {hotels.map((h) => {
+                      const on = idHotel === h.id;
+                      const low = h.rooms_dis <= 3;
+                      return (
+                        <Pressable key={h.id} style={[styles.tile, on && styles.tileOn]} onPress={() => setIdHotel(h.id)}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.tileName} numberOfLines={2}>
+                              {h.name.trim()}
+                            </Text>
+                            <Text style={[styles.tileTag, low && { color: p.warnText, fontWeight: '800' }]}>
+                              {low ? `⚠ Quedan ${h.rooms_dis}` : `${h.rooms_dis} hab. disponibles`}
+                            </Text>
+                          </View>
+                          {on && <Ionicons name="checkmark-circle" size={22} color={p.accent} />}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <SelectField
+                    label="Hotel"
+                    placeholder="Seleccionar hotel"
+                    options={hotels.map((h) => ({ id: h.id, label: `${h.name.trim()} (${h.rooms_dis} disp.)` }))}
+                    selectedId={idHotel}
+                    onSelect={setIdHotel}
+                  />
+                )}
+              </StepCard>
 
               {showOcupation && (
-                <>
-                  <FieldLabel text="Ocupación (de la habitación)" />
-                  <ChipRow>
-                    {['SGL', 'DBL', 'TPL', 'CDPL'].map((op) => (
-                      <Chip key={op} label={op} active={ocupation === op} onPress={() => setOcupation(op)} />
-                    ))}
-                  </ChipRow>
-                </>
+                <StepCard n={2} icon="moon" title="Tipo de habitación" hint="Cuántas personas caben (los infantes no cuentan)">
+                  <View style={styles.tileGrid}>
+                    {Object.keys(OC).map((code) => {
+                      const on = ocupation === code;
+                      const blocked = peopleCount > OC[code].cap;
+                      return (
+                        <Pressable
+                          key={code}
+                          style={[styles.tile, styles.tileHalf, on && styles.tileOn, blocked && styles.tileBlocked]}
+                          onPress={() => pickOcupation(code)}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.tileName}>
+                              {blocked ? '🔒 ' : ''}
+                              {code} · {OC[code].name}
+                            </Text>
+                            <Text style={[styles.tileTag, blocked && { color: p.dangerText }]}>
+                              {blocked ? `No corresponde: caben ${OC[code].cap}, llevas ${peopleCount}` : `${OC[code].cap} persona${OC[code].cap === 1 ? '' : 's'}`}
+                            </Text>
+                          </View>
+                          {on && <Ionicons name="checkmark-circle" size={20} color={p.accent} />}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </StepCard>
               )}
 
-              <View style={styles.divider} />
-              <Text style={styles.sectionTitle}>
-                Pasajeros en esta habitación ({passengers.length})
-              </Text>
+              <StepCard
+                n={showOcupation ? 3 : 2}
+                icon="people"
+                title={`En esta habitación: ${passengers.filter((x) => x.name.trim()).length}`}
+                hint="Agrega a todos los que van en el mismo cuarto"
+              >
+                {passengers.some((x) => x.name.trim()) && (
+                  <View style={styles.whoRow}>
+                    {passengers
+                      .filter((x) => x.name.trim())
+                      .map((x, i) => (
+                        <View key={i} style={[styles.whoChip, x.type === 'infante' && styles.whoChipInf]}>
+                          <Text style={styles.whoChipText} numberOfLines={1}>
+                            {x.name.trim()}
+                            {x.type === 'infante' ? ' (infante)' : ''}
+                          </Text>
+                        </View>
+                      ))}
+                  </View>
+                )}
 
-              {passengers.map((p, index) => (
-                <PassengerCard
-                  key={index}
-                  index={index}
-                  passenger={p}
-                  showMeals={showMeals}
-                  canRemove={passengers.length > 1}
-                  onChange={(patch) => updatePassenger(index, patch)}
-                  onRemove={() => removePassenger(index)}
-                  idOrder={folio}
-                  idAirport={idAirport}
-                />
-              ))}
+                {passengers.map((pax, index) => (
+                  <PassengerCard
+                    key={index}
+                    index={index}
+                    passenger={pax}
+                    showMeals={showMeals}
+                    canRemove={passengers.length > 1}
+                    onChange={(patch) => updatePassenger(index, patch)}
+                    onRemove={() => removePassenger(index)}
+                    idOrder={folio}
+                    idAirport={idAirport}
+                  />
+                ))}
 
-              <Pressable style={styles.addPassengerBtn} onPress={addPassenger}>
-                <Ionicons name="add-circle-outline" size={18} color={p.accentText} />
-                <Text style={styles.addPassengerText}>Agregar pasajero a este cuarto</Text>
-              </Pressable>
+                <Pressable style={styles.addPassengerBtn} onPress={addPassenger}>
+                  <Ionicons name="add-circle-outline" size={18} color={p.accentText} />
+                  <Text style={styles.addPassengerText}>Agregar otro pasajero a este cuarto</Text>
+                </Pressable>
+              </StepCard>
+            </ScrollView>
 
+            {/* Barra fija: dice que falta (o que ya esta listo) y guarda */}
+            <View style={styles.footerBar}>
+              {missing.length > 0 ? (
+                <Text style={styles.footerHint} numberOfLines={2}>
+                  Falta: {missing.slice(0, 2).join(' · ')}
+                  {missing.length > 2 ? ` · y ${missing.length - 2} más` : ''}
+                </Text>
+              ) : (
+                <Text style={styles.footerOk} numberOfLines={1}>
+                  ✓ Todo listo · {passengers.length} {passengers.length === 1 ? 'pasajero' : 'pasajeros'}
+                </Text>
+              )}
               <Pressable
                 style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
                 onPress={handleSubmit}
                 disabled={!canSubmit}
               >
-                <Text style={styles.submitText}>{isSaving ? 'Guardando...' : 'Guardar Habitación'}</Text>
+                {isSaving ? (
+                  <ActivityIndicator color={p.onAccent} />
+                ) : (
+                  <Text style={styles.submitText}>Guardar habitación</Text>
+                )}
               </Pressable>
-            </ScrollView>
+            </View>
           </KeyboardAvoidingView>
         )}
       </SafeAreaView>
     </LinearGradient>
+  );
+}
+
+/** Un paso del formulario: numero, icono, titulo y una pista corta; adentro van los campos. */
+function StepCard({
+  n,
+  icon,
+  title,
+  hint,
+  children,
+}: {
+  n: number;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  const p = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.stepCard}>
+      <View style={styles.stepHead}>
+        <View style={styles.stepNum}>
+          <Text style={styles.stepNumText}>{n}</Text>
+        </View>
+        <Ionicons name={icon} size={16} color={p.accentText} />
+        <Text style={styles.stepTitle} numberOfLines={1}>
+          {title}
+        </Text>
+      </View>
+      {!!hint && <Text style={styles.stepHint}>{hint}</Text>}
+      {children}
+    </View>
   );
 }
 
@@ -698,6 +853,91 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   passiveItemName: { color: p.text, fontWeight: '700', fontSize: 13 },
   passiveItemSub: { color: p.textMuted, fontSize: 11, marginTop: 2 },
   noRooms: { color: p.textMuted, fontSize: 13, marginBottom: 8 },
+  heroCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 14,
+    shadowColor: p.accentDark,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: p.isDark ? 0.35 : 0.25,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  heroIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroTitle: { color: '#ffffff', fontSize: 18, fontWeight: '800', letterSpacing: -0.2 },
+  heroSub: { color: 'rgba(255,255,255,0.85)', fontSize: 12.5, marginTop: 2 },
+  stepCard: {
+    backgroundColor: p.card,
+    borderWidth: 1,
+    borderColor: p.cardBorder,
+    borderRadius: 22,
+    padding: 16,
+    marginBottom: 14,
+    ...(p.isDark ? {} : p.shadowCard),
+  },
+  stepHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  stepNum: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: p.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNumText: { color: p.onAccent, fontSize: 12.5, fontWeight: '900' },
+  stepTitle: { flex: 1, color: p.text, fontSize: 15, fontWeight: '800', letterSpacing: -0.1 },
+  stepHint: { color: p.textMuted, fontSize: 12, marginTop: 4, marginBottom: 12, lineHeight: 16 },
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  tile: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: p.inputBg,
+    borderWidth: 1.5,
+    borderColor: p.isDark ? 'transparent' : p.inputBorder,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  tileHalf: { width: '48%', flexGrow: 1 },
+  tileOn: { borderColor: p.accent, backgroundColor: p.accentSoft },
+  tileBlocked: { opacity: 0.6, backgroundColor: p.dangerSoft, borderColor: p.dangerBorder },
+  tileName: { color: p.text, fontSize: 13.5, fontWeight: '800' },
+  tileTag: { color: p.textMuted, fontSize: 11.5, marginTop: 2 },
+  whoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  whoChip: {
+    backgroundColor: p.accentSoft,
+    borderWidth: 1,
+    borderColor: p.accentBorder,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    maxWidth: '100%',
+  },
+  whoChipInf: { backgroundColor: p.warnSoft, borderColor: p.warnBorder },
+  whoChipText: { color: p.text, fontSize: 12, fontWeight: '700' },
+  footerBar: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    backgroundColor: p.isDark ? p.modalBg : '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: p.divider,
+    gap: 8,
+  },
+  footerHint: { color: p.warnText, fontSize: 12, fontWeight: '700', lineHeight: 16 },
+  footerOk: { color: p.okText, fontSize: 12.5, fontWeight: '800' },
   divider: { height: 1, backgroundColor: p.divider, marginTop: 20, marginBottom: 14 },
   sectionTitle: { color: p.text, fontWeight: '800', fontSize: 13.5, marginBottom: 10 },
   paxCard: {
