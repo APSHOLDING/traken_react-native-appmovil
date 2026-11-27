@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { ApiEnvironment, DEFAULT_ENVIRONMENT, SITE_BASE_URLS } from '../config/environment';
+import { getNetQuality, recordRequest } from '../utils/netQuality';
 
 // Backend real de Traken -- por defecto el ambiente sandbox (datos de
 // prueba, base de datos separada de la real). El ambiente activo se puede
@@ -31,9 +32,39 @@ export function setUnauthorizedHandler(fn: (() => void) | null) {
 // Mensajes del servidor que no son error de red: 503 = modo proteccion
 // ("escudo"), 410 = app en desuso. Se deja el texto del servidor en
 // `userMessage` para que cualquier pantalla pueda mostrarlo.
+// Con señal baja se espera mas antes de rendirse; se anota cuanto tarda cada respuesta para medir la calidad de la conexion.
+api.interceptors.request.use((config: any) => {
+  config.__t0 = Date.now();
+  if (getNetQuality() === 'slow' && !config.__slowBump) {
+    config.__slowBump = true;
+    config.timeout = Math.round((config.timeout || 15000) * 1.6);
+  }
+  return config;
+});
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response) => {
+    const t0 = (response.config as any)?.__t0;
+    if (t0) recordRequest(Date.now() - t0, true);
+    return response;
+  },
+  async (error) => {
+    const cfg: any = error?.config;
+    const t0 = cfg?.__t0;
+    if (t0) recordRequest(Date.now() - t0, !!error?.response);
+    // Lecturas (GET) que fallaron por red/timeout o 502/504: se reintentan solas hasta 2 veces con espera creciente.
+    // Nunca se reintentan escrituras aqui (esas van por la cola sin internet, con clave anti-duplicados).
+    const st: number | undefined = error?.response?.status;
+    const retryable = cfg && String(cfg.method ?? 'get').toLowerCase() === 'get' && (!error?.response || st === 502 || st === 504);
+    if (retryable) {
+      cfg.__retries = (cfg.__retries || 0) + 1;
+      if (cfg.__retries <= 2) {
+        await sleep(700 * 2 ** (cfg.__retries - 1));
+        return api.request(cfg);
+      }
+    }
     const status: number | undefined = error?.response?.status;
     const url: string = error?.config?.url ?? '';
     if (status === 401 && !url.includes('/auth/login.php') && onUnauthorized) {

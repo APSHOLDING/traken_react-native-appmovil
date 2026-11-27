@@ -10,6 +10,7 @@ import {
   getSlaState,
 } from '../api/client';
 import { getCache, saveCache } from './offlineCache';
+import { isSavingMode } from './netQuality';
 
 /**
  * Precarga en segundo plano: con internet, deja guardado en el telefono lo que
@@ -42,6 +43,8 @@ export async function warmOfflineData(force = false): Promise<void> {
   try {
     const net = await NetInfo.fetch();
     if (net.isConnected === false || net.isInternetReachable === false) return;
+    // Con señal baja o si el telefono va lento, la precarga espera (no se quita tiempo ni datos a lo que la persona esta haciendo).
+    if (isSavingMode()) return;
 
     if (!force) {
       const last = await getCache<number>(WARM_KEY);
