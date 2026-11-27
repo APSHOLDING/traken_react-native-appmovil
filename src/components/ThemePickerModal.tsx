@@ -1,5 +1,7 @@
-import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Updates from 'expo-updates';
+import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,9 +14,38 @@ type Props = { visible: boolean; onClose: () => void };
  * Hoja para personalizar la app: estilo (claro / como la web / oscuro) y color.
  * El cambio se ve al instante y se guarda solo en el telefono.
  */
+type UpdState = 'idle' | 'checking' | 'downloading' | 'none' | 'error';
+
 export default function ThemePickerModal({ visible, onClose }: Props) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const [upd, setUpd] = useState<UpdState>('idle');
+
+  // Version que corre este celular (solo existe en la app instalada, no en la vista web).
+  const canUpdate = Updates.isEnabled;
+  const version = Constants.expoConfig?.version ?? '';
+  const updId = Updates.updateId ? Updates.updateId.slice(0, 8) : 'base';
+  const updDate = Updates.createdAt
+    ? Updates.createdAt.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  // Busca, descarga y aplica al instante (no espera a que la app se vuelva a abrir).
+  const buscarActualizacion = async () => {
+    if (!canUpdate || upd === 'checking' || upd === 'downloading') return;
+    setUpd('checking');
+    try {
+      const check = await Updates.checkForUpdateAsync();
+      if (!check.isAvailable) {
+        setUpd('none');
+        return;
+      }
+      setUpd('downloading');
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
+    } catch (e) {
+      setUpd('error');
+    }
+  };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -86,6 +117,33 @@ export default function ThemePickerModal({ visible, onClose }: Props) {
               );
             })}
           </View>
+
+          {canUpdate && (
+            <>
+              <Text style={styles.section}>ACTUALIZACIONES</Text>
+              <View style={styles.updBox}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.updTitle}>Versión {version}</Text>
+                  <Text style={styles.updSub}>
+                    {updDate ? `Actualización ${updId} · ${updDate}` : 'Versión base (sin actualizaciones descargadas)'}
+                  </Text>
+                  {upd === 'none' && <Text style={styles.updOk}>✓ Ya tienes lo más reciente</Text>}
+                  {upd === 'error' && <Text style={styles.updErr}>No se pudo revisar. Revisa tu internet.</Text>}
+                </View>
+                <Pressable
+                  style={[styles.updBtn, (upd === 'checking' || upd === 'downloading') && { opacity: 0.7 }]}
+                  onPress={buscarActualizacion}
+                  disabled={upd === 'checking' || upd === 'downloading'}
+                >
+                  {upd === 'checking' || upd === 'downloading' ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.updBtnText}>Buscar ahora</Text>
+                  )}
+                </Pressable>
+              </View>
+            </>
+          )}
         </Pressable>
       </Pressable>
     </Modal>
@@ -134,5 +192,19 @@ const styles = StyleSheet.create({
   accentCol: { width: '25%', alignItems: 'center' },
   dot: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   dotSelected: { borderWidth: 3, borderColor: '#ffffff', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 6, elevation: 5 },
+  updBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 14,
+    padding: 12,
+  },
+  updTitle: { color: '#16214d', fontSize: 13.5, fontWeight: '800' },
+  updSub: { color: '#64748b', fontSize: 11.5, marginTop: 2 },
+  updOk: { color: '#15803d', fontSize: 11.5, fontWeight: '700', marginTop: 4 },
+  updErr: { color: '#b91c1c', fontSize: 11.5, fontWeight: '700', marginTop: 4 },
+  updBtn: { backgroundColor: '#16214d', borderRadius: 10, paddingVertical: 9, paddingHorizontal: 14, minWidth: 96, alignItems: 'center' },
+  updBtnText: { color: '#fff', fontWeight: '800', fontSize: 12.5 },
   dotLabel: { color: '#64748b', fontSize: 11, marginTop: 5, fontWeight: '600' },
 });

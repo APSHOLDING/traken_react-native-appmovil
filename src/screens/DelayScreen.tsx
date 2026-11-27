@@ -63,6 +63,7 @@ export default function DelayScreen({ route, navigation }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [imageErrorDetail, setImageErrorDetail] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [mail, setMail] = useState('');
   const [isSendingMail, setIsSendingMail] = useState(false);
@@ -83,13 +84,33 @@ export default function DelayScreen({ route, navigation }: Props) {
     estacion: iata ?? '',
   };
 
+  // Dice POR QUE falla, para no quedarse con el mensaje generico de "revisa tu conexion".
+  const explainStatus = (status: number): string => {
+    if (status === 401 || status === 403)
+      return 'El servidor no autorizó la imagen (' + status + '). Cierra sesión, vuelve a entrar y reintenta. Si sigue igual, actualiza la app.';
+    if (status === 404) return 'El servidor no encontró el generador de la imagen (404).';
+    if (status >= 500) return 'El servidor falló al generarla (' + status + '). Intenta en un momento.';
+    return 'El servidor respondió ' + status + '.';
+  };
+
   const showPreview = async () => {
     setImageError(false);
+    setImageErrorDetail(null);
     setIsImageLoading(true); // mientras se pide la firma al servidor
     try {
-      setPreviewUrl(await getDelayPreviewUrl(formData));
+      const url = await getDelayPreviewUrl(formData);
+      // Se revisa la respuesta antes de pintar: asi, si falla, se sabe el codigo exacto.
+      const probe = await fetch(url, { method: 'HEAD' });
+      if (!probe.ok) {
+        setIsImageLoading(false);
+        setImageErrorDetail(explainStatus(probe.status));
+        setImageError(true);
+        return;
+      }
+      setPreviewUrl(url);
     } catch (e) {
       setIsImageLoading(false);
+      setImageErrorDetail('No hubo respuesta del servidor. Revisa tu conexión a internet.');
       setImageError(true);
     }
   };
@@ -243,7 +264,8 @@ export default function DelayScreen({ route, navigation }: Props) {
                   {imageError ? (
                     <View style={styles.imageErrorBox}>
                       <Ionicons name="alert-circle-outline" size={22} color={p.dangerText} />
-                      <Text style={styles.imageErrorText}>No se pudo generar la imagen. Revisa tu conexión.</Text>
+                      <Text style={styles.imageErrorText}>No se pudo generar la imagen.</Text>
+                      {!!imageErrorDetail && <Text style={styles.imageErrorDetail}>{imageErrorDetail}</Text>}
                       <Pressable style={styles.retryImageBtn} onPress={showPreview}>
                         <Text style={styles.retryImageText}>Reintentar</Text>
                       </Pressable>
@@ -382,6 +404,7 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   previewImage: { width: '100%', height: 420 },
   imageErrorBox: { alignItems: 'center', gap: 10, padding: 30 },
   imageErrorText: { color: '#64748b', fontSize: 12.5, textAlign: 'center' },
+  imageErrorDetail: { color: '#94a3b8', fontSize: 11.5, textAlign: 'center', lineHeight: 16 },
   retryImageBtn: { backgroundColor: CYAN, borderRadius: 10, paddingVertical: 9, paddingHorizontal: 18 },
   retryImageText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   downloadBtn: {
