@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import Loading from '../components/Loading';
 import {
   ActivityIndicator,
   FlatList,
@@ -180,7 +181,7 @@ export default function BitacoraScreen({ navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={p.accentText} style={{ marginTop: 30 }} />
+          <Loading style={{ marginTop: 30 }} />
         ) : error ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={18} color={p.danger} />

@@ -163,6 +163,82 @@ function bestHotel(phrase: string, hotels: { id: number; name: string }[]): { id
   return scored[0].h;
 }
 
+/** Palabras de parentesco/relacion: NO son nombres ("su esposa Maria", "mi hijo Pedro", "el senor Lopez"). */
+const REL_ADULT = ['esposa', 'esposo', 'mama', 'papa', 'abuelo', 'abuela', 'tio', 'tia', 'amigo', 'amiga', 'acompanante', 'pareja', 'novia', 'novio', 'suegra', 'suegro', 'cunado', 'cunada', 'hermano', 'hermana', 'primo', 'prima', 'senor', 'senora', 'srta', 'sra', 'sr', 'lic', 'dr', 'dra', 'ing', 'familia', 'familiar', 'companero', 'companera', 'jefe', 'jefa', 'padre', 'madre'];
+const REL_CHILD = ['hijo', 'hija', 'hijos', 'hijas', 'nieto', 'nieta', 'sobrino', 'sobrina', 'menor', 'menores', 'chamaco', 'chamaca', 'ninos', 'ninas', 'bebe', 'bebes', 'infante', 'infantes'];
+const FILLER = ['su', 'sus', 'mi', 'mis', 'que', 'es', 'son', 'se', 'llama', 'llamado', 'llamada', 'nombre', 'tambien', 'ademas', 'va', 'van', 'viaja', 'viajan', 'pasajero', 'pasajera', 'persona', 'adulto', 'adulta', 'adultos', 'quien'];
+const NUM_WORDS: Record<string, number> = { un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5 };
+
+/**
+ * Lee un pedazo de texto que habla de UNA persona (o de varias sin nombre: "2 hijos") y devuelve
+ * solo el NOMBRE, sin parentescos ("su hijo Pedro" -> Pedro, ninio) ni palabras de relleno.
+ * Si dice "su esposa" sin nombre, deja el lugar vacio para que se pida el nombre al revisar.
+ */
+function readPerson(chunk: string): CapturePax[] {
+  let pc = plain(chunk).trim();
+
+  // "2 hijos", "dos ninos", "3 adultos": lugares sin nombre.
+  const cnt = /^(\d{1,2}|un|uno|una|dos|tres|cuatro|cinco)\s+(hij[oa]s?|nin[oa]s?|menores|bebes?|infantes?|adultos?|personas?|pasajeros?|pax)$/.exec(pc);
+  if (cnt) {
+    const n = /^\d/.test(cnt[1]) ? parseInt(cnt[1], 10) : NUM_WORDS[cnt[1]] || 1;
+    const w = cnt[2];
+    const t: PaxType = /^bebe|^infante/.test(w) ? 'infante' : /^(hij|nin|menor)/.test(w) ? 'nino' : 'adulto';
+    return Array.from({ length: Math.min(n, 8) }, () => ({ name: '', type: t }));
+  }
+
+  // Edad ("de 5 anos", "5 meses") decide ninio/infante.
+  let ageType: PaxType | null = null;
+  const age = /\b(?:de\s+)?(\d{1,2})\s*(anos?|meses|mes)\b/.exec(pc);
+  let work = chunk;
+  if (age) {
+    const n = parseInt(age[1], 10);
+    ageType = /^mes/.test(age[2]) || n < 2 ? 'infante' : n < 12 ? 'nino' : 'adulto';
+    pc = (pc.slice(0, age.index) + ' ' + pc.slice(age.index + age[0].length)).replace(/\s+/g, ' ').trim();
+    work = (work.slice(0, age.index) + ' ' + work.slice(age.index + age[0].length)).replace(/\s+/g, ' ').trim();
+  }
+
+  const toks = work.split(/\s+/).filter(Boolean);
+  const ptoks = pc.split(/\s+/).filter(Boolean);
+  if (toks.length !== ptoks.length) return [];
+  let type: PaxType = 'adulto';
+  let hadRelation = false;
+  const keep: string[] = [];
+  for (let i = 0; i < toks.length; i++) {
+    const w = ptoks[i].replace(/[^a-z0-9@]/g, '');
+    const nextW = (ptoks[i + 1] || '').replace(/[^a-z0-9@]/g, '');
+    const isRel = REL_ADULT.indexOf(w) >= 0 || REL_CHILD.indexOf(w) >= 0;
+    const nextIsRel = REL_ADULT.indexOf(nextW) >= 0 || REL_CHILD.indexOf(nextW) >= 0;
+    if (w === '@inf') { type = 'infante'; hadRelation = true; continue; }
+    if (w === '@nin') { type = 'nino'; hadRelation = true; continue; }
+    // "nino/nina" tambien pueden ser nombres: solo cuentan como hijo/a si van con "su/mi/la/el/un/una" antes, al final del nombre o al inicio seguido de nombre.
+    const prev = (ptoks[i - 1] || '').replace(/[^a-z0-9@]/g, '');
+    if ((w === 'nino' || w === 'nina') && (['su', 'mi', 'la', 'el', 'un', 'una'].indexOf(prev) >= 0 || i === toks.length - 1 || (w === 'nino' && i === 0))) {
+      type = 'nino'; hadRelation = true; continue;
+    }
+    if (isRel) {
+      hadRelation = true;
+      if (REL_CHILD.indexOf(w) >= 0) type = /^(bebe|infante)/.test(w) ? 'infante' : 'nino';
+      continue;
+    }
+    if (FILLER.indexOf(w) >= 0) continue;
+    // Articulos sueltos antes de un parentesco ("el hijo", "la esposa").
+    if (['el', 'la', 'los', 'las', 'un', 'una'].indexOf(w) >= 0 && (nextIsRel || (i === 0 && hadRelation))) continue;
+    // "de" justo despues de un parentesco ("hijo de ...") no es parte del nombre.
+    if ((w === 'de' || w === 'del') && keep.length === 0 && hadRelation) continue;
+    keep.push(toks[i]);
+  }
+  if (ageType) type = ageType;
+
+  const name = keep
+    .join(' ')
+    .replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñÜü' ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (name.length >= 2) return [{ name: titleCase(name), type }];
+  if (hadRelation || ageType) return [{ name: '', type }]; // "su esposa", "su hijo de 5 anos": falta el nombre
+  return [];
+}
+
 /**
  * Separa las habitaciones: un renglon (o ;) por habitacion y, para cuando se DICTA
  * (el dictado no trae saltos de renglon), tambien con "otra habitacion", "siguiente", "luego"...
@@ -326,19 +402,8 @@ export function parseCapture(text: string, ctx: CaptureContext, now: Date = new 
 
     const pax: CapturePax[] = [];
     chunks.forEach((c) => {
-      let type: PaxType = 'adulto';
-      const pc = plain(c);
-      // "Nina" tambien es un nombre: solo cuenta como niña si va entre parentesis o al final del nombre.
-      if (/@inf/.test(pc) || /^(infante|bebe)\s+\S/.test(pc) || /\S\s+(infante|bebe)$/.test(pc)) type = 'infante';
-      else if (/@nin/.test(pc) || /^(nino|menor)\s+\S/.test(pc) || /\S\s+(nino|nina|menor|hijo|hija)$/.test(pc)) type = 'nino';
-      const clean = c
-        .replace(/@(inf|nin)/gi, ' ')
-        .replace(/^(infante|bebé|bebe|niño|nino|menor)\s+(?=\S)/i, ' ')
-        .replace(/\s+(infante|bebé|bebe|niño|niña|nino|nina|menor|hijo|hija)$/i, ' ')
-        .replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñÜü' ]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      if (clean.length >= 2) pax.push({ name: titleCase(clean), type });
+      const r = readPerson(c);
+      r.forEach((x) => pax.push(x));
     });
 
     if (pax.length === 0) return; // renglon sin nombres: se ignora

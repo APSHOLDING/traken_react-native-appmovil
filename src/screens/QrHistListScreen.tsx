@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import Loading from '../components/Loading';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -79,7 +80,7 @@ export default function QrHistListScreen({ navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={p.accentText} style={{ marginTop: 30 }} />
+          <Loading style={{ marginTop: 30 }} />
         ) : error ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={18} color={p.danger} />

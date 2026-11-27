@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Loading from '../components/Loading';
 import {
   ActivityIndicator,
   Alert,
@@ -288,7 +289,7 @@ export default function EditarOrdenScreen({ route, navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={p.accentText} style={{ marginTop: 40 }} />
+          <Loading style={{ marginTop: 40 }} />
         ) : loadError ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={18} color={p.dangerText} />

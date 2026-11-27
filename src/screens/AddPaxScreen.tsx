@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import Loading from '../components/Loading';
 import {
   ActivityIndicator,
   Alert,
@@ -19,12 +20,13 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { radii } from '../theme/colors';
 import { useTheme, useThemedStyles } from '../context/ThemeContext';
 import type { ThemeTokens } from '../theme/themes';
-import { addPaxToRoom, getHotelsForOrder, getPreregListForOs, HotelDTO, PaxType, PreregListItem } from '../api/client';
+import { addPaxToRoom, getHotelSuggestions, getHotelsForOrder, HotelSuggestion, getPreregListForOs, HotelDTO, PaxType, PreregListItem } from '../api/client';
 import { addPax } from '../api/queuedWrites';
 import VoucherScanButton from '../components/VoucherScanButton';
 import SupportScanButton from '../components/SupportScanButton';
 import SelectField from '../components/SelectField';
 import { useOfflineLoad, formatSavedAt } from '../utils/useOfflineLoad';
+import { getCache, saveCache } from '../utils/offlineCache';
 import type { PreregPrefill, RootStackParamList } from '../navigation/RootNavigator';
 
 import BrandMark from '../components/BrandMark';
@@ -138,7 +140,37 @@ export default function AddPaxScreen({ route, navigation }: Props) {
     [folio, idAirport]
   );
 
-  const hotels: HotelDTO[] = hotelData?.hotels ?? [];
+  // Sugerencias de hotel (uso real + acuerdo comercial + disponibilidad). Con internet se actualizan; sin internet queda lo ultimo guardado.
+  const [suggest, setSuggest] = useState<HotelSuggestion[]>([]);
+  useEffect(() => {
+    if (room) return;
+    let cancelled = false;
+    const key = `hotel_suggest_${folio}_${idAirport}`;
+    getCache<HotelSuggestion[]>(key)
+      .then((c) => {
+        if (!cancelled && c) setSuggest(c.data);
+      })
+      .catch(() => {});
+    getHotelSuggestions(folio, idAirport)
+      .then((r) => {
+        if (cancelled || !r.ok) return;
+        setSuggest(r.ranking ?? []);
+        saveCache(key, r.ranking ?? []).catch(() => {});
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [folio, idAirport, room]);
+
+  // La lista de hoteles sale ordenada: primero los recomendados.
+  const hotels: HotelDTO[] = useMemo(() => {
+    const base = hotelData?.hotels ?? [];
+    if (suggest.length === 0) return base;
+    const rank = new Map(suggest.map((x, i) => [x.id, i]));
+    return [...base].sort((a, b) => (rank.has(a.id) ? rank.get(a.id)! : 999) - (rank.has(b.id) ? rank.get(b.id)! : 999));
+  }, [hotelData, suggest]);
+  const topSuggest = suggest.length ? suggest[0] : null;
   const defaultFSalida = hotelData?.defaultFSalida ?? '';
   const defaultHora = hotelData?.defaultHora ?? '';
 
@@ -362,7 +394,7 @@ export default function AddPaxScreen({ route, navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={p.accentText} style={{ marginTop: 40 }} />
+          <Loading style={{ marginTop: 40 }} />
         ) : loadError ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={18} color={p.dangerText} />
@@ -462,6 +494,23 @@ export default function AddPaxScreen({ route, navigation }: Props) {
                   </Text>
                 </View>
               )}
+              {!room && topSuggest && hotels.some((h) => h.id === topSuggest.id) ? (
+                idHotel === topSuggest.id ? (
+                  <View style={styles.suggestOk}>
+                    <Text style={styles.suggestOkText}>✓ Elegiste el hotel recomendado: {topSuggest.name}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.suggestBox}>
+                    <Text style={styles.suggestTitle}>💡 Te recomiendo: {topSuggest.name}</Text>
+                    {topSuggest.reasons.slice(0, 2).map((r, i) => (
+                      <Text key={i} style={styles.suggestReason}>• {r}</Text>
+                    ))}
+                    <Pressable style={styles.suggestBtn} onPress={() => setIdHotel(topSuggest.id)}>
+                      <Text style={styles.suggestBtnText}>Usar este hotel</Text>
+                    </Pressable>
+                  </View>
+                )
+              ) : null}
               {!room && <StepCard n={1} icon="bed" title="Hotel" hint="Toca el hotel; ves cuántas habitaciones quedan">
                 {hotels.length === 0 ? (
                   <Text style={styles.noRooms}>No hay hoteles con habitaciones disponibles.</Text>
@@ -891,6 +940,13 @@ const makeStyles = (p: ThemeTokens) => StyleSheet.create({
   },
   passiveItemName: { color: p.text, fontWeight: '700', fontSize: 13 },
   passiveItemSub: { color: p.textMuted, fontSize: 11, marginTop: 2 },
+  suggestBox: { backgroundColor: p.okSoft, borderWidth: 1, borderColor: p.okBorder, borderRadius: radii.card, padding: 14, marginBottom: 14, gap: 4 },
+  suggestTitle: { color: p.okText, fontSize: 14, fontWeight: '900' },
+  suggestReason: { color: p.okText, fontSize: 12, lineHeight: 17 },
+  suggestBtn: { alignSelf: 'flex-start', backgroundColor: p.accent, borderRadius: 18, paddingHorizontal: 16, paddingVertical: 8, marginTop: 8 },
+  suggestBtnText: { color: p.onAccent, fontWeight: '800', fontSize: 12.5 },
+  suggestOk: { backgroundColor: p.okSoft, borderRadius: radii.input, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 12 },
+  suggestOkText: { color: p.okText, fontSize: 12, fontWeight: '800' },
   noRooms: { color: p.textMuted, fontSize: 13, marginBottom: 8 },
   heroCard: {
     flexDirection: 'row',

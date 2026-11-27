@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import Loading from '../components/Loading';
 import {
   ActivityIndicator,
   Alert,
@@ -168,7 +169,7 @@ export default function ReportePickerScreen({ route, navigation }: Props) {
         </View>
 
         {isLoading ? (
-          <ActivityIndicator color={p.accent} style={{ marginTop: 40 }} />
+          <Loading style={{ marginTop: 40 }} />
         ) : error || !data ? (
           <View style={styles.errorBox}>
             <Ionicons name="alert-circle" size={18} color={p.dangerText} />
