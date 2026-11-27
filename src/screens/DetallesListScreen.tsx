@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { PruebaBadge, PruebaToggle } from '../components/PruebaBits';
 import { useTrackSearch, track } from '../utils/useTrack';
 import Loading from '../components/Loading';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -40,6 +41,7 @@ export default function DetallesListScreen({ navigation }: Props) {
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
   const [estadoF, setEstadoF] = useState('');
+  const [verPruebas, setVerPruebas] = useState(false); // por defecto las O.S. de PRUEBA no se muestran
 
   const {
     data: result,
@@ -61,6 +63,7 @@ export default function DetallesListScreen({ navigation }: Props) {
   const filtered = useMemo(
     () =>
       orders.filter((o) => {
+        if (o.es_prueba && !verPruebas) return false;
         if (q) {
           const hay = `${o.folio_display} ${o.airline} ${o.flight ?? ''} ${o.iata} ${statusInfo(o.status).label}`
             .toLowerCase()
@@ -76,7 +79,7 @@ export default function DetallesListScreen({ navigation }: Props) {
         if (hasta && (!fecha || fecha > hasta)) return false;
         return true;
       }),
-    [orders, q, desde, hasta, estadoF]
+    [orders, q, desde, hasta, estadoF, verPruebas]
   );
 
   return (
@@ -126,6 +129,8 @@ export default function DetallesListScreen({ navigation }: Props) {
             })
           }
         />
+
+        <PruebaToggle hidden={orders.filter((o) => o.es_prueba).length} show={verPruebas} onToggle={() => setVerPruebas((v) => !v)} />
 
         {isLoading ? (
           <Loading style={{ marginTop: 30 }} />
@@ -178,7 +183,7 @@ export default function DetallesListScreen({ navigation }: Props) {
               const st = statusInfo(item.status);
               return (
                 <Pressable
-                  style={[styles.card, p.shadowCard]}
+                  style={[styles.card, p.shadowCard, item.es_prueba && { borderColor: '#f59e0b', borderWidth: 2 }]}
                   onPress={() =>
                     navigation.navigate('DetalleOrden', {
                       folio: item.folio,
@@ -188,7 +193,10 @@ export default function DetallesListScreen({ navigation }: Props) {
                   }
                 >
                   <View style={styles.cardTop}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
                     <Text style={styles.folioText}>#{item.folio_display}</Text>
+                    {item.es_prueba ? <PruebaBadge /> : null}
+                  </View>
                     <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
                       <Text style={[styles.statusText, { color: st.color }]}>{st.label}</Text>
                     </View>

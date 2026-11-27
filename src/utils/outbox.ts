@@ -3,6 +3,7 @@ import * as SQLite from 'expo-sqlite';
 import NetInfo from '@react-native-community/netinfo';
 import { api, getApiEnvironment } from '../api/client';
 import { logEvent } from './activityLog';
+import { addReceipt, hhmmss } from './receipts';
 
 /**
  * COLA DE ENVIO ("outbox") para trabajar SIN INTERNET sin perder ni duplicar nada.
@@ -254,6 +255,22 @@ export async function sendOrQueue<T>(
   if (!offline) {
     try {
       const { data } = await api.post<T>(spec.url, spec.body, { headers: { 'X-Idempotency-Key': id } });
+      {
+        const d: any = data ?? {};
+        const b: any = spec.body ?? {};
+        const now = Date.now();
+        if (d.ok !== false) {
+          addReceipt(currentUserId, {
+            id,
+            label: spec.label,
+            createdAt: now,
+            syncedAt: now,
+            viaQueue: false,
+            msg: String(d.msg ?? 'Guardado').slice(0, 160) + (d.id_orders_open ? ` (habitación #${d.id_orders_open})` : ''),
+            folio: Number(b.id_order ?? b.folio) || undefined,
+          }).catch(() => {});
+        }
+      }
       return data;
     } catch (e) {
       if (!isTransient(e)) throw e; // el servidor contesto con un error real: se muestra como siempre
@@ -316,7 +333,23 @@ export async function processOutbox(): Promise<void> {
         {
           let b: any = {};
           try { b = JSON.parse(row.body) ?? {}; } catch {}
-          logEvent('accion_sincronizada', { text: row.label, folio: Number(b.id_order ?? b.folio) || undefined, id_airport: Number(b.id_airport) || undefined });
+          const d: any = data ?? {};
+          const now = Date.now();
+          const conf = String(d.msg ?? 'Guardado').slice(0, 160) + (d.id_orders_open ? ` (habitación #${d.id_orders_open})` : '');
+          logEvent('accion_sincronizada', {
+            text: `${row.label} | Capturado ${hhmmss(row.created_at)} · Subido ${hhmmss(now)} | Confirmó el servidor: ${conf}`,
+            folio: Number(b.id_order ?? b.folio) || undefined,
+            id_airport: Number(b.id_airport) || undefined,
+          });
+          addReceipt(currentUserId, {
+            id: row.id,
+            label: row.label,
+            createdAt: row.created_at,
+            syncedAt: now,
+            viaQueue: true,
+            msg: conf,
+            folio: Number(b.id_order ?? b.folio) || undefined,
+          }).catch(() => {});
         }
         justSynced += 1;
         failStreak = 0;

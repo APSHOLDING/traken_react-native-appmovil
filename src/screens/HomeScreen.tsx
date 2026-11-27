@@ -21,6 +21,7 @@ import { getLastSeenNotifications } from '../utils/notificationsSeen';
 import { getCache, saveCache } from '../utils/offlineCache';
 import { setIconStyle } from '../utils/iconStyle';
 import { track } from '../utils/useTrack';
+import { openReceipts } from '../utils/receipts';
 import { OutboxSummary, subscribeOutbox } from '../utils/outbox';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 
@@ -232,7 +233,8 @@ export default function HomeScreen({ navigation }: Props) {
       try {
         const res = await getOpenOrders();
         if (res.ok) {
-          hdr.current.open = res.total ?? 0;
+          // Las O.S. de PRUEBA no cuentan (se marcan aparte en las listas).
+          hdr.current.open = res.orders ? res.orders.filter((o) => !o.es_prueba).length : res.total ?? 0;
           setOpenCount(hdr.current.open);
         }
       } catch (e) {
@@ -545,6 +547,11 @@ export default function HomeScreen({ navigation }: Props) {
             </Pressable>
           </View>
 
+          <Pressable style={styles.receiptsLink} onPress={openReceipts} hitSlop={8}>
+            <Ionicons name="receipt-outline" size={14} color={t.sectionTitle} />
+            <Text style={[styles.customizeText, { color: t.sectionTitle }]}>Ver comprobantes de envío</Text>
+          </Pressable>
+
           {layout.view === 'icons' ? (
             <View style={styles.iconGrid}>
               {visibleCards.map((c) => (
@@ -646,6 +653,7 @@ const styles = StyleSheet.create({
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   sectionTitleInRow: { marginBottom: 0 },
   customizeBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: 6 },
+  receiptsLink: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingVertical: 2, paddingHorizontal: 6, marginBottom: 10, marginTop: -4 },
   customizeText: { fontSize: 11.5, fontWeight: '800' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   card: {

@@ -439,6 +439,9 @@ export interface AddPaxResponse {
   status?: 'exito' | 'dispo' | 'error';
   msg?: string;
   error?: string;
+  /** Comprobante: lo que el servidor SI guardo. */
+  id_orders_open?: number;
+  pax_ids?: number[];
 }
 
 export async function addPax(payload: AddPaxPayload): Promise<AddPaxResponse> {
@@ -1327,6 +1330,8 @@ export interface SlaListItem {
   minutos_sla: number | null;
   hechos: number;
   pax: number;
+  /** 1 = O.S. de PRUEBA. */
+  prueba?: 0 | 1;
 }
 
 export interface SlaListResponse {
@@ -1334,11 +1339,16 @@ export interface SlaListResponse {
   items?: SlaListItem[];
   counts?: Record<string, number>;
   dias?: number;
+  /** Cuantas O.S. de prueba hay (ocultas o no). */
+  pruebas?: number;
   error?: string;
 }
 
-export async function getSlaList(dias?: number): Promise<SlaListResponse> {
-  const { data } = await api.get<SlaListResponse>('/sla/list.php', { params: dias ? { dias } : undefined });
+export async function getSlaList(dias?: number, conPruebas = false): Promise<SlaListResponse> {
+  const params: Record<string, number> = {};
+  if (dias) params.dias = dias;
+  if (conPruebas) params.pruebas = 1;
+  const { data } = await api.get<SlaListResponse>('/sla/list.php', { params });
   return data;
 }
 
@@ -1446,6 +1456,8 @@ export interface AnyOrderDTO {
   event_name: string | null;
   date_in: string | null;
   type_airline: string;
+  /** O.S. marcada como PRUEBA (test). */
+  es_prueba?: boolean;
 }
 
 export interface AllOrdersResponse {

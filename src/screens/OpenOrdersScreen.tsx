@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PruebaBadge, PruebaToggle } from '../components/PruebaBits';
 import { useTrackSearch, track } from '../utils/useTrack';
 import {
   ActivityIndicator,
@@ -47,6 +48,7 @@ export default function OpenOrdersScreen({ navigation }: Props) {
   const [orders, setOrders] = useState<OpenOrderDTO[]>([]);
   const [totalAnteriores, setTotalAnteriores] = useState(0);
   const [query, setQuery] = useState('');
+  const [verPruebas, setVerPruebas] = useState(false); // por defecto las O.S. de PRUEBA no se muestran
   useTrackSearch('OpenOrders', query);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -101,12 +103,12 @@ export default function OpenOrdersScreen({ navigation }: Props) {
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
     () =>
-      q
-        ? orders.filter((o) =>
-            `${o.folio_display} ${o.airline} ${o.flight ?? ''} ${o.iata}`.toLowerCase().includes(q)
-          )
-        : orders,
-    [orders, q]
+      orders.filter(
+        (o) =>
+          (verPruebas || !o.es_prueba) &&
+          (!q || `${o.folio_display} ${o.airline} ${o.flight ?? ''} ${o.iata}`.toLowerCase().includes(q))
+      ),
+    [orders, q, verPruebas]
   );
 
   const handleExport = useCallback(async () => {
@@ -244,6 +246,9 @@ export default function OpenOrdersScreen({ navigation }: Props) {
           </Text>
         </View>
       ) : null}
+      <View style={{ marginHorizontal: -16, marginTop: 8 }}>
+        <PruebaToggle hidden={orders.filter((o) => o.es_prueba).length} show={verPruebas} onToggle={() => setVerPruebas((v) => !v)} />
+      </View>
     </View>
   );
 
@@ -291,11 +296,12 @@ export default function OpenOrdersScreen({ navigation }: Props) {
             ) : null
           }
           renderItem={({ item }) => (
-            <View style={[styles.card, p.shadowCard]}>
+            <View style={[styles.card, p.shadowCard, item.es_prueba && { borderColor: '#f59e0b', borderWidth: 2 }]}>
               <View style={styles.cardTop}>
                 <View style={styles.folioRow}>
                   <View style={styles.dot} />
                   <Text style={styles.folioText}>#{item.folio_display}</Text>
+                  {item.es_prueba ? <PruebaBadge /> : null}
                 </View>
                 {item.iata ? (
                   <View style={styles.iataBadge}>

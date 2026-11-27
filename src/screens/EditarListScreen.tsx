@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { PruebaBadge, PruebaToggle } from '../components/PruebaBits';
 import { useTrackSearch, track } from '../utils/useTrack';
 import Loading from '../components/Loading';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -33,6 +34,7 @@ export default function EditarListScreen({ navigation }: Props) {
   const p = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [query, setQuery] = useState('');
+  const [verPruebas, setVerPruebas] = useState(false); // por defecto las O.S. de PRUEBA no se muestran
   useTrackSearch('EditarList', query);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
@@ -54,10 +56,12 @@ export default function EditarListScreen({ navigation }: Props) {
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
     () =>
-      q
-        ? orders.filter((o) => `${o.folio_display} ${o.airline} ${o.flight ?? ''} ${o.iata}`.toLowerCase().includes(q))
-        : orders,
-    [orders, q]
+      orders.filter(
+        (o) =>
+          (verPruebas || !o.es_prueba) &&
+          (!q || `${o.folio_display} ${o.airline} ${o.flight ?? ''} ${o.iata}`.toLowerCase().includes(q))
+      ),
+    [orders, q, verPruebas]
   );
 
   const handleToggle = (item: AnyOrderDTO) => {
@@ -117,6 +121,8 @@ export default function EditarListScreen({ navigation }: Props) {
           />
         </View>
 
+        <PruebaToggle hidden={orders.filter((o) => o.es_prueba).length} show={verPruebas} onToggle={() => setVerPruebas((v) => !v)} />
+
         {isLoading ? (
           <Loading style={{ marginTop: 30 }} />
         ) : error ? (
@@ -161,7 +167,10 @@ export default function EditarListScreen({ navigation }: Props) {
               return (
                 <View style={[styles.card, p.shadowCard]}>
                   <View style={styles.cardTop}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
                     <Text style={styles.folioText}>#{item.folio_display}</Text>
+                    {item.es_prueba ? <PruebaBadge /> : null}
+                  </View>
                     <View style={[styles.statusBadge, { backgroundColor: st.bg }]}>
                       <Text style={[styles.statusText, { color: st.color }]}>{st.label}</Text>
                     </View>
