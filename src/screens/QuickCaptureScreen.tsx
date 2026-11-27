@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -25,7 +25,9 @@ import { getHotelsForOrder, getOpenOrders, OpenOrderDTO } from '../api/client';
 import { addPax } from '../api/queuedWrites';
 import { getCache, saveCache } from '../utils/offlineCache';
 import { useOfflineLoad } from '../utils/useOfflineLoad';
-import { CaptureRoom, OCUPATION_NAME, parseCapture } from '../utils/quickCapture';
+import { CaptureRoom, CapturePax, OCUPATION_CAP, OCUPATION_NAME, parseCapture } from '../utils/quickCapture';
+import { logEvent } from '../utils/activityLog';
+import VoucherScanButton from '../components/VoucherScanButton';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import BrandMark from '../components/BrandMark';
 
@@ -59,6 +61,8 @@ export default function QuickCaptureScreen({ navigation }: Props) {
   const [hotelInfo, setHotelInfo] = useState<HotelInfo | null>(null);
   const [loadingHotels, setLoadingHotels] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [micTip, setMicTip] = useState(false);
+  const inputRef = React.useRef<React.ElementRef<typeof TextInput>>(null);
 
   // El texto escrito no se pierde si sales de la pantalla o se cierra la app.
   useEffect(() => {
@@ -139,22 +143,54 @@ export default function QuickCaptureScreen({ navigation }: Props) {
       Alert.alert('No encontré pasajeros', 'Escribe al menos un nombre. Ejemplo:\n\n' + EXAMPLE);
       return;
     }
+    logEvent('captura_rapida', {
+      text: `Interpretó ${parsed.length} habitación(es) del texto: ${text.replace(/\s+/g, ' ').slice(0, 600)}`,
+      folio: order.folio,
+      id_airport: order.id_airport,
+    });
     setRooms(parsed);
   };
 
-  const roomProblems = (r: CaptureRoom): string[] => {
-    const base = r.problems.filter((x) => x !== HOTEL_MSG);
-    return r.idHotel === null ? [HOTEL_MSG, ...base] : base;
+  /** Lo que falta o esta mal en una habitacion, calculado en vivo (se corrige editando el formulario). */
+  const validate = (r: CaptureRoom): string[] => {
+    const out: string[] = [];
+    if (r.idHotel === null) out.push('Falta elegir el hotel');
+    if (showOcupation && !r.ocupation) out.push('Falta el tipo de habitación');
+    r.pax.forEach((x, i) => {
+      if (!x.name.trim()) out.push(`Falta el nombre del pasajero ${i + 1}`);
+    });
+    const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(r.fSalida.trim());
+    const dt = d ? new Date(Number(d[1]), Number(d[2]) - 1, Number(d[3])) : null;
+    if (!d || !dt || dt.getMonth() !== Number(d[2]) - 1 || dt.getDate() !== Number(d[3])) out.push('La fecha debe ser AAAA-MM-DD (ej. 2026-11-28)');
+    const h = /^(\d{1,2}):(\d{2})$/.exec(r.hora.trim());
+    if (!h || Number(h[1]) > 23 || Number(h[2]) > 59) out.push('La hora debe ser HH:MM (ej. 06:00)');
+    if (showOcupation && r.ocupation && OCUPATION_CAP[r.ocupation]) {
+      const people = r.pax.filter((x) => x.type !== 'infante' && x.name.trim()).length;
+      if (people > OCUPATION_CAP[r.ocupation]) out.push(`Caben ${OCUPATION_CAP[r.ocupation]} en ${OCUPATION_NAME[r.ocupation]} y hay ${people} (los infantes no cuentan)`);
+    }
+    return out;
   };
+
+  const updateRoom = (roomId: number, patch: Partial<CaptureRoom>) =>
+    setRooms((prev) => (prev ?? []).map((r) => (r.id === roomId ? { ...r, ...patch } : r)));
+
+  const updatePax = (roomId: number, idx: number, patch: Partial<CapturePax>) =>
+    setRooms((prev) => (prev ?? []).map((r) => (r.id === roomId ? { ...r, pax: r.pax.map((x, i) => (i === idx ? { ...x, ...patch } : x)) } : r)));
+
+  const addPaxTo = (roomId: number) =>
+    setRooms((prev) => (prev ?? []).map((r) => (r.id === roomId ? { ...r, pax: [...r.pax, { name: '', type: 'adulto' }] } : r)));
+
+  const removePaxFrom = (roomId: number, idx: number) =>
+    setRooms((prev) => (prev ?? []).map((r) => (r.id === roomId ? { ...r, pax: r.pax.filter((_, i) => i !== idx) } : r)));
 
   const setRoomHotel = (roomId: number, hotelId: number) => {
     const h = hotelInfo?.hotels.find((x) => x.id === hotelId);
-    setRooms((prev) => (prev ?? []).map((r) => (r.id === roomId ? { ...r, idHotel: hotelId, hotelName: h ? h.name.trim() : r.hotelName } : r)));
+    updateRoom(roomId, { idHotel: hotelId, hotelName: h ? h.name.trim() : '' });
   };
 
   const removeRoom = (roomId: number) => setRooms((prev) => (prev ?? []).filter((r) => r.id !== roomId));
 
-  const blocked = useMemo(() => (rooms ?? []).some((r) => roomProblems(r).length > 0), [rooms]);
+  const blocked = (rooms ?? []).length === 0 || (rooms ?? []).some((r) => validate(r).length > 0);
 
   const confirm = async () => {
     if (!order || !rooms || blocked || isSaving) return;
@@ -200,6 +236,13 @@ export default function QuickCaptureScreen({ navigation }: Props) {
       Alert.alert('Sin conexión', 'No se pudo guardar. Lo que ya se guardó no se duplica; revisa e intenta de nuevo.');
     } finally {
       setIsSaving(false);
+    }
+    if (saved > 0) {
+      logEvent('captura_rapida', {
+        text: `Confirmó ${saved} habitación(es)${queued ? ' (guardadas sin internet)' : ''}: ` + rooms.slice(0, saved).map((x) => x.pax.map((y) => y.name).join(' + ')).join(' | '),
+        folio: order.folio,
+        id_airport: order.id_airport,
+      });
     }
     setRooms(remaining.length ? remaining : null);
     if (saved > 0 && remaining.length === 0) {
@@ -301,10 +344,30 @@ export default function QuickCaptureScreen({ navigation }: Props) {
               <Text style={styles.sectionTitle}>2. Escribe o dicta los pasajeros</Text>
               <Text style={styles.hint}>
                 Una habitación por renglón. Puedes decir: nombres, tipo de habitación (sencilla/doble/triple/cuádruple), hotel,
-                «salida 28 nov» y hora («6am»). Para niño o infante agrega (niño) o (infante). 🎤 Usa el micrófono de tu teclado
-                para dictar.
+                «salida 28 nov» y hora («6am»). Para niño o infante agrega (niño) o (infante). Si lo dictas, di «otra habitación» entre
+                una y otra.
               </Text>
+              <View style={styles.actionsRow}>
+                <Pressable
+                  style={styles.dictBtn}
+                  onPress={() => {
+                    setMicTip(true);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  <Ionicons name="mic" size={18} color={p.onAccent} />
+                  <Text style={styles.dictText}>Dictar</Text>
+                </Pressable>
+              </View>
+              {micTip ? (
+                <View style={styles.tipBox}>
+                  <Text style={styles.tipText}>
+                    🎤 Ya se abrió el teclado. Toca el micrófono del teclado (a un lado de la barra espaciadora; en Samsung/Google dice «Voz») y habla. No importa si el texto sale mal escrito: se entiende igual y lo revisas antes de guardar.
+                  </Text>
+                </View>
+              ) : null}
               <TextInput
+                ref={inputRef}
                 style={styles.input}
                 value={text}
                 onChangeText={setText}
@@ -330,6 +393,14 @@ export default function QuickCaptureScreen({ navigation }: Props) {
                   </Pressable>
                 ) : null}
               </View>
+              <Text style={[styles.hint, { marginTop: 14 }]}>
+                📷 ¿Tienes el voucher o una identificación? Tómale foto y la app lee el nombre y lo agrega al texto.
+              </Text>
+              <VoucherScanButton
+                idOrder={order!.folio}
+                idAirport={order!.id_airport}
+                onNameDetected={(name) => setText((cur) => (cur.trim() ? cur.replace(/\s+$/, '') + '\n' : '') + name)}
+              />
               {loadingHotels ? (
                 <Text style={[styles.hint, { marginTop: 10 }]}>Cargando hoteles de la O.S.…</Text>
               ) : hotelInfo && hotelInfo.hotels.length === 0 ? (
@@ -352,43 +423,90 @@ export default function QuickCaptureScreen({ navigation }: Props) {
           <View style={styles.flex}>
             <ScrollView contentContainerStyle={styles.content}>
               <Text style={styles.sectionTitle}>3. Revisa y confirma</Text>
-              <Text style={styles.hint}>Esto es lo que voy a guardar. Si algo está mal, regresa y corrige el texto.</Text>
+              <Text style={styles.hint}>
+                Así quedaría en «Agregar pasajero». Puedes corregir cualquier dato aquí mismo; lo marcado en rojo hay que arreglarlo
+                para poder confirmar.
+              </Text>
               {rooms.map((r, i) => {
-                const probs = roomProblems(r);
+                const probs = validate(r);
                 return (
                   <View key={r.id} style={[styles.roomCard, p.shadowCard, probs.length > 0 && styles.roomCardBad]}>
                     <View style={styles.roomHead}>
-                      <Text style={styles.roomTitle}>
-                        Habitación {i + 1}
-                        {r.ocupation ? ` · ${OCUPATION_NAME[r.ocupation]}` : ''}
-                      </Text>
+                      <Text style={styles.roomTitle}>Habitación {i + 1}</Text>
                       <Pressable onPress={() => removeRoom(r.id)} hitSlop={10}>
                         <Ionicons name="trash-outline" size={18} color={p.dangerText} />
                       </Pressable>
                     </View>
+
+                    <Text style={styles.fieldLabel}>Hotel</Text>
+                    <View style={styles.chipRow}>
+                      {(hotelInfo?.hotels ?? []).map((h) => (
+                        <Pressable key={h.id} style={[styles.chip, r.idHotel === h.id && styles.chipOn]} onPress={() => setRoomHotel(r.id, h.id)}>
+                          <Text style={[styles.chipText, r.idHotel === h.id && styles.chipTextOn]}>{h.name.trim()}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+
+                    {showOcupation ? (
+                      <>
+                        <Text style={styles.fieldLabel}>Tipo de habitación</Text>
+                        <View style={styles.chipRow}>
+                          {Object.keys(OCUPATION_NAME).map((code) => (
+                            <Pressable key={code} style={[styles.chip, r.ocupation === code && styles.chipOn]} onPress={() => updateRoom(r.id, { ocupation: code })}>
+                              <Text style={[styles.chipText, r.ocupation === code && styles.chipTextOn]}>{OCUPATION_NAME[code]}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </>
+                    ) : null}
+
                     {r.pax.map((x, k) => (
-                      <View key={k} style={styles.paxRow}>
-                        <Ionicons name="person" size={14} color={p.textMuted} />
-                        <Text style={styles.paxName}>{x.name}</Text>
-                        <Text style={styles.paxType}>{TIPO[x.type]}</Text>
+                      <View key={k} style={styles.paxBox}>
+                        <View style={styles.paxBoxHead}>
+                          <Text style={styles.fieldLabel}>Pasajero {k + 1}</Text>
+                          {r.pax.length > 1 ? (
+                            <Pressable onPress={() => removePaxFrom(r.id, k)} hitSlop={8}>
+                              <Ionicons name="close-circle" size={18} color={p.textMuted} />
+                            </Pressable>
+                          ) : null}
+                        </View>
+                        <TextInput
+                          style={styles.field}
+                          value={x.name}
+                          onChangeText={(v) => updatePax(r.id, k, { name: v })}
+                          placeholder="Nombre completo"
+                          placeholderTextColor={p.textMuted}
+                          autoCapitalize="words"
+                        />
+                        <View style={styles.chipRow}>
+                          {(['adulto', 'nino', 'infante'] as const).map((tp) => (
+                            <Pressable key={tp} style={[styles.chip, x.type === tp && styles.chipOn]} onPress={() => updatePax(r.id, k, { type: tp })}>
+                              <Text style={[styles.chipText, x.type === tp && styles.chipTextOn]}>{TIPO[tp]}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
                       </View>
                     ))}
-                    <View style={styles.metaRow}>
-                      <Text style={styles.metaText}>🏨 {r.hotelName || '—'}</Text>
-                      <Text style={styles.metaText}>
-                        🛫 {r.fSalida ? prettyDate(r.fSalida) : '—'} · {r.hora || '—'}
-                      </Text>
-                      {r.voucher ? <Text style={styles.metaText}>🎫 {r.voucher}</Text> : null}
-                    </View>
-                    {r.idHotel === null && hotelInfo && hotelInfo.hotels.length > 0 ? (
-                      <View style={styles.chipRow}>
-                        {hotelInfo.hotels.map((h) => (
-                          <Pressable key={h.id} style={styles.chip} onPress={() => setRoomHotel(r.id, h.id)}>
-                            <Text style={styles.chipText}>{h.name.trim()}</Text>
-                          </Pressable>
-                        ))}
+                    <Pressable onPress={() => addPaxTo(r.id)} hitSlop={8} style={styles.linkBtn}>
+                      <Ionicons name="person-add-outline" size={14} color={p.accentText} />
+                      <Text style={styles.linkText}>Agregar otro pasajero a esta habitación</Text>
+                    </Pressable>
+
+                    <View style={styles.twoCols}>
+                      <View style={{ flex: 1.3 }}>
+                        <Text style={styles.fieldLabel}>Fecha de salida</Text>
+                        <TextInput style={styles.field} value={r.fSalida} onChangeText={(v) => updateRoom(r.id, { fSalida: v })} placeholder="AAAA-MM-DD" placeholderTextColor={p.textMuted} keyboardType="numbers-and-punctuation" />
+                        {r.fSalida ? <Text style={styles.note}>{prettyDate(r.fSalida)}</Text> : null}
                       </View>
-                    ) : null}
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.fieldLabel}>Hora</Text>
+                        <TextInput style={styles.field} value={r.hora} onChangeText={(v) => updateRoom(r.id, { hora: v })} placeholder="HH:MM" placeholderTextColor={p.textMuted} keyboardType="numbers-and-punctuation" />
+                      </View>
+                    </View>
+
+                    <Text style={styles.fieldLabel}>Voucher (opcional)</Text>
+                    <TextInput style={styles.field} value={r.voucher} onChangeText={(v) => updateRoom(r.id, { voucher: v })} placeholder="Número de voucher" placeholderTextColor={p.textMuted} autoCapitalize="characters" />
+
                     {probs.map((m, k) => (
                       <Text key={'p' + k} style={styles.problem}>
                         ⚠ {m}
@@ -497,8 +615,20 @@ const makeStyles = (p: ThemeTokens) =>
     metaRow: { marginTop: 8, gap: 3 },
     metaText: { color: p.textMuted, fontSize: 12.5 },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
-    chip: { backgroundColor: p.accent, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
-    chipText: { color: p.onAccent, fontSize: 12, fontWeight: '700' },
+    chip: { backgroundColor: p.card, borderWidth: 1, borderColor: p.cardBorder, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+    chipOn: { backgroundColor: p.accent, borderColor: p.accent },
+    chipText: { color: p.text, fontSize: 12, fontWeight: '700' },
+    chipTextOn: { color: p.onAccent },
+    fieldLabel: { color: p.textMuted, fontSize: 11.5, fontWeight: '800', marginTop: 12, marginBottom: 5 },
+    field: { backgroundColor: p.isDark ? p.modalBg : '#ffffff', borderWidth: 1, borderColor: p.cardBorder, borderRadius: radii.input, paddingHorizontal: 12, height: 44, color: p.text, fontSize: 14.5 },
+    paxBox: { borderTopWidth: 1, borderTopColor: p.divider, marginTop: 6 },
+    paxBoxHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    twoCols: { flexDirection: 'row', gap: 10 },
+    actionsRow: { flexDirection: 'row', marginBottom: 10 },
+    dictBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: p.accent, borderRadius: 24, paddingHorizontal: 18, height: 44 },
+    dictText: { color: p.onAccent, fontWeight: '800', fontSize: 14 },
+    tipBox: { backgroundColor: p.warnSoft, borderWidth: 1, borderColor: p.warnBorder, borderRadius: radii.input, padding: 10, marginBottom: 10 },
+    tipText: { color: p.warnText, fontSize: 12, lineHeight: 17 },
     problem: { color: p.dangerText, fontSize: 12, fontWeight: '700', marginTop: 8 },
     note: { color: p.textMuted, fontSize: 11.5, marginTop: 4 },
     footerBar: {

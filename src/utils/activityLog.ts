@@ -1,6 +1,8 @@
 import { AppState, Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 import NetInfo from '@react-native-community/netinfo';
+import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { api, getApiEnvironment } from '../api/client';
 
 /**
@@ -70,6 +72,16 @@ export function setActivityUser(userId: number | null) {
   if (userId !== null) scheduleFlush(3_000);
 }
 
+/** Datos del telefono/app para soporte (version, canal y actualizacion que esta usando). */
+function deviceInfo(): string {
+  try {
+    const upd = Updates.updateId ? Updates.updateId.slice(0, 8) : 'embebida';
+    return `Equipo: ${Platform.OS} ${String(Platform.Version)} | App ${Constants.expoConfig?.version ?? '?'} | canal ${Updates.channel ?? '-'} | actualizacion ${upd}`;
+  } catch {
+    return '';
+  }
+}
+
 /** Anota un evento. Nunca lanza error ni espera al servidor. */
 export function logEvent(type: string, data: ActivityData = {}): void {
   if (Platform.OS === 'web' || uid === null) return;
@@ -88,7 +100,11 @@ export function logEvent(type: string, data: ActivityData = {}): void {
           data.screen ?? null,
           data.folio ?? null,
           data.id_airport ?? null,
-          data.text ? data.text.slice(0, 900) : null,
+          (() => {
+            const base = data.text ?? '';
+            const full = type === 'app_abierta' || type === 'inicio_sesion' ? (base ? base + ' | ' : '') + deviceInfo() : base;
+            return full ? full.slice(0, 900) : null;
+          })(),
         ]
       );
       // Tope: si por semanas no hubo señal, se conservan los mas recientes.

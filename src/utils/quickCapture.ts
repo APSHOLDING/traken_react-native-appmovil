@@ -163,11 +163,28 @@ function bestHotel(phrase: string, hotels: { id: number; name: string }[]): { id
   return scored[0].h;
 }
 
+/**
+ * Separa las habitaciones: un renglon (o ;) por habitacion y, para cuando se DICTA
+ * (el dictado no trae saltos de renglon), tambien con "otra habitacion", "siguiente", "luego"...
+ */
+function splitRooms(text: string): string[] {
+  const out: string[] = [];
+  text.split(/\n|;/).forEach((line) => {
+    const pl = plain(line);
+    const re = /\b(?:otra habitacion|otro cuarto|otra hab|siguiente habitacion|siguiente cuarto|siguiente|nueva habitacion|despues|luego)\b/g;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(pl))) {
+      out.push(line.slice(last, m.index));
+      last = m.index + m[0].length;
+    }
+    out.push(line.slice(last));
+  });
+  return out.map((x) => x.trim()).filter((x) => x.length > 0);
+}
+
 export function parseCapture(text: string, ctx: CaptureContext, now: Date = new Date()): CaptureRoom[] {
-  const segments = text
-    .split(/\n|;/)
-    .map((x) => x.trim())
-    .filter((x) => x.length > 0);
+  const segments = splitRooms(text);
 
   const rooms: CaptureRoom[] = [];
   segments.forEach((seg, idx) => {

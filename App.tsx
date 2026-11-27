@@ -1,14 +1,13 @@
 import React from 'react';
 import { ActivityIndicator, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import {
-  useFonts,
-  Raleway_400Regular,
-  Raleway_500Medium,
-  Raleway_600SemiBold,
-  Raleway_700Bold,
-  Raleway_800ExtraBold,
-} from '@expo-google-fonts/raleway';
+// Solo los 5 pesos que se usan (importar todo el paquete metia las 18 fuentes en la app: ~3 MB de mas).
+import { useFonts } from 'expo-font';
+import { Raleway_400Regular } from '@expo-google-fonts/raleway/400Regular';
+import { Raleway_500Medium } from '@expo-google-fonts/raleway/500Medium';
+import { Raleway_600SemiBold } from '@expo-google-fonts/raleway/600SemiBold';
+import { Raleway_700Bold } from '@expo-google-fonts/raleway/700Bold';
+import { Raleway_800ExtraBold } from '@expo-google-fonts/raleway/800ExtraBold';
 import { AuthProvider } from './src/context/AuthContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
