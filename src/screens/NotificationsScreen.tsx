@@ -124,8 +124,19 @@ export default function NotificationsScreen({ navigation }: Props) {
             }
             renderItem={({ item }) => {
               const info = (item.evento && EVENT_INFO[item.evento]) || DEFAULT_EVENT_INFO;
+              const canOpen = !!item.id_order && !!item.id_airport;
               return (
-                <View style={[styles.card, p.shadowCard]}>
+                <Pressable
+                  disabled={!canOpen}
+                  onPress={() =>
+                    navigation.navigate('DetalleOrden', {
+                      folio: item.id_order as number,
+                      idAirport: item.id_airport as number,
+                      folioDisplay: `#${item.id_order}`,
+                    })
+                  }
+                  style={[styles.card, p.shadowCard]}
+                >
                   <View style={[styles.iconWrap, { backgroundColor: info.color }]}>
                     <Ionicons name={info.icon} size={18} color="#fff" />
                   </View>
@@ -139,9 +150,9 @@ export default function NotificationsScreen({ navigation }: Props) {
                       ) : null}
                     </View>
                     <Text style={styles.cardBody} numberOfLines={2}>{item.cuerpo}</Text>
-                    <Text style={styles.cardTime}>{timeAgo(item.sent_at)}</Text>
+                    <Text style={styles.cardTime}>{timeAgo(item.sent_at)}{canOpen ? '  ·  Toca para abrir la O.S.' : ''}</Text>
                   </View>
-                </View>
+                </Pressable>
               );
             }}
             ListFooterComponent={

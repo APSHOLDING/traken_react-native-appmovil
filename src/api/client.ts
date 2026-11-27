@@ -389,6 +389,19 @@ export async function addPax(payload: AddPaxPayload): Promise<AddPaxResponse> {
   return data;
 }
 
+export interface AddPaxToRoomPayload {
+  id_order: number;
+  id_airport: number;
+  id_orders_open: number;
+  passengers: PaxEntry[];
+}
+
+/** Suma pasajeros a una habitacion que ya existe (solo con internet). */
+export async function addPaxToRoom(payload: AddPaxToRoomPayload): Promise<AddPaxResponse> {
+  const { data } = await api.post<AddPaxResponse>('/orders/addPaxToRoom.php', payload);
+  return data;
+}
+
 export interface NamedOption {
   id: number;
   name: string;
@@ -1715,6 +1728,8 @@ export interface NotificationItem {
   titulo: string | null;
   cuerpo: string | null;
   sent_at: string;
+  id_order?: number;
+  id_airport?: number;
 }
 
 export interface NotificationsResponse {

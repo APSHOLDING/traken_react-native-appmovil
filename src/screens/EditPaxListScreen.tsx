@@ -136,6 +136,24 @@ export default function EditPaxListScreen({ route, navigation }: Props) {
                   <Text style={styles.cardName}>{item.name}</Text>
                   <Text style={styles.cardSub}>{item.hotel_name.trim()} · {item.date_out}</Text>
                 </View>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() =>
+                    navigation.navigate('AddPax', {
+                      folio, idAirport, folioDisplay, iata, typeAirline,
+                      room: {
+                        idOrdersOpen: item.id_orders_open,
+                        idHotel: item.id_hotel,
+                        hotelName: item.hotel_name,
+                        ocupation: item.ocupation,
+                        people: (items ?? []).filter((x) => x.id_orders_open === item.id_orders_open && x.type !== 'infante').length,
+                      },
+                    })
+                  }
+                  style={{ marginRight: 8 }}
+                >
+                  <Ionicons name="person-add-outline" size={18} color={p.accentText} />
+                </Pressable>
                 <Ionicons
                   name={item.voucher_img_url ? 'checkmark-circle' : 'alert-circle-outline'}
                   size={16}
